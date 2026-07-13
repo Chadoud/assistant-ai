@@ -1,0 +1,59 @@
+# Unlimited-entitlement Windows build — no trial day cap (internal / demo).
+# Trigger: Actions → Build Windows Unlimited, or `gh workflow run build-windows-unlimited.yml`
+name: Build Windows Unlimited
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows-unlimited:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build unlimited Windows package
+        shell: pwsh
+        env:
+          GMAIL_OAUTH_CLIENT_JSON_B64: ${{ secrets.GMAIL_OAUTH_CLIENT_JSON_B64 }}
+          EXOSITES_DROPBOX_APP_KEY: ${{ secrets.EXOSITES_DROPBOX_APP_KEY }}
+          EXOSITES_MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets.EXOSITES_MICROSOFT_OAUTH_CLIENT_ID }}
+          EXOSITES_NOTION_CLIENT_ID: ${{ secrets.EXOSITES_NOTION_CLIENT_ID }}
+          EXOSITES_NOTION_CLIENT_SECRET: ${{ secrets.EXOSITES_NOTION_CLIENT_SECRET }}
+          EXOSITES_INFOMANIAK_CLIENT_ID: ${{ secrets.EXOSITES_INFOMANIAK_CLIENT_ID }}
+          EXOSITES_INFOMANIAK_CLIENT_SECRET: ${{ secrets.EXOSITES_INFOMANIAK_CLIENT_SECRET }}
+          EXOSITES_SLACK_CLIENT_ID: ${{ secrets.EXOSITES_SLACK_CLIENT_ID }}
+          EXOSITES_SLACK_CLIENT_SECRET: ${{ secrets.EXOSITES_SLACK_CLIENT_SECRET }}
+        run: |
+          npm install
+          cd frontend && npm install && cd ..
+          pip install -r backend/requirements.txt pyinstaller
+          npm run build:frontend
+          cd backend
+          python -m PyInstaller backend.spec
+          cd ..
+          New-Item -ItemType Directory -Force -Path electron/resources | Out-Null
+          Copy-Item backend/dist/backend.exe electron/resources/backend.exe -Force
+          bash scripts/prepare-release-resources.sh
+          $env:EXO_UNLIMITED_BUILD = "1"
+          npm run package:win:unlimited
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-unlimited.iss
+
+      - name: Upload unlimited Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXO-Windows-Unlimited
+          retention-days: 14
+          path: |
+            dist-app-unlimited/Exo/**
+            dist-installer-unlimited/Exo Unlimited Setup.exe

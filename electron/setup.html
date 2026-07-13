@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exo — Setup</title>
+  <script src="setup-ui.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0b2e;
+      --card: color-mix(in srgb, #0f0b2e 88%, #4f46e5 12%);
+      --accent: #6366f1;
+      --accent-hover: #312e81;
+      --accent-light: color-mix(in srgb, #3730a3 15%, transparent);
+      --text: #eef2ff;
+      --muted: color-mix(in srgb, #eef2ff 55%, #4f46e5 45%);
+      --border: color-mix(in srgb, #3730a3 70%, #0f0b2e 30%);
+      --success: #4caf7d;
+      --error: #ef5350;
+    }
+
+    html {
+      background: var(--card);
+      height: 100%;
+    }
+
+    body {
+      /* Opaque fill so macOS traffic lights (hiddenInset) sit on the same surface as the card, not on the desktop */
+      background: var(--card);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+      user-select: text;
+      padding: 18px 24px 28px;
+      box-sizing: border-box;
+    }
+
+    /* Extra left inset only where system traffic lights exist */
+    html.mac-traffic body {
+      padding-left: 78px;
+    }
+
+    .card {
+      background: var(--card);
+      border: none;
+      border-radius: 20px;
+      padding: 24px 40px 22px;
+      -webkit-app-region: no-drag;
+      width: 100%;
+      max-width: 480px;
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      flex: 0 0 auto;
+      overflow: visible;
+    }
+
+    /* Full-width strip so the frameless window can be dragged (not just the tiny logo area) */
+    .window-drag {
+      align-self: stretch;
+      height: 32px;
+      flex-shrink: 0;
+      margin: -24px -40px 0 -40px;
+      border-radius: 20px 20px 0 0;
+      -webkit-app-region: drag;
+    }
+
+    .card-top {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .icon {
+      width: 56px;
+      height: 56px;
+      background: transparent;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-app-region: no-drag;
+    }
+
+    .icon img { width: 48px; height: 48px; object-fit: contain; display: block; }
+
+    h1 { font-size: 18px; font-weight: 700; line-height: 1.25; }
+    .subtitle { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.6; }
+
+    /* Steps: fixed window height (see createSetupWindow) fits all rows — no inner scroll */
+    .steps {
+      width: 100%;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      overflow: visible;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      transition: all 0.3s;
+    }
+
+    .step.active  { border-color: rgba(108,99,255,0.5); background: var(--accent-light); }
+    .step.done    { border-color: rgba(76,175,125,0.4); background: rgba(76,175,125,0.07); }
+    .step.error   { border-color: rgba(239,83,80,0.4);  background: rgba(239,83,80,0.07); }
+
+    .step-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      flex-shrink: 0;
+      background: var(--border);
+      color: var(--muted);
+    }
+    .step.active .step-icon  { background: var(--accent); color: white; }
+    .step.done   .step-icon  { background: var(--success); color: white; }
+    .step.error  .step-icon  { background: var(--error); color: white; }
+
+    .step-body { flex: 1; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+    .step-label { font-size: 13px; font-weight: 500; }
+    .step.active .step-label { color: var(--text); }
+    .step.done   .step-label { color: var(--success); }
+    .step.error  .step-label { color: var(--error); }
+
+    /* Per-step progress bar */
+    .step-bar-wrap {
+      display: none;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      position: relative;
+    }
+    .step.active .step-bar-wrap { display: block; }
+
+    .step-bar {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.35s ease;
+    }
+
+    /* Indeterminate shimmer when no real % yet */
+    .step-bar.indeterminate {
+      width: 40% !important;
+      animation: shimmer 1.4s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(280%); }
+    }
+
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .log-box { display: none; }
+
+    /* Progress bar */
+    .progress-wrap {
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.4s ease;
+    }
+
+    /* Done button */
+    .btn {
+      display: none;
+      padding: 10px 32px;
+      border-radius: 10px;
+      background: #4f46e5;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn.visible { display: block; flex-shrink: 0; margin-top: 2px; }
+
+    /* OCR confirmation overlay */
+    .ocr-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 11, 46, 0.82);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .ocr-overlay.visible { display: flex; }
+
+    .ocr-dialog {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 28px 24px;
+      max-width: 380px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .ocr-dialog h2 { font-size: 15px; font-weight: 700; }
+    .ocr-dialog p  { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+    .ocr-dialog a  { color: var(--accent); text-decoration: none; }
+    .ocr-dialog a:hover { text-decoration: underline; }
+    .ocr-dialog .ocr-actions {
+      display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px;
+    }
+    .ocr-btn {
+      padding: 8px 20px; border-radius: 8px; font-size: 13px;
+      font-weight: 600; border: none; cursor: pointer; transition: background 0.2s;
+    }
+    .ocr-btn.skip    { background: var(--border); color: var(--muted); }
+    .ocr-btn.skip:hover { background: color-mix(in srgb, #3730a3 40%, #0f0b2e 60%); color: var(--text); }
+    .ocr-btn.install { background: #4f46e5; color: white; }
+    .ocr-btn.install:hover { background: var(--accent-hover); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="window-drag" aria-hidden="true"></div>
+    <div class="card-top">
+      <div class="icon">
+        <img src="assets/logo.png" alt="" width="48" height="48" />
+      </div>
+
+      <div style="text-align:center">
+        <h1>Setting up Exo</h1>
+      </div>
+
+      <div style="width:100%">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+          <span style="font-size:11px; color:var(--muted);">Progress</span>
+          <span id="progress-pct" style="font-size:12px; font-weight:600; color:var(--accent);">0%</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" id="progress" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="steps" id="steps">
+      <div class="step" id="step-ollama">
+        <div class="step-icon" id="step-ollama-icon">1</div>
+        <div class="step-body">
+          <span class="step-label" id="step-ollama-label">Install Ollama (local AI runtime)</span>
+          <div class="step-bar-wrap"><div class="step-bar indeterminate" id="step-ollama-bar"></div></div>
+        </div>
+        <div class="spinner" id="step-ollama-spinner" style="display:none"></div>
+      </div>
+      <div class="step" id="step-start">
+        <div class="step-icon" id="step-start-icon">2</div>
+        <div class="step-body">
+          <span class="step-label" id="step-start-label">Start Ollama service</span>
+          <div class="step-bar-wrap"><div class="step-bar indeterminate" id="step-start-bar"></div></div>
+        </div>
+        <div class="spinner" id="step-start-spinner" style="display:none"></div>
+      </div>
+      <div class="step" id="step-model">
+        <div class="step-icon" id="step-model-icon">3</div>
+        <div class="step-body">
+          <span class="step-label" id="step-model-label">Download sort model (mistral ~4 GB)</span>
+          <div class="step-bar-wrap"><div class="step-bar indeterminate" id="step-model-bar"></div></div>
+        </div>
+        <div class="spinner" id="step-model-spinner" style="display:none"></div>
+      </div>
+      <div class="step" id="step-ocr">
+        <div class="step-icon" id="step-ocr-icon">4</div>
+        <div class="step-body">
+          <span class="step-label" id="step-ocr-label">OCR runtime — Tesseract (optional)</span>
+          <div class="step-bar-wrap"><div class="step-bar indeterminate" id="step-ocr-bar"></div></div>
+        </div>
+        <div class="spinner" id="step-ocr-spinner" style="display:none"></div>
+        <button id="ocr-retry-btn" type="button" style="display:none; padding:5px 12px; border-radius:7px; background:var(--accent); color:white; font-size:12px; font-weight:600; border:none; cursor:pointer; flex-shrink:0;">Retry</button>
+      </div>
+    </div>
+
+    <div class="log-box" id="log"></div>
+
+    <button class="btn" id="launch-btn" type="button">
+      Launch App
+    </button>
+  </div>
+
+  <!-- OCR install confirmation overlay -->
+  <div class="ocr-overlay" id="ocr-overlay">
+    <div class="ocr-dialog">
+      <h2>Install Tesseract OCR? (optional)</h2>
+      <p>
+        For reading text in scanned PDFs and images, the app uses
+        <strong>Tesseract</strong> (~50 MB). On Windows, install uses
+        <strong>winget</strong> and may prompt for Microsoft Store source terms.<br><br>
+        You can skip and add OCR later in Settings; sorting still works, with weaker results on scans.
+      </p>
+      <div class="ocr-actions">
+        <button class="ocr-btn skip" id="ocr-skip-btn" type="button">Skip for now</button>
+        <button class="ocr-btn install" id="ocr-install-btn" type="button">Install Tesseract</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

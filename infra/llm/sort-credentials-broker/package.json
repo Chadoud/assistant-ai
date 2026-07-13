@@ -1,0 +1,16 @@
+{
+  "name": "exo-sort-credentials-broker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mint LiteLLM virtual keys on the VPS (colocated with LiteLLM)",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

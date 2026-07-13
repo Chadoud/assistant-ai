@@ -1,0 +1,11 @@
+[
+  { "text": "<noise>", "junk": true, "noise_placeholder": true },
+  { "text": " Also,", "junk": true, "noise_placeholder": false },
+  { "text": " Sure.", "junk": false, "noise_placeholder": false },
+  { "text": "midi", "junk": false, "noise_placeholder": false },
+  { "text": "à midi", "junk": false, "noise_placeholder": false },
+  { "text": "15h", "junk": false, "noise_placeholder": false },
+  { "text": "une heure", "junk": false, "noise_placeholder": false },
+  { "text": "oui", "junk": false, "noise_placeholder": false },
+  { "text": "ok", "junk": false, "noise_placeholder": false }
+]

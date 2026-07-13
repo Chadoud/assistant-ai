@@ -1,0 +1,8 @@
+{
+  "id": "meeting_notes_multilingual",
+  "text": "Réunion projet Q3 — Action items: finalize API contract with vendor; budget approval due 15 Oct. Follow-up: send minutes to stakeholders.",
+  "existing_folders": ["Meetings", "Projects", "Legal", "Finance"],
+  "folder_contexts": {},
+  "filename_tokens": ["reunion", "q3"],
+  "gold_folder": "Meetings"
+}

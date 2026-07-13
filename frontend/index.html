@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Keep in sync with `VITE_API_BASE` / `BACKEND_PORT` (7799). Add origins here if you host the API elsewhere. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-eval'; connect-src 'self' http://127.0.0.1:7799 http://localhost:7799 ws://127.0.0.1:7799 ws://localhost:7799 http://127.0.0.1:5173 http://localhost:5173 ws://127.0.0.1:5173 ws://localhost:5173 https://api.exosites.ch; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; frame-src 'none';"
+    />
+    <title>Exo</title>
+    <link rel="icon" type="image/png" href="./logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body style="margin:0;background:#0f1117;min-height:100%">
+    <div id="root" style="min-height:100%"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

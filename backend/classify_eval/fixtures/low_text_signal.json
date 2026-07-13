@@ -1,0 +1,8 @@
+{
+  "id": "low_text_signal",
+  "text": "LOW_SIGNAL_FALLBACK kind=scanned_pdf filename=scan001",
+  "existing_folders": ["Scans", "Archive"],
+  "folder_contexts": {},
+  "filename_tokens": ["scan001"],
+  "gold_folder": null
+}

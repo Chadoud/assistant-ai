@@ -1,0 +1,8 @@
+{
+  "id": "passport_renewal_letter",
+  "text": "Your passport renewal application has been received. Please attend valid ID documentation appointment. Fee payment instructions: reference on wire transfer.",
+  "existing_folders": ["Identity", "Travel", "Finance", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["passport", "renewal"],
+  "gold_folder": "Identity"
+}

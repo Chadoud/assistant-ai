@@ -1,0 +1,8 @@
+{
+  "id": "repetitive_boilerplate",
+  "text": "IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT IMPORTANT",
+  "existing_folders": ["Admin", "Archive"],
+  "folder_contexts": {},
+  "filename_tokens": ["notice"],
+  "gold_folder": null
+}

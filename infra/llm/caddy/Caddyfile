@@ -1,0 +1,57 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode gzip
+
+	# Desktop mints sort credentials here (VPS → LiteLLM localhost). Auth via api.exosites.ch.
+	handle /v1/sort/credentials* {
+		reverse_proxy sort-credentials-broker:4010
+	}
+
+	# Fair Redis queue for classify/embed (optional; enable SORT_LLM_QUEUE_ENABLED on broker).
+	handle /v1/sort/inference* {
+		reverse_proxy sort-queue:4011 {
+			transport http {
+				read_timeout 600s
+				write_timeout 600s
+			}
+		}
+	}
+
+	# Full sort analyze (OCR + classify) on VPS — see docs/CLOUD_SORT_VPS_PLAN.md
+	handle /v1/sort/worker/* {
+		uri strip_prefix /v1/sort/worker
+		reverse_proxy sort-worker:8020 {
+			transport http {
+				read_timeout 600s
+				write_timeout 600s
+			}
+		}
+	}
+
+	# Queue ops health/metrics (Prometheus scrapes internally; public for readiness probes).
+	handle /v1/sort/queue/* {
+		uri strip_prefix /v1/sort/queue
+		reverse_proxy sort-queue:4011 {
+			transport http {
+				read_timeout 30s
+				write_timeout 30s
+			}
+		}
+	}
+
+	reverse_proxy litellm:4000 {
+		flush_interval -1
+		transport http {
+			read_timeout 600s
+			write_timeout 600s
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+}

@@ -1,0 +1,4 @@
+# Shell scripts must stay LF — Windows CRLF breaks VPS deploy (bash\r).
+*.sh text eol=lf
+infra/llm/scripts/** text eol=lf
+scripts/*.sh text eol=lf

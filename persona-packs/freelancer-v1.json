@@ -1,0 +1,8 @@
+{
+  "id": "freelancer",
+  "name": "Freelancer",
+  "description": "Clients, invoices, and deadlines across projects.",
+  "instructions": "Track client names, deliverables, and payment follow-ups. Surface overdue tasks first.",
+  "tool_allowlist": ["search_everything", "list_tasks", "create_task"],
+  "memory_seeds": []
+}

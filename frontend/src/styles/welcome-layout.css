@@ -1,0 +1,79 @@
+/* Welcome host: follows :root theme tokens (light/dark). */
+.welcome-sphere-hero-host {
+  background-color: var(--bg-primary);
+}
+
+/* Keep welcome / launch WebGL from painting into the macOS traffic-light inset. */
+html.mac-traffic .welcome-sphere-hero-host {
+  overflow: hidden;
+}
+
+/* Welcome wizard — Tesseract visual sits behind the modal */
+.welcome-sphere-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* visible: overflow:hidden clips the translated WebGL canvas in some Electron layouts */
+  overflow: visible;
+  pointer-events: none;
+}
+
+.welcome-sphere-fallback {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 82% 58% at 50% 40%,
+    var(--welcome-splash-glow-secondary) 0%,
+    var(--bg-primary) 55%,
+    var(--welcome-splash-vignette) 100%
+  );
+}
+
+/* Wrapper for R3F — must stay opacity:1; a previous fade-from-0 animation stayed at 0 in Electron/WebGL. */
+.welcome-sphere-reveal {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  opacity: 1;
+}
+
+/* WebGL / chunk load failure — readable surface, not flat black */
+.welcome-sphere-error-fallback {
+  background: radial-gradient(
+    ellipse 86% 60% at 50% 40%,
+    var(--welcome-splash-glow-soft) 0%,
+    var(--bg-primary) 65%,
+    var(--welcome-splash-vignette) 100%
+  );
+}
+
+@keyframes welcome-setup-shell-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* First-run setup card: fades in last, after the sphere shell is visible. */
+.welcome-setup-shell-overlay {
+  animation: welcome-setup-shell-in 0.42s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-setup-shell-overlay {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+@layer components {
+  /* Uncertain bucket — white fill with grey diagonal stripes (queue donut, legend, metric). */
+  .uncertain-destination-hatch {
+    background: repeating-linear-gradient(-45deg, #ffffff 0 5px, #94a3b8 5px 10px);
+  }
+}

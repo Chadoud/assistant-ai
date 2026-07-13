@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy this file to integration-config.json before packaging. Bundled as a read-only resource — public URLs and OAuth client IDs only, no secrets.",
+  "EXOSITES_CLOUD_URL": "https://api.exosites.ch",
+  "EXOSITES_SORT_CREDENTIALS_URL": "https://llm-staging.exosites.ch",
+  "EXOSITES_DROPBOX_APP_KEY": "",
+  "EXOSITES_MICROSOFT_OAUTH_CLIENT_ID": "",
+  "EXOSITES_MICROSOFT_OAUTH_REDIRECT_PORT": "",
+  "EXOSITES_INFOMANIAK_CLIENT_ID": "",
+  "EXOSITES_INFOMANIAK_CLIENT_SECRET": "",
+  "EXOSITES_INFOMANIAK_OAUTH_REDIRECT_PORT": "",
+  "EXOSITES_NOTION_CLIENT_ID": "",
+  "EXOSITES_NOTION_CLIENT_SECRET": "",
+  "EXOSITES_SLACK_CLIENT_ID": "",
+  "EXOSITES_SLACK_CLIENT_SECRET": ""
+}

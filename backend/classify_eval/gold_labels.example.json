@@ -1,0 +1,14 @@
+[
+  {
+    "match": "*Relevé*",
+    "gold_folder": "Bank Statements"
+  },
+  {
+    "match": "*APG*",
+    "gold_folder": "Payroll"
+  },
+  {
+    "match": "LM_UI_UX Designer.pdf",
+    "gold_folder": "Job Applications"
+  }
+]

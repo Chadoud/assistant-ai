@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "id": "standup20260618T100000Z",
+      "summary": "Weekly standup",
+      "start": { "dateTime": "2026-06-18T10:00:00+02:00", "timeZone": "Europe/Paris" },
+      "end": { "dateTime": "2026-06-18T10:30:00+02:00", "timeZone": "Europe/Paris" },
+      "recurringEventId": "abc123standupmaster",
+      "htmlLink": "https://calendar.google.com/event?eid=example"
+    },
+    {
+      "id": "budget_review_single",
+      "summary": "Budget review",
+      "start": { "dateTime": "2026-06-19T14:00:00+02:00", "timeZone": "Europe/Paris" },
+      "end": { "dateTime": "2026-06-19T15:00:00+02:00", "timeZone": "Europe/Paris" },
+      "htmlLink": "https://calendar.google.com/event?eid=budget"
+    }
+  ]
+}

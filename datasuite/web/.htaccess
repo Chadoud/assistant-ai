@@ -1,0 +1,17 @@
+# DataSuite — PHP 8.4 (datasuite.exosites.ch)
+
+# Block env and lib from web access
+<FilesMatch "^\.">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^\.env - [F,L]
+  RewriteRule ^_lib/ - [F,L]
+</IfModule>
+
+# Default to dashboard (requires session in index.php)
+DirectoryIndex index.php

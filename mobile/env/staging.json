@@ -1,0 +1,6 @@
+{
+  "FLAVOR": "staging",
+  "EXOSITES_CLOUD_URL": "https://staging-api.exosites.ch",
+  "PRIVACY_POLICY_URL": "https://exosites.ch/eng/app-privacy",
+  "TERMS_OF_SERVICE_URL": "https://exosites.ch/eng/app-terms"
+}

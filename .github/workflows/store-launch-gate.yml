@@ -1,0 +1,29 @@
+name: Store launch gate
+
+# Runs on desktop v* and mobile-v* tags — blocks release if legal URLs or relay fail.
+on:
+  push:
+    tags:
+      - "v*"
+      - "mobile-v*"
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Legal URLs (required for stores)
+        run: npm run verify:legal-urls
+
+      - name: GO SYNC relay smoke (required for mobile)
+        if: startsWith(github.ref, 'refs/tags/mobile-v')
+        run: npm run verify:go-sync
+
+      - name: GO SYNC relay smoke (advisory for desktop v*)
+        if: startsWith(github.ref, 'refs/tags/v') && !startsWith(github.ref, 'refs/tags/mobile-v')
+        continue-on-error: true
+        run: npm run verify:go-sync

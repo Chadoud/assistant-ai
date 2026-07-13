@@ -1,0 +1,60 @@
+name: Nightly quality
+
+on:
+  schedule:
+    # 06:00 UTC daily — backend pytest + frontend unit tests (no installer build).
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --prefer-binary -r requirements.txt -r requirements-dev.txt
+      - name: Backend pytest
+        working-directory: backend
+        run: python -m pytest -q
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - working-directory: frontend
+        run: npm install
+      - name: Frontend unit tests
+        working-directory: frontend
+        run: npm test
+
+  electron-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Electron unit tests
+        run: npm run test:electron
+
+  cloud-node-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - working-directory: cloud-node
+        run: npm install
+      - name: cloud-node tests
+        working-directory: cloud-node
+        run: npm test

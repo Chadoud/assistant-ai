@@ -1,0 +1,17 @@
+# Infomaniak Cloud Server: 250 GB data volume is mounted at /mnt/data (not on /).
+# Run install-host-infomaniak.sh once, then:
+# docker compose -f compose/docker-compose.minimal-staging.yml \
+#   -f compose/docker-compose.infomaniak.yml --env-file .env up -d
+
+services:
+  ollama:
+    volumes:
+      - /mnt/data/ollama:/root/.ollama
+
+  postgres:
+    volumes:
+      - /mnt/data/postgres:/var/lib/postgresql/data
+
+volumes:
+  ollama_models: !reset null
+  postgres_data: !reset null

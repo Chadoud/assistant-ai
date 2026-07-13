@@ -1,0 +1,56 @@
+node_modules/
+datasuite/node_modules/
+frontend/node_modules/
+frontend/dist/
+**/__pycache__/
+backend/dist/
+backend/build/
+*.py[cod]
+.pytest_cache/
+backend/.pytest_cache/
+electron/resources/backend.exe
+electron/resources/backend
+electron/resources/backend-x64
+electron/resources/backend-arm64
+electron/resources/gmail_oauth_client.json
+electron/resources/integration-config.json
+.build-shims/
+electron/assets/icon.icns
+electron/assets/exosites.icns
+electron/dev-macos/
+dist-app/
+dist-app-unlimited/
+dist-installer/
+dist-installer-unlimited/
+.publish-downloads/
+.ci-artifacts-general/
+app-src/
+*.pyc
+backend/telemetry/data/*.sqlite
+backend/telemetry/data/*.sqlite-wal
+backend/telemetry/data/*.sqlite-shm
+frontend/test-results/
+frontend/coverage/
+backend/.coverage
+**/.coverage
+**/.DS_Store
+.DS_Store
+# Secrets — any directory (root `.env` alone does not match `backend/.env` on all Git versions)
+**/.env
+**/.env.server
+**/.env.deploy
+**/.env.bak
+**/.env.*.bak
+.env.release
+tools/ffmpeg/
+tools/license-keygen/private*.hex
+tools/license-keygen/*.secret
+# Local-only recovery branch after secret purge — never push
+# (enforced by scripts/push-new-public-repo.sh)
+
+# Accidental nested copy of third-party sample (duplicate of backend/actions).
+backend/Mark-XXXIX-main/
+.ga-sort-smoke/
+
+# Local Cursor IDE / agent config — not for public source
+.cursor/

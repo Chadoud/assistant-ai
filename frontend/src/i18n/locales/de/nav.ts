@@ -1,0 +1,25 @@
+/** Main nav labels (German). */
+export const deNavLocaleSlice = {
+  nav: {
+    queue: "Dateien sortieren",
+    overview: "Ergebnisse",
+    history: "Verlauf",
+    assistant: "Chat",
+    exo: "Exo",
+    memories: "Gedächtnis",
+    tasks: "Heute",
+    todo: "To Do",
+    todoToday: "Aufgaben",
+    todoInbox: "Posteingang",
+    todoUpcoming: "Demnächst",
+    todoDone: "Erledigt",
+    groupTodo: "To Do",
+    groupFiles: "Dateien",
+    groupAssistant: "Assistent",
+    groupSettings: "Einstellungen",
+    sources: "Externe Quellen",
+    settings: "Einstellungen",
+    profile: "Profil",
+    profileSignInHint: "Bei Ihrem Konto anmelden",
+  },
+} as const;

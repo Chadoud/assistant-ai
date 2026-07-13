@@ -1,0 +1,285 @@
+{
+  "name": "exosites-assistant",
+  "version": "1.1.45",
+  "description": "Exo — AI file sorting and second brain (desktop; cloud sort for subscribers)",
+  "main": "electron/main.js",
+  "author": "Exosites",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "scripts": {
+    "dev": "npm run dev:kill-ports && concurrently -k \"npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:first-run": "npm run dev:kill-ports && concurrently -k \"cross-env VITE_DEV_SCENARIO=first-run npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:returning": "npm run dev:kill-ports && concurrently -k \"cross-env VITE_DEV_SCENARIO=returning npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:skipped": "npm run dev:kill-ports && concurrently -k \"cross-env VITE_DEV_SCENARIO=skipped npm run dev:frontend\" \"npm run dev:electron\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:kill-vite": "kill-port 5173",
+    "dev:kill-ports": "kill-port 5173 7799",
+    "dev:stop": "kill-port 5173 7799 && (pkill -f 'run-electron-dev.js' 2>/dev/null || true) && (pkill -f 'electron.*exosites-assistant' 2>/dev/null || pkill -f 'Electron.*ai-file-sorter' 2>/dev/null || true)",
+    "dev:restart": "npm run dev:stop && npm run dev",
+    "dev:electron": "wait-on http://127.0.0.1:5173 && cross-env NODE_ENV=development node scripts/run-electron-dev.js",
+    "prepare": "husky",
+    "postinstall": "patch-package && node scripts/render-icon.cjs && node scripts/prepare-mac-dev-app.cjs && node scripts/generate-mac-icns.js",
+    "build:frontend": "cd frontend && npm run build",
+    "report:app-weight": "bash scripts/report-app-weight.sh",
+    "test": "cd frontend && npm run test && cd .. && npm run test:electron",
+    "test:electron": "node scripts/validate-electron-ipc-manifest.cjs && node scripts/verify-main-register-handlers.cjs && node --test electron/oauthNavigation.test.js electron/socialAuthCallback.test.js electron/cloudAuthProviders.test.js electron/cloudAuthSortCredentials.test.js electron/cloudAuthSessionRefresh.test.js electron/integrations/providersCatalog.test.js electron/integrations/microsoft.test.js electron/integrations/googleDriveExportMap.test.js electron/integrations/storage.test.js electron/systemCommandsV1.cloud.test.js electron/controlChars.test.js electron/readGmailDotenvForBackend.test.js electron/googleCredentialsJson.test.js electron/codegen/commandPolicy.test.js electron/codegen/buildErrorCapture.test.js electron/ipc/senderGuard.test.js electron/pushToTalk.test.js electron/secretsStore.test.js electron/backendAiSecrets.test.js electron/gmailOAuthMirrorStore.test.js electron/pathRegistry.test.js electron/syncWorker.test.js electron/localDataWipe.test.js electron/rendererDiagnostics.test.js electron/mainProcessDiagnostics.test.js electron/sortCredentials.test.js electron/telemetryCloudSync.test.js electron/telemetryQueue.test.js electron/installLocation.test.js electron/packagedBackendPath.test.js electron/integrations/whatsappEmbeddedSignupOAuth.test.js scripts/lib/mac-packaging.test.cjs scripts/lib/updater-packaging.test.cjs",
+    "verify:cloud-auth": "bash scripts/verify-cloud-auth-api.sh",
+    "verify:product-analytics": "bash scripts/verify-product-analytics.sh",
+    "verify:datasuite": "bash scripts/verify-datasuite.sh",
+    "probe:datasuite-ftp": "bash scripts/probe-datasuite-web-ftp.sh",
+    "test:datasuite-db": "bash scripts/test-datasuite-db.sh",
+    "verify:go-sync": "bash scripts/verify-go-sync-api.sh",
+    "verify:sort-ga": "bash scripts/verify-sort-ga-readiness.sh",
+    "audit:env-secrets": "bash scripts/audit-env-secrets-in-repo.sh",
+    "verify:ga-copy": "bash scripts/ga-copy-audit.sh",
+    "ga:rotate-llm-master": "bash scripts/ga-rotate-lite-llm-master.sh",
+    "ga:closed-beta-kickoff": "python scripts/ga-closed-beta-kickoff.py --provision-verify",
+    "ga:closed-beta-kickoff:fast": "python scripts/ga-closed-beta-kickoff.py --provision-verify --skip-slow",
+    "ga:closed-beta-smoke": "bash scripts/ga-closed-beta-smoke.sh",
+    "ga:staging-classify": "bash scripts/ga-staging-classify-smoke.sh",
+    "ga:staging-vision": "bash scripts/verify-staging-vision.sh",
+    "ga:provision-verify": "bash scripts/ga-provision-verify-account.sh",
+    "ga:prep-production-llm": "bash scripts/ga-prep-production-llm.sh",
+    "ga:enable-production-llm": "bash scripts/ga-enable-production-llm-vps.sh",
+    "ga:desktop-smoke": "bash scripts/ga-desktop-smoke.sh",
+    "ga:corpus-compare": "bash scripts/ga-corpus-compare.sh",
+    "ga:live-sort": "bash scripts/ga-live-sort-smoke.sh",
+    "ga:sort-capacity": "python scripts/ga-sort-capacity-baseline.py",
+    "ga:sort-capacity-queue": "cross-env USE_SORT_QUEUE=1 python scripts/ga-sort-capacity-baseline.py",
+    "ga:verify-queue-admission": "python scripts/ga-verify-queue-admission.py",
+    "ga:staging-fixture-gate": "python scripts/ga-staging-fixture-gate.py",
+    "ga:beta-health": "python scripts/ga-beta-health.py",
+    "ga:beta-health:prometheus": "python scripts/ga-beta-health.py --ssh-check-prometheus",
+    "ga:enable-prometheus-vps": "powershell -ExecutionPolicy Bypass -File scripts/ga-enable-prometheus-vps.ps1",
+    "wait:cloud-api-virtual-keys": "bash scripts/wait-for-cloud-api-virtual-keys.sh",
+    "verify:legal-urls": "bash scripts/verify-legal-urls.sh",
+    "verify:packaged-preload": "node scripts/verify-packaged-preload.cjs",
+    "verify:packaged-app": "node scripts/verify-packaged-app.cjs",
+    "verify:production": "node scripts/verify-main-register-handlers.cjs && node scripts/validate-electron-ipc-manifest.cjs && npm run verify:legal-urls && VERIFY_GO_SYNC=1 bash scripts/verify-cloud-auth-api.sh",
+    "verify:ship": "bash scripts/verify-ship-program.sh",
+    "deploy:cloud-api": "bash scripts/deploy-cloud-api.sh",
+    "deploy:datasuite": "bash scripts/deploy-datasuite.sh",
+    "datasuite:generate-env": "node datasuite/scripts/generate-server-env.cjs",
+    "cleanup:datasuite-node-orphan": "bash scripts/cleanup-datasuite-node-orphan.sh",
+    "cleanup:legacy-crash-ftp": "bash scripts/cleanup-legacy-crash-web-ftp.sh",
+    "cleanup:test-accounts": "bash scripts/cleanup-test-accounts.sh",
+    "verify:datasuite-infra": "bash scripts/verify-datasuite-infra.sh",
+    "digest:datasuite": "bash scripts/datasuite-weekly-digest.sh",
+    "health:datasuite-pipeline": "bash scripts/datasuite-pipeline-health.sh",
+    "release:cloud-api": "bash scripts/release-cloud-api.sh",
+    "release:desktop": "bash scripts/release-desktop.sh",
+    "release:mobile": "bash scripts/release-mobile.sh",
+    "restart:cloud-api": "bash scripts/restart-cloud-api.sh",
+    "prepare:release-resources": "bash scripts/prepare-release-resources.sh",
+    "clap-mic-test": "cd frontend && npm run clap-mic-test",
+    "lint": "cd frontend && npm run lint",
+    "test:backend": "cd backend && python3 -m pytest -q",
+    "check:unused": "cd frontend && npm run check:unused && cd .. && npm run check:unused:backend",
+    "check:unused:strict": "cd frontend && npm run check:unused:strict && cd .. && npm run check:unused:backend:strict",
+    "check:unused:backend": "cd backend && python3 -m vulture . --min-confidence 100 --exclude=tests --ignore-names cls",
+    "check:unused:backend:strict": "cd backend && python3 -m vulture . --exclude=Mark-XXXIX-main",
+    "quality": "npm run lint && npm run check:unused:strict && npm run build:frontend && npm run test && npm run test:backend && cd frontend && npm run test:e2e",
+    "package": "node scripts/package-app.js",
+    "package:win": "node scripts/package-app.js",
+    "package:win:unlimited": "cross-env EXO_UNLIMITED_BUILD=1 node scripts/package-app.js",
+    "build:win:unlimited": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-win-unlimited.ps1",
+    "package:mac": "node scripts/package-mac.js",
+    "clean:installers": "node scripts/clean-dist-installer.cjs",
+    "clean:installers:all": "node scripts/clean-dist-installer.cjs --all",
+    "sync:gmail-oauth-release": "node scripts/sync-gmail-oauth-release-env.js",
+    "sync:integration-config-release": "node scripts/sync-integration-config-release-env.js",
+    "package:mac:icns": "node scripts/generate-mac-icns.js",
+    "build:mac": "bash scripts/build-mac-release.sh",
+    "build:mac:universal": "EXO_MAC_UNIVERSAL=1 npm run build:mac",
+    "publish:downloads-local": "bash scripts/publish-downloads-local.sh",
+    "publish:from-ci": "bash scripts/publish-from-ci-artifacts.sh",
+    "mobile:setup": "bash mobile/setup.sh",
+    "mobile:analyze": "bash scripts/mobile-flutter.sh analyze --fatal-infos",
+    "mobile:test": "bash scripts/mobile-flutter.sh test",
+    "mobile:run:ios": "bash scripts/mobile-flutter.sh run -d ios",
+    "mobile:run:android": "bash scripts/mobile-flutter.sh run -d android",
+    "mobile:quality": "npm run mobile:setup && npm run mobile:analyze && npm run mobile:test",
+    "mobile:icons": "cd mobile && bash ../scripts/mobile-flutter.sh pub get && bash ../scripts/mobile-flutter.sh pub run flutter_launcher_icons && bash ../scripts/mobile-flutter.sh pub run flutter_native_splash:create"
+  },
+  "build": {
+    "appId": "com.exo.app",
+    "productName": "Exo",
+    "copyright": "Copyright © 2026",
+    "protocols": [
+      {
+        "name": "Exo Auth Callback",
+        "schemes": [
+          "exo"
+        ]
+      }
+    ],
+    "afterSign": "scripts/notarize.cjs",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Chadoud",
+        "repo": "ai-file-sorter"
+      }
+    ],
+    "directories": {
+      "output": "dist-installer"
+    },
+    "files": [
+      "electron/**/*",
+      "frontend/dist/**/*",
+      "!node_modules/**/*",
+      "!electron/dev-macos/**"
+    ],
+    "asarUnpack": [
+      "electron/preload.js",
+      "electron/preload-setup.js"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/assets/icon.ico",
+      "extraResources": [
+        {
+          "from": "electron/preload.js",
+          "to": "preload.js"
+        },
+        {
+          "from": "electron/preload-setup.js",
+          "to": "preload-setup.js"
+        },
+        {
+          "from": "electron/resources/backend.exe",
+          "to": "backend.exe"
+        },
+        {
+          "from": "electron/resources/gmail_oauth_client.json",
+          "to": "gmail_oauth_client.json",
+          "filter": [
+            "**/*"
+          ]
+        },
+        {
+          "from": "electron/resources/integration-config.json",
+          "to": "integration-config.json",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "Exo.exe"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
+        }
+      ],
+      "icon": "electron/assets/icon.icns",
+      "category": "public.app-category.productivity",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "electron/entitlements.mac.plist",
+      "entitlementsInherit": "electron/entitlements.mac.plist",
+      "x64ArchFiles": "Contents/Resources/backend-*",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Exo uses the microphone for voice commands and the AI assistant.",
+        "NSScreenCaptureUsageDescription": "Exo captures the screen only when you ask the assistant to see or act on what's on screen.",
+        "NSAppleEventsUsageDescription": "Exo uses automation to open and control apps when you ask it to perform desktop actions.",
+        "NSAccessibilityUsageDescription": "Exo uses accessibility features to type, click, and control apps when you ask it to perform desktop actions."
+      },
+      "extraResources": [
+        {
+          "from": "electron/preload.js",
+          "to": "preload.js"
+        },
+        {
+          "from": "electron/preload-setup.js",
+          "to": "preload-setup.js"
+        },
+        {
+          "from": "electron/resources/backend-x64",
+          "to": "backend-x64"
+        },
+        {
+          "from": "electron/resources/backend-arm64",
+          "to": "backend-arm64"
+        },
+        {
+          "from": "electron/resources/gmail_oauth_client.json",
+          "to": "gmail_oauth_client.json",
+          "filter": [
+            "**/*"
+          ]
+        },
+        {
+          "from": "electron/resources/integration-config.json",
+          "to": "integration-config.json",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
+    },
+    "dmg": {
+      "artifactName": "Exo-universal.${ext}",
+      "title": "Exo",
+      "icon": "electron/assets/icon.icns",
+      "background": "electron/assets/dmg-background.png",
+      "iconSize": 128,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220,
+          "type": "file"
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 440
+      }
+    }
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,tsx}": "node scripts/eslint-staged-frontend.cjs",
+    "backend/**/*.py": "bash scripts/ruff-staged-backend.sh"
+  },
+  "devDependencies": {
+    "@electron/asar": "^4.1.2",
+    "@electron/notarize": "^2.5.0",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
+    "electron": "^34.5.8",
+    "electron-builder": "^25.1.8",
+    "husky": "^9.1.7",
+    "kill-port": "^2.0.1",
+    "lint-staged": "^15.5.2",
+    "patch-package": "^8.0.1",
+    "png-to-ico": "^2.1.8",
+    "rcedit": "^4.0.1",
+    "sharp": "^0.33.5",
+    "wait-on": "^8.0.5"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^3.0.1",
+    "@noble/hashes": "^2.0.1",
+    "dmg-builder": "^25.1.8",
+    "electron-updater": "^6.3.9",
+    "puppeteer-core": "^23.11.1"
+  }
+}

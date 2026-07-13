@@ -1,0 +1,38 @@
+# Add Caddy TLS in front of LiteLLM (minimal staging).
+# Requires DNS A record: DOMAIN -> server IPv4, and firewall TCP 80 + 443.
+#
+# docker compose \
+#   -f compose/docker-compose.minimal-staging.yml \
+#   -f compose/docker-compose.infomaniak.yml \
+#   -f compose/docker-compose.tls-overlay.yml \
+#   --env-file .env up -d
+
+services:
+  litellm:
+    ports: !reset []
+    expose:
+      - "4000"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      litellm:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - internal
+
+volumes:
+  caddy_data:
+  caddy_config:

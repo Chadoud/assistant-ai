@@ -1,0 +1,8 @@
+{
+  "id": "medical_prescription",
+  "text": "Prescription — Amoxicillin 500mg three times daily for 7 days. Patient: DOB verified. Pharmacy: generic substitution allowed.",
+  "existing_folders": ["Medical", "Insurance", "Archive", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["rx", "prescription"],
+  "gold_folder": "Medical"
+}

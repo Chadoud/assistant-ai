@@ -1,0 +1,32 @@
+# Redis fair queue for cloud sort inference + worker pool.
+# Usage:
+#   docker compose -f compose/docker-compose.yml \
+#     -f compose/docker-compose.redis-overlay.yml \
+#     -f compose/docker-compose.queue-overlay.yml \
+#     --env-file .env up -d
+
+services:
+  sort-queue:
+    build:
+      context: ../sort-queue
+    container_name: sort-queue
+    environment:
+      REDIS_URL: redis://redis:6379
+      LITELLM_INTERNAL_URL: http://litellm:4000
+      SORT_QUEUE_WORKERS: ${SORT_QUEUE_WORKERS:-4}
+      SORT_QUEUE_WAIT_MS: ${SORT_QUEUE_WAIT_MS:-180000}
+      SORT_QUEUE_PENDING_ALERT_THRESHOLD: ${SORT_QUEUE_PENDING_ALERT_THRESHOLD:-32}
+    depends_on:
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+    expose:
+      - "4011"
+    restart: unless-stopped
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge

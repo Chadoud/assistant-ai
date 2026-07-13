@@ -1,0 +1,8 @@
+{
+  "id": "lease_agreement_clear",
+  "text": "Residential lease agreement. Landlord: Example Properties LLC. Tenant obligations: rent due first of month, security deposit 2200 CHF, notice period 3 months. Premises: Rue du Lac 12.",
+  "existing_folders": ["Leases", "Contracts", "Finance", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["lease", "2024"],
+  "gold_folder": "Leases"
+}

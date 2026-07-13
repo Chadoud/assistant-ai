@@ -1,0 +1,26 @@
+{
+  "id": "personal-finance",
+  "version": 1,
+  "name": "Personal finance by type",
+  "template": {
+    "version": 1,
+    "enabled": true,
+    "modules": [
+      {
+        "id": "level-doc-type",
+        "theme": "document_type",
+        "max_folders": null,
+        "overflow_policy": "merge_into_other",
+        "children": [
+          {
+            "id": "level-year",
+            "theme": "year",
+            "max_folders": 5,
+            "overflow_policy": "merge_into_other",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

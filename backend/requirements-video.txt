@@ -1,0 +1,3 @@
+# Optional: local speech-to-text for video filing (``EXOSITES_VIDEO_STT_ENABLE=1``).
+# Install with: pip install -r backend/requirements-video.txt
+faster-whisper>=1.0.0

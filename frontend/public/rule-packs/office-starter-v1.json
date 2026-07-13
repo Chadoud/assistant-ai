@@ -1,0 +1,38 @@
+{
+  "id": "office-starter",
+  "version": 1,
+  "name": "Generic office starter",
+  "rules": [
+    {
+      "id": "pack-office-invoice-pdf",
+      "enabled": true,
+      "priority": 50,
+      "pattern": "*invoice*.pdf",
+      "action": "target_folder",
+      "folder": "Invoices"
+    },
+    {
+      "id": "pack-office-receipt-png",
+      "enabled": true,
+      "priority": 48,
+      "pattern": "receipt*.*",
+      "action": "target_folder",
+      "folder": "Receipts"
+    },
+    {
+      "id": "pack-office-contract-docx",
+      "enabled": true,
+      "priority": 46,
+      "pattern": "*contract*.docx",
+      "action": "target_folder",
+      "folder": "Contracts"
+    },
+    {
+      "id": "pack-office-payslip-skip-review",
+      "enabled": true,
+      "priority": 44,
+      "pattern": "*payslip*",
+      "action": "skip"
+    }
+  ]
+}

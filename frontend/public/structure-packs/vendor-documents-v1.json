@@ -1,0 +1,27 @@
+{
+  "id": "vendor-documents",
+  "version": 1,
+  "name": "Vendor → Document type",
+  "template": {
+    "version": 1,
+    "enabled": true,
+    "modules": [
+      {
+        "id": "level-vendor",
+        "theme": "custom",
+        "customLabel": "Vendor",
+        "max_folders": 8,
+        "overflow_policy": "merge_into_other",
+        "children": [
+          {
+            "id": "level-doc-type",
+            "theme": "document_type",
+            "max_folders": null,
+            "overflow_policy": "merge_into_other",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

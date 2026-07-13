@@ -1,0 +1,37 @@
+-- Run in phpMyAdmin as Infomaniak database ADMIN (not YOUR_IK_ID_db_admin).
+-- Adds DataSuite read access for migrations 012–014 + triage write on crash_triage.
+-- Prerequisite: migrations 012, 013, 014 applied (npm run deploy:cloud-api).
+
+-- Crash inbox + enriched crash_reports columns (012)
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_crash_inbox_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_crash_inbox_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+-- Product intelligence views (013)
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feature_engagement_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_assistant_ops_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_assistant_tools_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_crash_by_feature_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_integration_health_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_messaging_health_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feature_engagement_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_assistant_ops_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_assistant_tools_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_crash_by_feature_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_integration_health_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_messaging_health_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+-- Sessions + triage + health (014)
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`app_sessions` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_install_health_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_account_health_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`app_sessions` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_install_health_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_account_health_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+-- Triage backlog: read + inline status updates from DataSuite Quality tab
+GRANT SELECT, INSERT, UPDATE ON `YOUR_IK_ID_exo_app`.`crash_triage` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT, INSERT, UPDATE ON `YOUR_IK_ID_exo_app`.`crash_triage` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+FLUSH PRIVILEGES;

@@ -1,0 +1,23 @@
+{
+  "description": "Gold corpus for Country -> Property structure templates",
+  "cases": [
+    {
+      "file": "france_villa.txt",
+      "expected_prefix": "France/Villa Rose",
+      "theme_values": { "country": "France", "property": "Villa Rose" }
+    },
+    {
+      "file": "germany_house.txt",
+      "expected_prefix": "Germany/Haus Am See",
+      "theme_values": { "country": "Germany", "property": "Haus am See" }
+    },
+    {
+      "file": "hilal_utility_hurghada.txt",
+      "expected_prefix": "Egypt/Plot 32 — Hurghada/Electricity",
+      "theme_values": { "country": "Egypt" },
+      "auto_tail": "Electricity",
+      "assist": { "country": "geo", "property": "fingerprint", "auto_tail": "briefing" },
+      "briefing": "Arabic utility connection form for electrical wiring in Hurghada plot 32."
+    }
+  ]
+}

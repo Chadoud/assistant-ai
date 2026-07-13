@@ -1,0 +1,19 @@
+# Optional Alertmanager for sort/LLM alerts (webhook to Slack/Discord/etc.).
+# Enable with SORT_ALERTMANAGER_ENABLED=1 and ALERTMANAGER_WEBHOOK_URL in .env
+
+services:
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    volumes:
+      - ../alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --web.external-url=http://127.0.0.1:9093
+    ports:
+      - "127.0.0.1:9093:9093"
+    restart: unless-stopped
+    networks:
+      - internal
+    environment:
+      ALERTMANAGER_WEBHOOK_URL: ${ALERTMANAGER_WEBHOOK_URL:-}

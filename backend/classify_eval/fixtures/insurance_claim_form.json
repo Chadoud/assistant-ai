@@ -1,0 +1,8 @@
+{
+  "id": "insurance_claim_form",
+  "text": "Property damage claim — incident date 12 Aug 2025. Policy number, photos attached, repair estimate from contractor. Claim handler will respond within 10 days.",
+  "existing_folders": ["Insurance", "Home Repairs", "Legal", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["claim", "damage"],
+  "gold_folder": "Insurance"
+}

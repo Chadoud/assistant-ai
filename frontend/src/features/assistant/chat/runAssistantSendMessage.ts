@@ -1,0 +1,224 @@
+/**
+ * Server-authoritative send path via POST /assistant/turn.
+ */
+
+import { type ChatMessage } from "../../../api/assistantChat";
+import {
+  isAssistantTurnStream,
+  parseAssistantTurnJson,
+  postAssistantTurn,
+} from "../../../api/assistantTurn";
+import type { ConversationMessage } from "../../../hooks/useConversations";
+import { makeId } from "../../../hooks/useConversations";
+import { resolveChatProviderCredentials } from "../../../utils/resolveChatProviderCredentials";
+import { buildDefaultSystemPrompt } from "../../../systemCommands/assistantPrompts";
+import { pendingCalendarDraft, pendingCalendarDeleteDraft } from "./assistantSendHelpers";
+import type { RunAssistantSendMessageParams } from "./assistantSendTypes";
+import {
+  trackAssistantTurnCompleted,
+  trackAssistantTurnFailed,
+  trackAssistantTurnStarted,
+} from "../../../telemetry/assistantTelemetry";
+import { handleAssistantTurnStream } from "./handleAssistantTurnStream";
+import { handleClientCalendarRead, handleClientMailManage, handleClientMailRead } from "./handleAssistantTurnReads";
+import {
+  applyCompletedTurnMessage,
+  handleAgentTaskAction,
+  handleCodegenStudioAction,
+  handleMailComposeAction,
+} from "./handleAssistantTurnActions";
+import { extractApiError, mapFetchFailureToError } from "../../../api/client";
+import { logAppDiagnostic } from "../../../utils/appDiagnosticLog";
+
+type AssistantSendResult =
+  | { ok: true }
+  | { ok: false; reason: string; failureKind: "network" | "not_found" | "http" };
+
+/** Send one message through POST /assistant/turn. */
+export async function runAssistantSendMessage(
+  params: RunAssistantSendMessageParams,
+): Promise<AssistantSendResult> {
+  const {
+    text,
+    settings,
+    conversation,
+    localMessages,
+    memoryBlock,
+    setMessages,
+    setIsStreaming,
+    onDraftClear,
+    signal,
+  } = params;
+
+  const previousUserContent =
+    [...localMessages].reverse().find((m) => m.role === "user")?.content ?? null;
+  const turnId = makeId();
+  const turnStartedAt = Date.now();
+  trackAssistantTurnStarted("text");
+  const userMsgId = `${turnId}-user`;
+  const assistantMsgId = `${turnId}-assistant`;
+  const userMsg: ConversationMessage = {
+    id: userMsgId,
+    role: "user",
+    content: text,
+    createdAt: new Date().toISOString(),
+  };
+
+  const routing = resolveChatProviderCredentials(settings);
+  const historyForStream: ChatMessage[] = [
+    { role: "system", content: buildDefaultSystemPrompt(memoryBlock || undefined) },
+    ...localMessages
+      .filter((m) => !m.streaming && !m.prefetching && m.content.trim())
+      .slice(-18)
+      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+    { role: "user", content: text },
+  ];
+
+  let res: Response;
+  try {
+    res = await postAssistantTurn(
+      {
+        message: text,
+        previous_user_message: previousUserContent,
+        pending_calendar_draft: pendingCalendarDraft(localMessages),
+        pending_calendar_delete_draft: pendingCalendarDeleteDraft(localMessages),
+        memory_block: memoryBlock,
+        conversation_summary: conversation.summary ?? null,
+        assistant_tools_enabled: settings.assistantToolsEnabled,
+        assistant_agent_enabled: settings.assistantAgentEnabled,
+        messages_for_stream: historyForStream,
+        model: routing.model,
+        provider: routing.provider,
+        api_key: routing.apiKey,
+        base_url: routing.baseUrl,
+        use_web_search: routing.provider === "gemini" && (settings.chatWebSearchEnabled ?? false),
+        enable_tools: settings.assistantToolsEnabled,
+      },
+      signal,
+    );
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") throw e;
+    const err = mapFetchFailureToError(e);
+    trackAssistantTurnFailed("network", routing.provider);
+    logAppDiagnostic("assistant_turn_failed", {
+      stage: "fetch",
+      reason: err.message,
+      provider: routing.provider,
+    });
+    return { ok: false, reason: err.message, failureKind: "network" };
+  }
+
+  if (res.status === 404) {
+    trackAssistantTurnFailed("not_found", routing.provider);
+    const reason =
+      "Assistant routing is unavailable on the local service (404). Try restarting Exo or reinstalling the latest build.";
+    logAppDiagnostic("assistant_turn_failed", { stage: "404", provider: routing.provider });
+    return { ok: false, reason, failureKind: "not_found" };
+  }
+
+  if (isAssistantTurnStream(res)) {
+    setMessages((prev) => [
+      ...prev,
+      userMsg,
+      { id: assistantMsgId, role: "assistant", content: "", streaming: true },
+    ]);
+    onDraftClear();
+    setIsStreaming(true);
+    await handleAssistantTurnStream(res, params, assistantMsgId);
+    return { ok: true };
+  }
+
+  if (!res.ok) {
+    trackAssistantTurnFailed(`http_${res.status}`, routing.provider);
+    const detail = await extractApiError(res);
+    const reason = detail || `Assistant request failed (HTTP ${res.status}).`;
+    logAppDiagnostic("assistant_turn_failed", {
+      stage: "http",
+      status: res.status,
+      detail,
+      provider: routing.provider,
+    });
+    return { ok: false, reason, failureKind: "http" };
+  }
+
+  const turn = await parseAssistantTurnJson(res);
+
+  setMessages((prev) => [
+    ...prev,
+    userMsg,
+    {
+      id: assistantMsgId,
+      role: "assistant",
+      content: turn.assistant_content ?? "",
+      streaming: turn.mode === "stream",
+      prefetching: turn.action?.startsWith("client_") ?? false,
+      calendarContext: turn.action === "client_calendar_read",
+      mailRecap: turn.action === "client_mail_read",
+      mailManage: turn.action === "client_mail_manage",
+    },
+  ]);
+  onDraftClear();
+  setIsStreaming(true);
+
+  if (turn.mode === "complete") {
+    applyCompletedTurnMessage(turn, params, assistantMsgId);
+    trackAssistantTurnCompleted((Date.now() - turnStartedAt) / 1000, 0);
+    return { ok: true };
+  }
+
+  if (turn.action === "codegen_studio") {
+    await handleCodegenStudioAction(
+      turn,
+      params,
+      assistantMsgId,
+      text,
+      turnId,
+      userMsg,
+      localMessages,
+    );
+    return { ok: true };
+  }
+
+  if (turn.action === "agent_task") {
+    await handleAgentTaskAction(turn, params, assistantMsgId, text);
+    return { ok: true };
+  }
+
+  if (turn.action === "mail_compose") {
+    await handleMailComposeAction(params, assistantMsgId, text);
+    return { ok: true };
+  }
+
+  if (turn.action === "client_calendar_read") {
+    await handleClientCalendarRead(turn, params, assistantMsgId, text, previousUserContent);
+    return { ok: true };
+  }
+
+  if (turn.action === "client_mail_read") {
+    await handleClientMailRead(
+      turn,
+      params,
+      assistantMsgId,
+      userMsgId,
+      text,
+      previousUserContent,
+    );
+    return { ok: true };
+  }
+
+  if (turn.action === "client_mail_manage") {
+    await handleClientMailManage(
+      turn,
+      params,
+      assistantMsgId,
+      userMsgId,
+      text,
+      previousUserContent,
+    );
+    return { ok: true };
+  }
+
+  setIsStreaming(false);
+  trackAssistantTurnCompleted((Date.now() - turnStartedAt) / 1000, 0);
+  return { ok: true };
+}

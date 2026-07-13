@@ -1,0 +1,60 @@
+-- Substitute YOUR_IK_ID_* placeholders with your Infomaniak account prefix before running.
+-- Run in phpMyAdmin as Infomaniak database ADMIN (not YOUR_IK_ID_db_admin).
+-- Prerequisite: create user YOUR_IK_ID_datasuite in Manager → Bases de données → Utilisateurs
+-- with password matching datasuite/.env.db (MariaDB user — separate from FTP deploy user YOUR_IK_ID_datasuite_ro).
+
+-- If admin SQL console allows CREATE USER (optional — panel may already create the user):
+-- CREATE USER IF NOT EXISTS 'YOUR_IK_ID_datasuite'@'%' IDENTIFIED BY 'YOUR_PASSWORD';
+-- CREATE USER IF NOT EXISTS 'YOUR_IK_ID_datasuite'@'localhost' IDENTIFIED BY 'YOUR_PASSWORD';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`telemetry_events` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`product_feedback` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`crash_reports` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`accounts` TO 'YOUR_IK_ID_datasuite'@'%';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_daily_event_counts` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_daily_active_devices` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feedback_inbox` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_crash_daily` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_sort_funnel_7d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_exec_summary_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_funnel_conversion_7d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_top_crash_signatures_30d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_release_health_14d` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feedback_weekly_12w` TO 'YOUR_IK_ID_datasuite'@'%';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`telemetry_events` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`product_feedback` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`crash_reports` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`accounts` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_daily_event_counts` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_daily_active_devices` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feedback_inbox` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_crash_daily` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_sort_funnel_7d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_exec_summary_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_funnel_conversion_7d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_top_crash_signatures_30d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_release_health_14d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feedback_weekly_12w` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_signed_in_vs_anonymous_daily` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_event_volume_daily` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feedback_submissions_weekly` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_release_starts_14d` TO 'YOUR_IK_ID_datasuite'@'%';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_signed_in_vs_anonymous_daily` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_event_volume_daily` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_feedback_submissions_weekly` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_release_starts_14d` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_device_activity` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_account_activity` TO 'YOUR_IK_ID_datasuite'@'%';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_retention_weekly` TO 'YOUR_IK_ID_datasuite'@'%';
+
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_device_activity` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_account_activity` TO 'YOUR_IK_ID_datasuite'@'localhost';
+GRANT SELECT ON `YOUR_IK_ID_exo_app`.`v_retention_weekly` TO 'YOUR_IK_ID_datasuite'@'localhost';
+
+FLUSH PRIVILEGES;

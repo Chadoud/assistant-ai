@@ -1,0 +1,6 @@
+{
+  "FLAVOR": "production",
+  "EXOSITES_CLOUD_URL": "https://api.exosites.ch",
+  "PRIVACY_POLICY_URL": "https://exosites.ch/eng/app-privacy",
+  "TERMS_OF_SERVICE_URL": "https://exosites.ch/eng/app-terms"
+}

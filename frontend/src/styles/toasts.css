@@ -1,0 +1,114 @@
+/*
+ * Override Sonner theme tokens so rich-colors errors stay white + red even in dark UI.
+ */
+[data-sonner-toaster] {
+  --error-bg: #ffffff;
+  --error-border: #dc2626;
+  --error-text: #dc2626;
+  --normal-bg: #ffffff;
+  --normal-text: #1a1d27;
+  --normal-border: #dc2626;
+}
+
+/*
+ * Sonner: stack action (and optional cancel) under title + description. * Default flex keeps buttons on the same row and squeezes [data-content] to ~0 width.
+ */
+[data-sonner-toast][data-styled="true"]:has([data-button][data-action]),
+[data-sonner-toast][data-styled="true"]:has([data-button][data-cancel]) {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+[data-sonner-toast][data-styled="true"]:has([data-button][data-action]) [data-content],
+[data-sonner-toast][data-styled="true"]:has([data-button][data-cancel]) [data-content] {
+  flex: 1 1 calc(100% - 2.75rem);
+  min-width: 0;
+}
+
+[data-sonner-toast][data-styled="true"]:has([data-button][data-action]) [data-button],
+[data-sonner-toast][data-styled="true"]:has([data-button][data-cancel]) [data-button] {
+  flex: 0 0 auto;
+  margin-top: 0.5rem;
+  margin-inline-end: 0.5rem;
+  align-self: flex-start;
+}
+
+/* Align the button row with copy (past the toast icon). */
+[data-sonner-toast][data-styled="true"]:has([data-button][data-action]) [data-button]:first-of-type,
+[data-sonner-toast][data-styled="true"]:has([data-button][data-cancel]) [data-button]:first-of-type {
+  margin-inline-start: 2.75rem;
+}
+
+/*
+ * Error toasts — always white surface + solid red copy (no Sonner pink / muted tints).
+ */
+[data-sonner-toast][data-type="error"],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"],
+.app-sonner-toast-error {
+  background: #ffffff !important;
+  border: 2px solid #dc2626 !important;
+  color: #dc2626 !important;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.18) !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-title],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"] [data-title],
+.app-sonner-toast-error [data-title] {
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-description],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"] [data-description],
+.app-sonner-toast-error [data-description] {
+  color: #991b1b !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-icon],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"] [data-icon],
+.app-sonner-toast-error [data-icon] {
+  color: #dc2626 !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-button],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"] [data-button],
+.app-sonner-toast-error [data-button] {
+  background: #dc2626 !important;
+  border: none !important;
+  color: #ffffff !important;
+}
+
+[data-sonner-toast][data-type="error"] [data-close-button],
+[data-rich-colors="true"][data-sonner-toast][data-type="error"] [data-close-button],
+.app-sonner-toast-error [data-close-button] {
+  background: #ffffff !important;
+  border-color: #dc2626 !important;
+  color: #991b1b !important;
+}
+
+[data-sonner-toast][data-type="warning"],
+[data-rich-colors="true"][data-sonner-toast][data-type="warning"],
+.app-sonner-toast-warning {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--warning) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-sonner-toast][data-type="warning"] [data-title],
+[data-rich-colors="true"][data-sonner-toast][data-type="warning"] [data-title],
+.app-sonner-toast-warning [data-title] {
+  color: var(--text-primary) !important;
+  font-weight: 600 !important;
+}
+
+[data-sonner-toast][data-type="warning"] [data-description],
+[data-rich-colors="true"][data-sonner-toast][data-type="warning"] [data-description],
+.app-sonner-toast-warning [data-description] {
+  color: var(--text-muted) !important;
+}
+
+[data-sonner-toast][data-type="warning"] [data-icon],
+.app-sonner-toast-warning [data-icon] {
+  color: var(--warning) !important;
+}

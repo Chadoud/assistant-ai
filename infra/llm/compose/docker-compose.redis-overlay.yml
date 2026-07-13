@@ -1,0 +1,31 @@
+# Redis for LiteLLM distributed rate limits + optional second gateway replica.
+# Usage:
+#   docker compose -f compose/docker-compose.yml \
+#     -f compose/docker-compose.redis-overlay.yml \
+#     --env-file .env up -d
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: litellm-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - internal
+
+  litellm:
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+networks:
+  internal:
+    driver: bridge

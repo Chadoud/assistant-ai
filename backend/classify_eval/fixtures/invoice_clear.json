@@ -1,0 +1,8 @@
+{
+  "id": "invoice_clear",
+  "text": "Invoice INV-2024-001 from Acme Corp. Total due 1500 CHF. Payment terms net 30.",
+  "existing_folders": ["Invoices", "Contracts", "HR Documents"],
+  "folder_contexts": {},
+  "filename_tokens": ["invoice", "acme"],
+  "gold_folder": "Invoices"
+}

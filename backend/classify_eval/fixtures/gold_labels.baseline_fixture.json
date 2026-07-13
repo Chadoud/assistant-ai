@@ -1,0 +1,4 @@
+[
+  { "match": "invoice*.pdf", "gold_folder": "Finance" },
+  { "match": "notes.txt", "gold_folder": "HR" }
+]

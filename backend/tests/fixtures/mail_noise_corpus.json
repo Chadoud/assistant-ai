@@ -1,0 +1,30 @@
+[
+  {
+    "subject": "50% off everything this weekend",
+    "snippet": "Shop now — unsubscribe",
+    "from": "deals@store.com",
+    "labels": ["INBOX", "CATEGORY_PROMOTIONS"],
+    "expect": "reject"
+  },
+  {
+    "subject": "Your weekly digest",
+    "snippet": "Top stories from our newsletter",
+    "from": "newsletter@company.com",
+    "labels": ["INBOX", "CATEGORY_UPDATES"],
+    "expect": "reject"
+  },
+  {
+    "subject": "Invoice #8842 due April 12",
+    "snippet": "Amount due CHF 240.00",
+    "from": "billing@vendor.ch",
+    "labels": ["INBOX", "IMPORTANT"],
+    "expect": "allow"
+  },
+  {
+    "subject": "Follow up: contract review",
+    "snippet": "Can you send comments by Friday?",
+    "from": "alice@client.com",
+    "labels": ["INBOX", "STARRED"],
+    "expect": "allow"
+  }
+]

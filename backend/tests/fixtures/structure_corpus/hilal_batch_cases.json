@@ -1,0 +1,39 @@
+{
+  "description": "Hilal batch regression cases (job 03311eb2 gaps)",
+  "cases": [
+    {
+      "id": "row1_moj_geo_override",
+      "file": "hilal_utility_hurghada.txt",
+      "llm_country": "United Arab Emirates",
+      "expected_country": "Egypt",
+      "expected_property": "Plot 32 — Hurghada",
+      "expected_subject": "Electricity"
+    },
+    {
+      "id": "row3_plot_7_kept_as_plot_7",
+      "file": "hilal_row3_bank_statement.txt",
+      "llm_property": "Building 7",
+      "expected_property": "Plot 7 — Hurghada"
+    },
+    {
+      "id": "row4_canal_health_subject",
+      "file": "hilal_row4_canal_health.txt",
+      "briefing": "Canal health inspection form Hurghada hospital electricity wiring",
+      "expected_subject": "Electricity"
+    },
+    {
+      "id": "row12_moj_meter_without_hurghada_ocr",
+      "file": "hilal_row12_moj_meter.txt",
+      "llm_country": "Egypt",
+      "expected_country": "Egypt",
+      "expected_property": "Hurghada — Red Sea Utilities",
+      "expected_subject": "Electricity"
+    },
+    {
+      "id": "row24_uae_without_signals",
+      "text": "[Visual] Document type: Bank statement [OCR] ANS VINEE ANTS",
+      "llm_country": "United Arab Emirates",
+      "expected_country": null
+    }
+  ]
+}

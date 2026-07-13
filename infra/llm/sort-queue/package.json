@@ -1,0 +1,18 @@
+{
+  "name": "exo-sort-inference-queue",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Redis-backed fair queue for cloud sort LLM inference on the VPS",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "redis": "^4.7.0"
+  }
+}

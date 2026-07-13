@@ -1,0 +1,59 @@
+groups:
+  - name: llm_inference
+    rules:
+      - alert: LiteLLMHighErrorRate
+        expr: |
+          (
+            sum(rate(litellm_proxy_failed_requests_total[5m]))
+            /
+            sum(rate(litellm_proxy_total_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: LiteLLM error rate above 1%
+          description: Check runbooks/503-storm.md
+
+      - alert: LiteLLMHighLatency
+        expr: histogram_quantile(0.95, sum(rate(litellm_request_duration_seconds_bucket[5m])) by (le)) > 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: LiteLLM p95 latency above 30s
+
+      - alert: OllamaServiceDown
+        expr: up{job="litellm"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: LiteLLM scrape target down
+
+      - alert: SortQueueDown
+        expr: up{job="sort_queue"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Sort inference queue scrape target down
+          description: Check sort-queue container and Redis — runbooks/scale-out.md
+
+      - alert: SortQueueBacklog
+        expr: sort_queue_pending_jobs > 32
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sort queue backlog above threshold
+          description: Raise SORT_QUEUE_WORKERS or add GPU — runbooks/503-storm.md
+
+      - alert: SortQueueTimeouts
+        expr: increase(sort_queue_timeouts_total[10m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sort queue client timeouts increasing
+          description: Users may see slow sorts — check GPU and worker count

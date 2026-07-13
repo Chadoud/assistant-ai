@@ -1,0 +1,13 @@
+[
+  { "text": "what's on my calendar today", "previous": null, "intent": "read_calendar" },
+  { "text": "show me my inbox", "previous": null, "intent": "read_mail" },
+  { "text": "summarize my calendar and emails", "previous": null, "intent": "read_both" },
+  { "text": "schedule a meeting with Sam tomorrow", "previous": null, "intent": "write_calendar" },
+  { "text": "delete all WORK events from my calendar", "previous": null, "intent": "write_calendar_delete" },
+  { "text": "build a react todo app with typescript", "previous": null, "intent": "codegen_studio" },
+  { "text": "plan step by step: research then book travel", "previous": null, "intent": "agent_task" },
+  { "text": "upload a report to Dropbox", "previous": null, "intent": "external_source_task" },
+  { "text": "how are you?", "previous": null, "intent": "generic_chat" },
+  { "text": "do it", "previous": "what's on my calendar tomorrow", "intent": "read_calendar" },
+  { "text": "midi", "previous": "pour demain il faut que j'achète une bouteille de bourbon", "intent": "write_calendar" }
+]

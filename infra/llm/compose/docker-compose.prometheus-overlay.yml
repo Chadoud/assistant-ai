@@ -1,0 +1,22 @@
+# Optional Prometheus + alert rules for staging/production LLM host.
+# Enable with SORT_PROMETHEUS_ENABLED=1 (scrapes litellm + sort-queue on internal network).
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: prometheus
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-lifecycle
+      - --storage.tsdb.retention.time=14d
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped
+    networks:
+      - internal
+    depends_on:
+      litellm:
+        condition: service_healthy

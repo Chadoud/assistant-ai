@@ -1,0 +1,41 @@
+# Split embed from chat on minimal staging — embedding storms no longer evict chat models.
+# Usage:
+#   docker compose -f compose/docker-compose.minimal-staging.yml \
+#     -f compose/docker-compose.split-embed-overlay.yml \
+#     --env-file .env up -d
+
+services:
+  ollama-embed:
+    image: ollama/ollama:latest
+    container_name: ollama-embed
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_EMBED_NUM_PARALLEL:-4}
+      OLLAMA_MAX_LOADED_MODELS: 1
+      OLLAMA_MAX_QUEUE: ${OLLAMA_EMBED_MAX_QUEUE:-32}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - internal
+
+  litellm:
+    volumes:
+      - ../litellm/config.minimal-split.yaml:/app/config.yaml:ro
+    depends_on:
+      ollama-embed:
+        condition: service_healthy
+
+volumes:
+  ollama_models:
+
+networks:
+  internal:
+    driver: bridge

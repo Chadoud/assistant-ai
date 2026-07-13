@@ -1,0 +1,9 @@
+{
+  "cases": [
+    {
+      "updated_at": "2026-06-11T12:00:00+00:00",
+      "record_id": "abc-123",
+      "expected_clock": 1781179200231
+    }
+  ]
+}

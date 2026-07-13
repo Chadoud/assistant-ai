@@ -1,0 +1,6 @@
+# DataSuite — internal PHP dashboard (gitignored runtime files)
+node_modules/
+.env
+.env.server
+.env.deploy
+.env.db

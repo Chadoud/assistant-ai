@@ -1,0 +1,14 @@
+{
+  "recorded_at": "2026-06-20T22:56:55.865166+00:00",
+  "source": "_fixture-eval-2026-06-20T225520Z.json",
+  "cases_run": 13,
+  "top1_accuracy": 0.2727272727272727,
+  "top1_correct": 3,
+  "labeled_count": 11,
+  "gates_accuracy": null,
+  "gates_correct": 0,
+  "gates_labeled_count": 0,
+  "error_rows": 0,
+  "model": "mistral",
+  "llm_base_url": "https://llm-staging.exosites.ch"
+}

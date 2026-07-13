@@ -1,0 +1,6 @@
+node_modules/
+.env
+.env.bak
+.env.deploy
+.env.verify
+server.log

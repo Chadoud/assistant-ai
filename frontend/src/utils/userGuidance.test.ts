@@ -1,0 +1,14 @@
+import { describe, expect, it } from "vitest";
+import { errorActionId, userFacingErrorDetail } from "./userGuidance";
+
+describe("userFacingErrorDetail voice credential sync", () => {
+  it("maps Gemini voice sync failures to AI provider settings", () => {
+    const err = new Error(
+      "Could not sync your Gemini key to the voice backend. Check Settings → AI agents → AI provider.",
+    );
+    const detail = userFacingErrorDetail(err);
+    expect(detail.actionId).toBe("settings:ai-provider");
+    expect(detail.hint).toMatch(/AI agents/i);
+    expect(errorActionId(err)).toBe("settings:ai-provider");
+  });
+});

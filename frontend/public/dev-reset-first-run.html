@@ -1,0 +1,11 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>QA reset first run</title>
+<script>
+  try {
+    localStorage.removeItem("exosites.settings.v1");
+    localStorage.removeItem("exosites.welcomeSetup.dismissed.v1");
+    localStorage.removeItem("exosites.tour.v2");
+  } catch (_) {}
+  location.replace("/");
+</script>

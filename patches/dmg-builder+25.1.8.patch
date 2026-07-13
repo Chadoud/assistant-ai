@@ -1,0 +1,15 @@
+diff --git a/node_modules/dmg-builder/vendor/dmgbuild/core.py b/node_modules/dmg-builder/vendor/dmgbuild/core.py
+index 1adc352..535a5fc 100644
+--- a/node_modules/dmg-builder/vendor/dmgbuild/core.py
++++ b/node_modules/dmg-builder/vendor/dmgbuild/core.py
+@@ -255,7 +255,9 @@ def build_dmg():
+       icvp['backgroundColorBlue'] = float(c.b)
+     elif background_file:
+       alias = Alias.for_file(background_file)
+-      background_bmk = Bookmark.for_file(background_file)
++      # Bookmark corrupts .DS_Store on macOS 15+; backgroundImageAlias alone is enough.
++      # https://github.com/electron-userland/electron-builder/issues/9072
++      # background_bmk = Bookmark.for_file(background_file)
+ 
+       icvp['backgroundType'] = 2
+       icvp['backgroundImageAlias'] = biplist.Data(alias.to_bytes())

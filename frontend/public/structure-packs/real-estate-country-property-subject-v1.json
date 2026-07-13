@@ -1,0 +1,34 @@
+{
+  "id": "real-estate-country-property-subject",
+  "version": 1,
+  "name": "Properties by country (with subjects)",
+  "template": {
+    "version": 1,
+    "enabled": true,
+    "modules": [
+      {
+        "id": "level-country",
+        "theme": "country",
+        "max_folders": null,
+        "overflow_policy": "merge_into_other",
+        "children": [
+          {
+            "id": "level-property",
+            "theme": "property",
+            "max_folders": null,
+            "overflow_policy": "merge_into_other",
+            "children": [
+              {
+                "id": "level-subject",
+                "theme": "auto",
+                "max_folders": null,
+                "overflow_policy": "merge_into_other",
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

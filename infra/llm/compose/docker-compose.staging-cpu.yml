@@ -1,0 +1,35 @@
+# 18 GB RAM CPU VPS (no GPU, no NVMe bind). Use with:
+# docker compose -f compose/docker-compose.yml -f compose/docker-compose.staging-cpu.yml --env-file .env up -d
+
+services:
+  ollama-chat:
+    environment:
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-2}
+      OLLAMA_MAX_QUEUE: ${OLLAMA_MAX_QUEUE:-32}
+      OLLAMA_FLASH_ATTENTION: 0
+    deploy: {}
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+
+  ollama-embed:
+    environment:
+      OLLAMA_NUM_PARALLEL: 2
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+
+  litellm:
+    ports:
+      - "4000:4000"
+
+  caddy:
+    profiles:
+      - tls
+
+  prometheus:
+    profiles:
+      - monitoring
+
+volumes:
+  ollama_models:
+    driver: local
+    driver_opts: {}

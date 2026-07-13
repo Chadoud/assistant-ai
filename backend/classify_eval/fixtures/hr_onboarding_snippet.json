@@ -1,0 +1,8 @@
+{
+  "id": "hr_onboarding_snippet",
+  "text": "Employee onboarding checklist — form I-9 verification, direct deposit authorization, benefits enrollment deadline next Friday. HR shared services contact: hr-onboarding@example.com",
+  "existing_folders": ["HR Documents", "Payroll", "Legal", "Archive"],
+  "folder_contexts": {},
+  "filename_tokens": ["onboarding", "checklist"],
+  "gold_folder": "HR Documents"
+}

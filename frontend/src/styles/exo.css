@@ -1,0 +1,594 @@
+/* â”€â”€â”€ Exo AI Manager panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* Dark radial gradient background â€” used in the center TesseractVisual area */
+.exo-bg {
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 50%,
+    var(--exo-radial-center) 0%,
+    var(--exo-radial-mid) 60%,
+    var(--exo-radial-edge) 100%
+  );
+}
+
+.exo-clock {
+  min-width: 7rem;
+}
+
+/* Narrow left strip in AI Manager â€” stack time + date without overflow */
+.exo-clock--strip {
+  min-width: 0;
+  width: 100%;
+}
+
+.exo-clock--strip .exo-clock-time {
+  font-size: 0.62rem;
+}
+
+.exo-clock--strip .exo-clock-date {
+  font-size: 0.36rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.exo-clock-time {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  user-select: none;
+}
+
+.exo-clock-date {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.45rem;
+  font-weight: 300;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+/* Larger readout when placed in app shell header (AI Manager tab) */
+.exo-clock--header {
+  min-width: 4.75rem;
+}
+
+.exo-clock--header .exo-clock-time {
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+}
+
+.exo-clock--header .exo-clock-date {
+  font-size: 0.52rem;
+  margin-top: 0.125rem;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+}
+
+/* â”€â”€ App shell (AI Manager first visit: hide title row + sidebar until shared timer with ExoPanel) â”€â”€ */
+
+.app-shell {
+  --app-shell-intro-ms: 1600ms;
+  --app-shell-intro-ease: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.app-shell-top-brand,
+.app-shell-top-title {
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height var(--app-shell-intro-ms) var(--app-shell-intro-ease),
+    opacity var(--app-shell-intro-ms) var(--app-shell-intro-ease),
+    transform var(--app-shell-intro-ms) var(--app-shell-intro-ease),
+    border-bottom-width var(--app-shell-intro-ms) var(--app-shell-intro-ease),
+    padding-top var(--app-shell-intro-ms) var(--app-shell-intro-ease),
+    padding-bottom var(--app-shell-intro-ms) var(--app-shell-intro-ease);
+  max-height: 240px;
+}
+
+.app-shell--exo-intro .app-shell-top-brand {
+  min-width: 0 !important;
+}
+
+.app-shell--exo-intro .app-shell-top-brand,
+.app-shell--exo-intro .app-shell-top-title {
+  max-height: 0;
+  min-height: 0;
+  opacity: 0;
+  /* Slide from slightly above â€” % translate with max-height 0 is 0px; use rem. */
+  transform: translateY(-0.75rem);
+  pointer-events: none;
+  border-bottom-width: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.app-shell-sidebar {
+  overflow: hidden;
+  transition:
+    max-width var(--app-shell-intro-ms) var(--app-shell-intro-ease),
+    opacity 0.35s ease,
+    border-right-width 0.35s ease;
+}
+
+.app-shell--exo-intro .app-shell-sidebar {
+  max-width: 0;
+  min-width: 0 !important;
+  opacity: 0;
+  border-right-width: 0;
+  pointer-events: none;
+}
+
+.app-shell.app-shell--exo-intro {
+  /* Force sidebar column closed â€” `auto` + child min-width was leaving ~12rem empty track visible. */
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.app-shell-sidebar-inner {
+  min-width: 12.5rem;
+  transform: translateX(0);
+  transition: transform var(--app-shell-intro-ms) var(--app-shell-intro-ease);
+}
+
+/* Narrow viewports: icon-only sidebar (plan: 1024px breakpoint). */
+@media (max-width: 1023px) {
+  .app-shell--sidebar-compact .app-shell-sidebar-inner {
+    min-width: 3.5rem;
+  }
+  .app-shell--sidebar-compact .app-shell-top-brand {
+    min-width: 3.5rem;
+  }
+  /* Compact rail — clock clears traffic-light inset on macOS. */
+  html.mac-traffic .app-shell--sidebar-compact .app-shell-top-brand {
+    min-width: calc(var(--mac-traffic-light-inset) + 4.75rem);
+  }
+  .app-shell--sidebar-compact .sidebar-nav-label {
+    display: none;
+  }
+  .app-shell--sidebar-compact .sidebar-nav-group-label {
+    display: none;
+  }
+  .app-shell--sidebar-compact .sidebar-nav-btn {
+    justify-content: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .app-shell--sidebar-compact .sidebar-profile-detail {
+    display: none;
+  }
+  .app-shell--sidebar-compact .sidebar-profile-btn {
+    justify-content: center;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+}
+
+.app-shell--exo-intro .app-shell-sidebar-inner {
+  min-width: 0 !important;
+  transform: translateX(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell-top-brand,
+  .app-shell-top-title,
+  .app-shell-sidebar,
+  .app-shell-sidebar-inner {
+    transition: none !important;
+  }
+}
+
+/* â”€â”€ Exo shell (intro: center-only 2.5s, then chrome slides in; once per session via JS) â”€â”€ */
+
+.exo-shell {
+  --exo-intro-ms: 1600ms;
+  --exo-intro-ease: cubic-bezier(0.33, 1, 0.68, 1);
+  /* Activity / chat rail (AI Manager right column); overridden inline from ExoPanel */
+  --exo-right-rail-width: 340px;
+  /* Narrow strip when the chat rail is collapsed; grid column 3 + panel width use --exo-right-rail-track */
+  --exo-chat-rail-strip-w: 32px;
+  --exo-right-rail-track: var(--exo-right-rail-width);
+}
+
+.exo-shell-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 0;
+  grid-template-rows: minmax(0, 1fr);
+  transition: grid-template-columns var(--exo-intro-ms) var(--exo-intro-ease);
+}
+
+/*
+ * `--exo-right-rail-width` updates on every drag pixel; `--exo-right-rail-track` is the
+ * third column width (equals drag width when chat is open, or the collapse strip when closed).
+ * Interpolating grid + width over `--exo-intro-ms` feels â€œlaggyâ€. Disable while resizing.
+ */
+.exo-shell--right-rail-resize-dragging .exo-shell-body {
+  transition: none !important;
+}
+
+/*
+ * Right column + footer animate first; left strip stays collapsed until transitioning to `--revealed`.
+ * Grid matches full chrome width distribution but left track stays 0 so the strip stays off-stage.
+ */
+.exo-shell--revealed .exo-shell-body,
+.exo-shell--revealed-phase1 .exo-shell-body {
+  grid-template-columns: minmax(0, 1fr) var(--exo-right-rail-track);
+}
+
+.exo-shell--revealed-phase1 .exo-shell-body-right-panel {
+  width: var(--exo-right-rail-track) !important;
+  transform: translateX(0);
+}
+
+.exo-shell--revealed-phase1 .exo-shell-footer-wrap {
+  max-height: 22px;
+}
+
+.exo-shell--revealed-phase1 .exo-shell-footer-inner {
+  transform: translateY(0);
+}
+
+.exo-shell-body-right {
+  display: flex;
+  position: relative;
+  min-width: 0;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.exo-shell-body-right-panel {
+  flex-shrink: 0;
+  width: var(--exo-right-rail-track);
+  transform: translateX(100%);
+  transition:
+    transform var(--exo-intro-ms) var(--exo-intro-ease),
+    width var(--exo-intro-ms) var(--exo-intro-ease);
+}
+
+.exo-shell--right-rail-resize-dragging .exo-shell-body-right-panel {
+  transition: none !important;
+}
+
+.exo-shell--intro .exo-shell-body-right-panel {
+  width: 0 !important;
+  min-width: 0;
+}
+
+.exo-shell--revealed .exo-shell-body-right-panel {
+  width: var(--exo-right-rail-track) !important;
+  transform: translateX(0);
+  /* Post-intro: history drawer open/close animates at 300ms; keep transform for entry slide */
+  transition: width 300ms ease-out, transform var(--exo-intro-ms) var(--exo-intro-ease);
+}
+
+.exo-shell--revealed .exo-shell-body {
+  /* Post-intro: grid column adjusts with the right-rail expansion */
+  transition: grid-template-columns 300ms ease-out;
+}
+
+.exo-shell-footer-wrap {
+  flex-shrink: 0;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height var(--exo-intro-ms) var(--exo-intro-ease);
+}
+
+.exo-shell--revealed .exo-shell-footer-wrap {
+  max-height: 22px;
+}
+
+.exo-shell-footer-inner {
+  transform: translateY(100%);
+  transition: transform var(--exo-intro-ms) var(--exo-intro-ease);
+}
+
+.exo-shell--revealed .exo-shell-footer-inner {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exo-shell-body,
+  .exo-shell-body-right-panel,
+  .exo-shell-footer-wrap,
+  .exo-shell-footer-inner {
+    transition: none !important;
+  }
+}
+
+.exo-section-label {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(0, 200, 255, 0.55);
+  user-select: none;
+}
+
+/* â”€â”€ Center â”€â”€ */
+
+.exo-center {
+  background: var(--exo-center-bg);
+}
+
+/** Local service still booting — hide Tesseract until startup overlay dismisses. */
+.exo-shell--tesseract-held .exo-center {
+  visibility: hidden;
+}
+
+.exo-voice-status-text {
+  font-family: "Syne", system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 300;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  text-align: center;
+  user-select: none;
+}
+
+.exo-voice-tool-phase {
+  font-family: "Syne", system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 300;
+  letter-spacing: 0.06em;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.52);
+  line-height: 1.4;
+  user-select: none;
+}
+
+.exo-voice-transcript {
+  font-family: "Syne", system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.45);
+  max-width: 80%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+  margin-top: 0.25rem;
+}
+
+/* â”€â”€ Right rail (third column width = --exo-right-rail-track from ExoPanel) â”€â”€ */
+
+.exo-right-panel {
+  width: 100%;
+  min-width: 0;
+  border-left: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+
+/* â”€â”€ Voice action buttons (AI Manager right rail) â”€â”€ */
+
+.exo-action-btn {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  font-family: "Syne", system-ui, sans-serif;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+
+.exo-action-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Active = mic is currently ON (click will MUTE it) */
+.exo-action-btn--active {
+  background: rgba(180, 30, 100, 0.12);
+  color: rgb(220, 60, 120);
+  border-color: rgba(180, 30, 100, 0.45);
+}
+
+.exo-action-btn--settings-open {
+  background: var(--accent-faint);
+  color: var(--accent);
+  border-color: var(--accent-line-strong);
+}
+
+/* â”€â”€ Footer â”€â”€ */
+
+.exo-footer {
+  height: 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.exo-footer-hint {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.45rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(0, 200, 255, 0.4);
+  user-select: none;
+}
+
+.exo-footer-brand {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.42rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 35%, transparent);
+  user-select: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .exo-center .tv-scene        { animation: none; }
+  .exo-center .tv-cube-wrapper { animation: none; }
+}
+
+/* â”€â”€ Metric bar rows (SYS MONITOR) â”€â”€ */
+
+.exo-metric-row {
+  padding: 0.1rem 0;
+}
+
+.exo-metric-label {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(0, 200, 255, 0.7);
+}
+
+.exo-metric-value {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.exo-metric-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.exo-metric-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.5s ease-out, background 0.5s ease-out;
+}
+
+.exo-metric-aside {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.48rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: rgba(76, 175, 125, 0.75);
+  text-align: right;
+  margin-top: -0.35rem;
+}
+
+/* UP / PROC / OS info lines */
+.exo-info-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.exo-info-key {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.48rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(0, 200, 255, 0.5);
+}
+
+.exo-info-val {
+  font-family: "Syne", monospace, sans-serif;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent) 90%, transparent);
+}
+
+/* Legacy label classes kept for backward compat (no longer rendered, safe to remove later) */
+.exo-title-label  { display: none; }
+.exo-subtitle-label { display: none; }
+
+/* â”€â”€ Conversation tab-bar scroll track (horizontal) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.tab-bar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+
+.tab-bar-scroll:hover {
+  scrollbar-color: color-mix(in srgb, var(--border) 70%, transparent) transparent;
+}
+
+.tab-bar-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+
+.tab-bar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-bar-scroll::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.tab-bar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background 0.2s;
+}
+
+.tab-bar-scroll:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.tab-bar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+/* â”€â”€ Conversation sidebar scroll track (vertical) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+
+.sidebar-scroll:hover {
+  scrollbar-color: color-mix(in srgb, var(--border) 60%, transparent) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Hide arrow buttons at both ends of the scrollbar */
+.sidebar-scroll::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background 0.2s;
+}
+
+.sidebar-scroll:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+

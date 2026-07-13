@@ -1,0 +1,251 @@
+@layer base {
+  /*
+   * Brand palette (canonical) → semantic tokens (--bg-*, --accent, --button-*).
+   * --accent: decorative UI (links, focus, chips). --button-primary: CTA fills (white label).
+   */
+  :root {
+    /* Canonical brand layer */
+    --color-brand-primary: #6366f1;
+    --color-brand-secondary: #4f46e5;
+    --color-brand-tertiary: #3730a3;
+    --color-primary-bg: #0f0b2e;
+    --color-secondary-bg: #0a0619;
+    --color-accent-bg: #0a0619;
+    --color-primary-text: #eef2ff;
+    --color-secondary-text: var(--color-primary-bg);
+    --color-accent-text: #6366f1;
+    --color-button-text: #0f0b2e;
+    --color-button-primary: #3730a3;
+    --color-button-primary-hover: #312e81;
+
+    /* Semantic surfaces (dark) */
+    --bg-primary: var(--color-primary-bg);
+    --bg-secondary: var(--color-secondary-bg);
+    --bg-card: color-mix(in srgb, var(--color-primary-bg) 88%, var(--color-brand-secondary) 12%);
+    --text-primary: var(--color-primary-text);
+    --text-muted: color-mix(in srgb, var(--color-primary-text) 55%, var(--color-brand-secondary) 45%);
+    --border: color-mix(in srgb, var(--color-brand-tertiary) 70%, var(--color-primary-bg) 30%);
+    --accent: var(--color-brand-primary);
+    --accent-hover: var(--color-button-primary-hover);
+    --accent-light: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+    --button-primary: var(--color-button-primary);
+    --button-primary-hover: var(--color-button-primary-hover);
+    --overlay-scrim: color-mix(in srgb, var(--color-primary-bg) 55%, transparent);
+    --overlay-scrim-medium: color-mix(in srgb, var(--color-primary-bg) 45%, transparent);
+    --overlay-scrim-light: color-mix(in srgb, var(--color-primary-bg) 30%, transparent);
+
+    --success: #4caf7d;
+    --warning: #f5a623;
+    --error: #ef5350;
+    --info: #42a5f5;
+    --hover-overlay: rgba(255, 255, 255, 0.05);
+    --hover-overlay-strong: rgba(255, 255, 255, 0.10);
+    --surface-subtle: rgba(255, 255, 255, 0.05);
+
+    /* Alpha blends — Tailwind's bg-color/xx does not emit for plain var(--hex); use these with bg-*, border-*, divide-* */
+    --border-soft: color-mix(in srgb, var(--border) 42%, transparent);
+    --border-mid: color-mix(in srgb, var(--border) 58%, transparent);
+    --border-strong: color-mix(in srgb, var(--border) 72%, transparent);
+
+    --success-soft: color-mix(in srgb, var(--success) 14%, transparent);
+    --success-faint: color-mix(in srgb, var(--success) 7%, transparent);
+    --success-strong: color-mix(in srgb, var(--success) 22%, transparent);
+    --success-line: color-mix(in srgb, var(--success) 28%, transparent);
+    --success-bold: color-mix(in srgb, var(--success) 38%, transparent);
+
+    --warning-soft: color-mix(in srgb, var(--warning) 14%, transparent);
+    --warning-faint: color-mix(in srgb, var(--warning) 7%, transparent);
+    --warning-strong: color-mix(in srgb, var(--warning) 22%, transparent);
+    --warning-line: color-mix(in srgb, var(--warning) 28%, transparent);
+    --warning-bold: color-mix(in srgb, var(--warning) 38%, transparent);
+    --warning-shadow: color-mix(in srgb, var(--warning) 32%, transparent);
+
+    --error-soft: color-mix(in srgb, var(--error) 14%, transparent);
+    --error-faint: color-mix(in srgb, var(--error) 7%, transparent);
+    --error-strong: color-mix(in srgb, var(--error) 22%, transparent);
+    --error-line: color-mix(in srgb, var(--error) 32%, transparent);
+    --error-bold: color-mix(in srgb, var(--error) 48%, transparent);
+    --error-hover: color-mix(in srgb, var(--error) 26%, transparent);
+
+    --info-soft: color-mix(in srgb, var(--info) 12%, transparent);
+    --info-line: color-mix(in srgb, var(--info) 32%, transparent);
+    --info-bold: color-mix(in srgb, var(--info) 38%, transparent);
+
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+    --accent-faint: color-mix(in srgb, var(--accent) 8%, transparent);
+    --accent-muted: color-mix(in srgb, var(--accent) 16%, transparent);
+    --accent-strong: color-mix(in srgb, var(--accent) 22%, transparent);
+    --accent-line: color-mix(in srgb, var(--accent) 32%, transparent);
+    --accent-line-strong: color-mix(in srgb, var(--accent) 46%, transparent);
+    --accent-shadow: color-mix(in srgb, var(--accent) 35%, transparent);
+
+    /* Exo AI center column — radial shell behind tesseract */
+    --exo-radial-center: color-mix(in srgb, var(--color-primary-bg) 70%, var(--color-brand-tertiary) 30%);
+    --exo-radial-mid: var(--color-secondary-bg);
+    --exo-radial-edge: #000000;
+    --exo-center-bg: #000000;
+
+    /* Welcome / launch splash radial shells (shared stops; follow theme). */
+    --welcome-splash-vignette: color-mix(in srgb, var(--bg-primary) 75%, #000);
+    --welcome-splash-glow-secondary: color-mix(in srgb, var(--accent) 14%, var(--bg-secondary));
+    --welcome-splash-glow-soft: color-mix(in srgb, var(--accent) 10%, var(--bg-secondary));
+    /* Welcome wizard modal — follow :root theme tokens (light/dark) */
+    --welcome-setup-overlay: color-mix(in srgb, var(--bg-primary) 28%, transparent);
+    --welcome-setup-hint: color-mix(in srgb, var(--bg-secondary) 92%, var(--accent) 8%);
+  }
+
+  :root[data-theme="light"] {
+    --bg-primary: #f0f2f8;
+    --bg-secondary: #ffffff;
+    --bg-card: #ffffff;
+    --accent: var(--color-brand-tertiary);
+    --accent-hover: var(--color-button-primary-hover);
+    --accent-light: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+    --button-primary: var(--color-button-primary);
+    --button-primary-hover: var(--color-button-primary-hover);
+    --text-primary: #1a1d27;
+    --text-muted: #6b7280;
+    --border: #dde1f0;
+    --success: #2e9e5e;
+    --warning: #d97706;
+    --error: #dc2626;
+    --info: #2563eb;
+    --hover-overlay: rgba(0, 0, 0, 0.05);
+    --hover-overlay-strong: rgba(0, 0, 0, 0.10);
+    --surface-subtle: rgba(0, 0, 0, 0.06);
+
+    /*
+      Light UI: mix with white (not transparent) so status chips / badges read clearly.
+      Previous color-mix(..., N%, transparent) on white cards looked nearly grayscale.
+    */
+    --border-soft: color-mix(in srgb, var(--border) 55%, white);
+    --border-mid: color-mix(in srgb, var(--border) 70%, white);
+    --border-strong: color-mix(in srgb, var(--border) 82%, white);
+
+    --success-soft: color-mix(in srgb, var(--success) 30%, white);
+    --success-faint: color-mix(in srgb, var(--success) 16%, white);
+    --success-strong: color-mix(in srgb, var(--success) 38%, white);
+    --success-line: color-mix(in srgb, var(--success) 52%, white);
+    --success-bold: color-mix(in srgb, var(--success) 58%, white);
+
+    --warning-soft: color-mix(in srgb, var(--warning) 28%, white);
+    --warning-faint: color-mix(in srgb, var(--warning) 15%, white);
+    --warning-strong: color-mix(in srgb, var(--warning) 36%, white);
+    --warning-line: color-mix(in srgb, var(--warning) 48%, white);
+    --warning-bold: color-mix(in srgb, var(--warning) 55%, white);
+    --warning-shadow: color-mix(in srgb, var(--warning) 38%, transparent);
+
+    --error-soft: color-mix(in srgb, var(--error) 26%, white);
+    --error-faint: color-mix(in srgb, var(--error) 14%, white);
+    --error-strong: color-mix(in srgb, var(--error) 36%, white);
+    --error-line: color-mix(in srgb, var(--error) 48%, white);
+    --error-bold: color-mix(in srgb, var(--error) 58%, white);
+    --error-hover: color-mix(in srgb, var(--error) 40%, white);
+
+    --info-soft: color-mix(in srgb, var(--info) 26%, white);
+    --info-line: color-mix(in srgb, var(--info) 44%, white);
+    --info-bold: color-mix(in srgb, var(--info) 52%, white);
+
+    --accent-soft: color-mix(in srgb, var(--accent) 22%, white);
+    --accent-faint: color-mix(in srgb, var(--accent) 12%, white);
+    --accent-muted: color-mix(in srgb, var(--accent) 28%, white);
+    --accent-strong: color-mix(in srgb, var(--accent) 34%, white);
+    --accent-line: color-mix(in srgb, var(--accent) 38%, white);
+    --accent-line-strong: color-mix(in srgb, var(--accent) 52%, white);
+    --accent-shadow: color-mix(in srgb, var(--accent) 40%, transparent);
+
+    --color-primary-bg: #f4f5fa;
+    --color-secondary-bg: #eef0f7;
+
+    --exo-radial-center: color-mix(in srgb, #ffffff 94%, var(--color-brand-tertiary) 6%);
+    --exo-radial-mid: color-mix(in srgb, var(--bg-primary) 55%, #ffffff 45%);
+    --exo-radial-edge: var(--bg-primary);
+    --exo-center-bg: var(--bg-primary);
+
+    --welcome-splash-vignette: color-mix(in srgb, var(--bg-primary) 80%, var(--border) 20%);
+    --welcome-splash-glow-secondary: color-mix(in srgb, var(--color-brand-tertiary) 6%, #ffffff);
+    --welcome-splash-glow-soft: color-mix(in srgb, var(--color-brand-tertiary) 4%, #ffffff);
+    --welcome-setup-overlay: color-mix(in srgb, var(--bg-secondary) 58%, transparent);
+    --welcome-setup-hint: color-mix(in srgb, var(--bg-secondary) 94%, var(--accent) 6%);
+  }
+
+  /* Single scroll surface: <main> in App. Prevents extra blank scroll past the panel (flex min-height + root chain). */
+  html,
+  body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  /* Flex column so the app can use flex-1 + min-h-0 instead of 100vh (avoids Electron bottom gap). */
+  #root {
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* Default to selectable text; use select-none on chrome/drag surfaces (TitleBar, DropZone). */
+    user-select: text;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+
+  /* Keyboard focus — keep visible on icon-only and secondary controls */
+  :where(button, a, [role="button"], summary):focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+/* macOS traffic lights (Electron titleBarStyle: hiddenInset) draw over the window’s top-left corner. */
+:root.mac-traffic {
+  --mac-traffic-light-inset: 80px; /* matches setup.html; clears red/yellow/green controls */
+}
+
+/* Default left inset when not clearing macOS traffic lights (matches Tailwind `pl-4`). */
+.mac-traffic-safe-pl {
+  padding-left: 1rem;
+  box-sizing: border-box;
+}
+
+html.mac-traffic .app-shell-top-brand,
+html.mac-traffic .mac-traffic-safe-pl {
+  padding-left: var(--mac-traffic-light-inset);
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

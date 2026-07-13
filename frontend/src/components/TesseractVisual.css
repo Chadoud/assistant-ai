@@ -1,0 +1,733 @@
+/* ============================================================================
+   TesseractVisual — welcome / launch splash background animation.
+   Wordmark + 3D scene live in one .tv-content block, positioned below mid-screen.
+   ============================================================================ */
+
+/* ─── Root: fills the parent (welcome-sphere-reveal = absolute inset-0) ────── */
+
+.tv-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Single column: title then tesseract — shifted down as a unit */
+.tv-content {
+  position: absolute;
+  left: 50%;
+  top: clamp(50%, 50vh, 62%);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(0.5rem, 2vh, 1rem);
+  width: min(100%, clamp(280px, 90vw, 560px));
+  z-index: 1;
+}
+
+/* Plan board: use the full Exo center column so all steps fit. */
+.tv-content--plan {
+  width: min(100%, 100%);
+  max-width: none;
+  padding-inline: clamp(0.25rem, 1.5vw, 0.75rem);
+  pointer-events: auto;
+}
+
+.tv-plan-board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: center center;
+  transition: transform 0.35s ease;
+}
+
+.tv-plan-viewport {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+  transition: transform 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tv-plan-viewport--focused .tv-scene {
+  filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.4));
+}
+
+.tv-plan-board--pinned {
+  cursor: default;
+}
+
+.tv-plan-hit-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.tv-plan-column-hit {
+  position: absolute;
+  z-index: 8;
+  cursor: pointer;
+  border-radius: 10px;
+  background: transparent;
+  outline: none;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.tv-plan-column-hit--active {
+  /* Keeps the hover target stable while the viewport zooms underneath. */
+}
+
+.tv-plan-column-hit:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
+.tv-plan-labels--overview {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.tv-plan-label--overview {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.15;
+  max-width: 4rem;
+  color: color-mix(in srgb, var(--text-primary) 92%, transparent);
+  text-shadow: 0 1px 2px color-mix(in srgb, var(--exo-center-bg) 75%, transparent);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: opacity 0.28s ease;
+}
+
+.tv-plan-label--overview.tv-plan-label--dimmed {
+  opacity: 0.35;
+}
+
+.tv-plan-label--overview.tv-plan-label--running {
+  color: rgba(255, 200, 90, 0.98);
+}
+
+.tv-plan-focus-callout__detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.tv-scene-container--plan {
+  overflow: hidden;
+  height: min(50vh, 380px);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.tv-scene-container--plan-interactive .tv-plan-hit-layer {
+  pointer-events: none;
+}
+
+.tv-scene-container--plan-focused {
+  overflow: visible;
+  cursor: pointer;
+}
+
+.tv-plan-focus-callout {
+  position: relative;
+  z-index: 12;
+  flex-shrink: 0;
+  width: min(100%, 24rem);
+  margin: 0.25rem auto 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent) 14%, transparent);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease;
+}
+
+.tv-plan-focus-callout--pinned {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.tv-cube--interactive {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.tv-plan-labels--focused {
+  z-index: 6;
+  transition: opacity 0.4s ease;
+}
+
+.tv-plan-labels--focused .tv-plan-label--focused {
+  pointer-events: none;
+}
+
+.tv-plan-label--focused.tv-plan-label--step {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  max-width: none;
+  white-space: nowrap;
+  padding: 0.2rem 0.45rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+  border: 1px solid var(--border-soft);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+  display: block;
+}
+
+.tv-plan-label--focused.tv-plan-label--sub {
+  font-size: 12px;
+  font-weight: 600;
+  max-width: min(220px, 52vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.18rem 0.42rem;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 10%, transparent);
+  text-align: right;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.tv-plan-focus-callout__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.tv-plan-focus-callout__badge {
+  align-self: flex-start;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+}
+
+.tv-plan-focus-callout__badge--running {
+  border-color: rgba(255, 180, 0, 0.55);
+  color: rgba(255, 200, 90, 0.98);
+}
+
+.tv-plan-focus-callout__badge--done {
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+.tv-plan-focus-callout__badge--error {
+  border-color: color-mix(in srgb, var(--error) 55%, transparent);
+  color: var(--error);
+}
+
+.tv-plan-focus-callout__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+}
+
+.tv-plan-focus-callout__subs {
+  list-style: none;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  max-height: 4.5rem;
+  overflow-y: auto;
+}
+
+.tv-plan-focus-callout__sub {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--text-primary) 78%, transparent);
+}
+
+.tv-plan-focus-callout__sub-dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.tv-plan-focus-callout__sub--running {
+  color: rgba(255, 200, 90, 0.98);
+}
+
+.tv-plan-focus-callout__sub--running .tv-plan-focus-callout__sub-dot {
+  background: rgba(255, 180, 0, 0.95);
+  box-shadow: 0 0 6px rgba(255, 180, 0, 0.65);
+}
+
+.tv-plan-focus-callout__sub--done {
+  color: color-mix(in srgb, var(--accent) 75%, white);
+}
+
+.tv-plan-focus-callout__sub--done .tv-plan-focus-callout__sub-dot {
+  background: var(--accent);
+}
+
+.tv-plan-focus-callout__sub-text {
+  word-break: break-word;
+}
+
+/* ─── 3D Scene — fixed band under the wordmark ─────────────────────────────── */
+
+.tv-scene-container {
+  position: relative;
+  width: 100%;
+  height: min(52vh, 420px);
+  flex-shrink: 0;
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+  overflow: visible;
+  contain: none;
+}
+
+.tv-scene {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-style: preserve-3d;
+  perspective: 12000px;
+  perspective-origin: 50% 50%;
+  animation: tv-rotate 8s linear infinite;
+  /* TS breathing cycle ROTATION_PERIOD_MS — keep durations aligned */
+  overflow: visible;
+}
+
+@keyframes tv-rotate {
+  0%   { transform: rotateX(0deg)   rotateY(0deg);   }
+  100% { transform: rotateX(360deg) rotateY(360deg); }
+}
+
+/* Individual cube — centered in the scene, offset by JS translate3d. */
+.tv-cube {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tv-cube-wrapper {
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  animation: tv-float 1.8s ease-in-out infinite;
+}
+
+@keyframes tv-float {
+  0%, 100% { transform: scale(1);   }
+  50%       { transform: scale(1.1); }
+}
+
+.tv-face {
+  position: absolute;
+  width: var(--tv-cube-size);
+  height: var(--tv-cube-size);
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 0.5px solid var(--color-brand-primary, var(--accent));
+  backface-visibility: hidden;
+}
+
+/* Exo: mic off — cube edges + wordmark (coral / white / slate — matches brand spec when mic inactive). */
+.tv-root--mic-muted .tv-face {
+  border-color: var(--error);
+}
+
+/* Exo: voice session reconnecting — matches exo-voice-status-text RECONNECTING amber. */
+.tv-root--reconnecting .tv-face {
+  border-color: rgba(255, 180, 0, 0.85);
+}
+
+/*
+ * Muted wordmark palette (EXOSITES coral when mic inactive; STUDIO white in dark / indigo in light).
+ * Scoped so welcome splash (no micMuted) keeps theme accent.
+ */
+.tv-root--mic-muted .tv-label--brand {
+  color: #e85c58;
+}
+
+.tv-root--mic-muted .tv-tagline {
+  color: #94a3b8;
+}
+
+.tv-root--mic-muted .tv-wordmark-wing-line {
+  background: #e85c58;
+}
+
+/* Reconnecting overrides mic-muted wordmark — amber takes priority over coral. */
+.tv-root--reconnecting .tv-label--brand {
+  color: rgba(255, 180, 0, 0.85);
+}
+
+.tv-wordmark {
+  width: 100%;
+}
+
+.tv-wordmark-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  gap: clamp(0.65rem, 2.5vw, 1.15rem);
+}
+
+.tv-wordmark-core {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.tv-wordmark-wing {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tv-wordmark-wing-line {
+  display: block;
+  width: 100%;
+  height: 1px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--accent)) 82%, transparent);
+}
+
+.tv-word-container {
+  overflow: hidden;
+  height: 1.2em;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: end;
+  justify-content: center;
+  gap: clamp(0.28rem, 1.2vw, 0.55rem);
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 0;
+}
+
+.tv-label {
+  font-family: "Syne", system-ui, sans-serif;
+  font-size: inherit;
+  font-weight: 100;
+  line-height: 1;
+  margin: 0;
+  display: block;
+}
+
+.tv-label--brand {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-brand-primary, var(--accent));
+}
+
+.tv-label--studio {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .tv-label--studio {
+  color: var(--color-brand-tertiary);
+}
+
+.tv-tagline {
+  font-family: "Syne", system-ui, sans-serif;
+  font-size: clamp(0.5625rem, 1.5vw, 0.6875rem);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--text-primary) 58%, transparent);
+  text-align: center;
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .tv-scene-container {
+    perspective: 4600px;
+  }
+}
+
+/* ─── One-shot intro fade — plays once when the Exo tab is first shown ── */
+
+@keyframes tv-intro-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.tv-content--intro {
+  /* fill-mode: both keeps opacity:0 before the animation starts */
+  animation: tv-intro-fade 1.8s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+
+/* ─── Reduced motion ───────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-scene        { animation: none; }
+  .tv-cube-wrapper { animation: none; }
+  .tv-content--intro { animation: none !important; }
+}
+
+/* Paused while Exo is off-tab or the browser window is hidden — stops GPU burn. */
+.tv-root--animation-suspended .tv-scene,
+.tv-root--animation-suspended .tv-cube-wrapper,
+.tv-root--animation-suspended .tv-line,
+.tv-root--animation-suspended .tv-cube-travel-dot,
+.tv-root--animation-suspended .tv-plan-pulse {
+  animation-play-state: paused !important;
+}
+
+/* ─── Connection lines (active while WORKING / THINKING) ───────────────────── */
+
+.tv-conn-anchor {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.tv-conn-inner {
+  height: 1px;
+  background: color-mix(in srgb, var(--color-brand-primary, var(--accent)) 50%, transparent);
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: left center;
+  /* fill-mode: both keeps scaleX(0) before delay, scaleX(1) after */
+  animation: tv-line-draw 0.5s ease-out var(--tv-line-delay, 0s) both;
+  position: relative;
+  overflow: visible;
+  /* preserve-3d lets dot child faces live in the same 3D space */
+  transform-style: preserve-3d;
+}
+
+@keyframes tv-line-draw {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/*
+ * Traveling mini-cube — identical face style to the main tesseract cubes.
+ *
+ * WHY scale instead of opacity for appear/disappear:
+ *   CSS spec §10.2 — any ancestor with opacity < 1 cancels transform-style: preserve-3d
+ *   on all descendants, flattening the 3D faces into a 2D plane.
+ *   The individual CSS `scale` property does NOT create a compositing context,
+ *   so preserve-3d is kept intact and the faces render in true 3D.
+ *
+ * The cube is a direct sibling of .tv-conn-inner (NOT nested inside it) so the
+ * inner div's opacity draw-animation never appears as an ancestor of this element.
+ */
+.tv-travel-cube {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  transform-style: preserve-3d;
+  width: var(--tv-cube-size);
+  height: var(--tv-cube-size);
+  animation: tv-cube-travel var(--tv-dot-duration, 0.9s) ease-in-out var(--tv-dot-delay, 0s) infinite;
+  /* Hidden until the keyframe kicks in */
+  scale: 0;
+}
+
+@keyframes tv-cube-travel {
+  0%   { left: 1%;   scale: 0; }
+  8%   { scale: 1;   }
+  92%  { scale: 1;   }
+  100% { left: 99%;  scale: 0; }
+}
+
+/* Reduced motion: static lines, no traveling cubes */
+@media (prefers-reduced-motion: reduce) {
+  .tv-conn-inner {
+    animation: none;
+    transform: scaleX(1);
+    opacity: 0.3;
+  }
+  .tv-travel-cube {
+    animation: none;
+    scale: 0;
+  }
+}
+
+/* ─── Plan mode — labeled step/subtask board ──────────────────────────────── */
+
+/*
+ * In plan mode the scene stops orbiting and holds a gentle, readable tilt so the
+ * step row and subtask columns stay legible. Cubes are positioned by the plan
+ * RAF; the float pulse is disabled per-cube via .tv-cube--static.
+ */
+.tv-scene--plan {
+  animation: none;
+  transform: rotateX(10deg);
+  transition: transform 0.8s ease;
+}
+
+.tv-cube--static .tv-cube-wrapper {
+  animation: none;
+}
+
+/* Per-status cube recoloring (faces + glow). Defaults to accent. */
+.tv-cube--pending .tv-face {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  opacity: 0.55;
+}
+
+.tv-cube--dimmed .tv-face {
+  opacity: 0.35;
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tv-cube--running .tv-face {
+  border-color: rgba(255, 180, 0, 0.95);
+  background: color-mix(in srgb, rgba(255, 180, 0, 0.9) 14%, var(--bg-primary));
+}
+
+.tv-cube--running .tv-cube-wrapper {
+  animation: tv-plan-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes tv-plan-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.16); }
+}
+
+.tv-cube--done .tv-face {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-primary));
+}
+
+.tv-cube--error .tv-face {
+  border-color: var(--error);
+  background: color-mix(in srgb, var(--error) 18%, var(--bg-primary));
+}
+
+/* Label overlay — flat, non-rotating layer above the tilted board. */
+.tv-plan-labels {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tv-plan-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-family: inherit;
+  transition: opacity 0.3s ease;
+}
+
+.tv-plan-label--step {
+  font-size: clamp(0.58rem, 1.4vw, 0.72rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  text-shadow: 0 1px 3px color-mix(in srgb, var(--exo-center-bg) 70%, transparent);
+  text-align: center;
+  line-height: 1.2;
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+}
+
+.tv-plan-label--sub {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px color-mix(in srgb, var(--exo-center-bg) 70%, transparent);
+}
+
+.tv-plan-label--sub.tv-plan-label--pending {
+  color: var(--text-muted);
+}
+
+.tv-plan-label--sub.tv-plan-label--done {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-primary));
+}
+
+.tv-plan-label--running {
+  color: rgba(255, 200, 90, 0.98);
+}
+
+.tv-plan-label--error {
+  color: var(--error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-cube--running .tv-cube-wrapper {
+    animation: none;
+  }
+  .tv-scene--plan {
+    transition: none;
+  }
+  .tv-plan-viewport {
+    transition: none;
+  }
+  .tv-cube {
+    transition: none;
+  }
+  .tv-cube--dimmed .tv-face {
+    transition: none;
+  }
+  .tv-plan-focus-callout {
+    transition: none;
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "ambiguous_similar",
+  "text": "Bank statement for account ending 1234. Balance and transactions for March.",
+  "existing_folders": ["Bank Statements", "Finance Reports", "Personal"],
+  "folder_contexts": {},
+  "filename_tokens": ["statement", "bank"],
+  "gold_folder": "Bank Statements"
+}

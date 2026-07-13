@@ -1,0 +1,25 @@
+/** Main nav labels (English). */
+export const enNavLocaleSlice = {
+  nav: {
+    queue: "Sort files",
+    overview: "Results",
+    history: "History",
+    assistant: "Chat",
+    exo: "Exo",
+    memories: "Memory",
+    tasks: "Tasks",
+    todo: "To Do",
+    todoToday: "Tasks",
+    todoInbox: "Inbox",
+    todoUpcoming: "Upcoming",
+    todoDone: "Done",
+    groupTodo: "To Do",
+    groupFiles: "Files",
+    groupAssistant: "Assistant",
+    groupSettings: "Settings",
+    sources: "External sources",
+    settings: "Settings",
+    profile: "Profile",
+    profileSignInHint: "Sign in to your account",
+  },
+} as const;

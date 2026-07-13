@@ -1,0 +1,52 @@
+# Horizontal scale: second chat GPU/CPU instance + LiteLLM simple-shuffle across both.
+# Requires config.scalable.yaml (duplicate model_name entries).
+#
+# Usage:
+#   docker compose -f compose/docker-compose.yml \
+#     -f compose/docker-compose.scale-overlay.yml \
+#     -f compose/docker-compose.redis-overlay.yml \
+#     --env-file .env up -d
+
+services:
+  ollama-chat-b:
+    image: ollama/ollama:latest
+    container_name: ollama-chat-b
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_NUM_PARALLEL: ${OLLAMA_NUM_PARALLEL:-4}
+      OLLAMA_MAX_LOADED_MODELS: 1
+      OLLAMA_MAX_QUEUE: ${OLLAMA_MAX_QUEUE:-64}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-30m}
+      OLLAMA_FLASH_ATTENTION: 1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - internal
+
+  litellm:
+    volumes:
+      - ../litellm/config.scalable.yaml:/app/config.yaml:ro
+    depends_on:
+      ollama-chat-b:
+        condition: service_healthy
+
+volumes:
+  ollama_models:
+
+networks:
+  internal:
+    driver: bridge

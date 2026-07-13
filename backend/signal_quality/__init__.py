@@ -1,0 +1,71 @@
+"""Signal quality layer — filter promotional/spam content at ingestion boundaries."""
+
+from signal_quality.brain_map import (
+    file_allowed_on_brain_map,
+    folder_allowed_on_brain_map,
+    task_map_eligible,
+)
+from signal_quality.constants import (
+    AUTO_MEMORY_HIDDEN_NOISE_THRESHOLD,
+    AUTO_MEMORY_TRIAGE_MAX_NOISE,
+    GMAIL_NOISE_LABELS,
+    GMAIL_NOISE_QUERY_EXCLUSIONS,
+    PROVENANCE_CALENDAR,
+    PROVENANCE_CHAT,
+    PROVENANCE_INTEGRATION,
+    PROVENANCE_MAIL,
+    PROVENANCE_MANUAL,
+    PROVENANCE_MEETING,
+    SIGNAL_CHECK_BYPASS_KEYS,
+)
+from signal_quality.evaluate import (
+    SignalTier,
+    SignalVerdict,
+    auto_memory_visibility_sql,
+    evaluate_gmail_message,
+    evaluate_memory_item,
+    evaluate_outlook_message,
+    evaluate_text,
+    is_mail_security_notification,
+    is_prompt_visible,
+    is_recall_visible,
+    mail_task_allowed,
+)
+from signal_quality.memory_shape import (
+    PROMO_DENSITY_SKIP_THRESHOLD,
+    looks_like_email_subject,
+    looks_like_inbox_recap,
+    transcript_promo_density,
+)
+
+__all__ = [
+    "AUTO_MEMORY_HIDDEN_NOISE_THRESHOLD",
+    "AUTO_MEMORY_TRIAGE_MAX_NOISE",
+    "GMAIL_NOISE_LABELS",
+    "GMAIL_NOISE_QUERY_EXCLUSIONS",
+    "PROVENANCE_CALENDAR",
+    "PROVENANCE_CHAT",
+    "PROVENANCE_INTEGRATION",
+    "PROVENANCE_MAIL",
+    "PROVENANCE_MANUAL",
+    "PROVENANCE_MEETING",
+    "SIGNAL_CHECK_BYPASS_KEYS",
+    "SignalTier",
+    "SignalVerdict",
+    "auto_memory_visibility_sql",
+    "evaluate_gmail_message",
+    "evaluate_memory_item",
+    "evaluate_outlook_message",
+    "evaluate_text",
+    "is_mail_security_notification",
+    "is_prompt_visible",
+    "is_recall_visible",
+    "mail_task_allowed",
+    "PROMO_DENSITY_SKIP_THRESHOLD",
+    "looks_like_email_subject",
+    "looks_like_inbox_recap",
+    "transcript_promo_density",
+    "folder_allowed_on_brain_map",
+    "file_allowed_on_brain_map",
+    "task_map_eligible",
+]

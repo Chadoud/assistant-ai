@@ -1,0 +1,7 @@
+@import "./styles/tokens.css";
+@import "./styles/welcome-layout.css";
+@import "./styles/exo.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

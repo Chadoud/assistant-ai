@@ -1,0 +1,19 @@
+# Pinned production models — bump version + run pull-models.sh on change
+version: "2026-06-18"
+
+models:
+  chat:
+    name: mistral
+    tag: mistral:latest
+    required: true
+    context_default: 4096
+  embed:
+    name: nomic-embed-text
+    tag: nomic-embed-text:latest
+    required: true
+  vision:
+    name: moondream
+    tag: moondream:latest
+    required: true
+
+# Future: add mistral-2026-06-18 for canary routing in LiteLLM

@@ -1,0 +1,36 @@
+default_platform(:ios)
+
+def flutter_build_args
+  [
+    "--release",
+    "--dart-define-from-file=env/production.json",
+  ]
+end
+
+platform :ios do
+  desc "Upload to TestFlight (internal testers)"
+  lane :beta do
+    sh("flutter", "pub", "get")
+    sh(
+      "flutter", "build", "ipa",
+      *flutter_build_args,
+      "--export-options-plist=ios/ExportOptions.plist",
+    )
+    upload_to_testflight(skip_waiting_for_build_processing: true)
+  end
+end
+
+platform :android do
+  desc "Upload AAB to Play internal track"
+  lane :beta do
+    sh("flutter", "pub", "get")
+    sh("flutter", "build", "appbundle", *flutter_build_args)
+    upload_to_play_store(
+      track: "internal",
+      aab: "build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+    )
+  end
+end

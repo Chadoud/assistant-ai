@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://exosites.local/sync/blob-envelope/v1",
+  "title": "SyncBlobEnvelope",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "collection",
+    "record_id",
+    "device_id",
+    "logical_clock",
+    "updated_at",
+    "deleted",
+    "ciphertext"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "collection": {
+      "type": "string",
+      "enum": [
+        "memory_entries",
+        "conversations",
+        "tasks",
+        "activity_entries",
+        "digests",
+        "nudges"
+      ]
+    },
+    "record_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "device_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "logical_clock": { "type": "integer", "minimum": 0 },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "deleted": { "type": "boolean" },
+    "ciphertext": { "type": "string", "contentEncoding": "base64" },
+    "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  },
+  "additionalProperties": false
+}

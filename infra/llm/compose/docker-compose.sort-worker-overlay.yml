@@ -1,0 +1,36 @@
+# Sort-worker overlay — OCR + ffmpeg + analyze on VPS (see docs/CLOUD_SORT_VPS_PLAN.md)
+# docker compose -f compose/docker-compose.minimal-staging.yml \
+#   -f compose/docker-compose.infomaniak.yml \
+#   -f compose/docker-compose.sort-worker-overlay.yml --env-file .env up -d
+
+services:
+  sort-worker:
+    build:
+      context: ../../..
+      dockerfile: infra/llm/sort-worker/Dockerfile
+    container_name: sort-worker
+    environment:
+      OLLAMA_MODE: remote
+      EXOSITES_REMOTE_LLM: "1"
+      OLLAMA_HOST: http://litellm:4000
+      OLLAMA_API_KEY: ${LITELLM_MASTER_KEY}
+      SORT_WORKER_API_KEY: ${SORT_WORKER_API_KEY:-${LITELLM_MASTER_KEY}}
+      SORT_WORKER_MAX_UPLOAD_BYTES: ${SORT_WORKER_MAX_UPLOAD_BYTES:-104857600}
+      SORT_WORKER_TMP_DIR: /tmp/exo-sort-worker
+    volumes:
+      - sort_worker_tmp:/tmp/exo-sort-worker
+    depends_on:
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8020/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+    restart: unless-stopped
+    networks:
+      - internal
+
+volumes:
+  sort_worker_tmp:

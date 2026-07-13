@@ -1,0 +1,63 @@
+"""Shared deterministic sort signals — single source for geo, property, subject cues."""
+
+from sort_signals.doc_kind import is_boat_document, is_passport_document
+from sort_signals.geo import (
+    STRONG_EGYPT_HIT_LABELS,
+    country_label_supported_by_geo,
+    country_label_supported_by_text,
+    country_supported_by_language,
+    folder_top_region,
+    geo_hits,
+    geo_rerank_adjustment,
+    geo_supports_new_folder,
+    geographic_folder_conflict,
+    infer_document_regions,
+    region_id_to_country_label,
+)
+from sort_signals.property import (
+    HURGHADA_PORTFOLIO_LABEL,
+    HURGHADA_UTILITIES_LABEL,
+    PROPERTY_FALLBACK_GENERAL,
+    PROPERTY_FALLBACK_IDENTITY,
+    match_canal_company,
+    match_egp,
+    match_hospital_landmark,
+    match_hurghada,
+    match_hurghada_portfolio_cues,
+    match_intercontinental,
+    match_ministry_justice,
+    match_moj_electricity_meter,
+    match_ocr_address_property,
+)
+from sort_signals.subject import match_electricity_subject, suggest_subject_from_text
+
+__all__ = [
+    "STRONG_EGYPT_HIT_LABELS",
+    "HURGHADA_PORTFOLIO_LABEL",
+    "HURGHADA_UTILITIES_LABEL",
+    "PROPERTY_FALLBACK_GENERAL",
+    "PROPERTY_FALLBACK_IDENTITY",
+    "country_label_supported_by_geo",
+    "country_label_supported_by_text",
+    "country_supported_by_language",
+    "folder_top_region",
+    "geo_hits",
+    "geographic_folder_conflict",
+    "geo_rerank_adjustment",
+    "geo_supports_new_folder",
+    "infer_document_regions",
+    "is_boat_document",
+    "is_passport_document",
+    "match_canal_company",
+    "match_egp",
+    "match_electricity_subject",
+    "match_hospital_landmark",
+    "match_hurghada",
+    "match_hurghada_portfolio_cues",
+    "match_intercontinental",
+    "match_ministry_justice",
+    "match_moj_electricity_meter",
+    "match_ocr_address_property",
+    "region_id_to_country_label",
+    "suggest_subject_from_text",
+]

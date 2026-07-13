@@ -1,0 +1,37 @@
+{
+  "id": "egypt_electricity_uae_regression",
+  "text_file": "tests/fixtures/geo_accuracy/egypt_electricity_hurghada_ocr.txt",
+  "existing_folders": [
+    "United Arab Emirates/Construction Site",
+    "Egypt/Bank Account",
+    "Uncertain"
+  ],
+  "folder_contexts": {
+    "United Arab Emirates/Construction Site": {
+      "keywords": ["contrat", "bail", "bailleresse", "bailler"],
+      "samples": ["Contrat de bail général pour logements 1. Parties au contrat"]
+    }
+  },
+  "filename_tokens": ["2523c15a", "252c", "46ce"],
+  "scored": {
+    "folder_name": "United Arab Emirates/Construction Site",
+    "confidence": 0.85,
+    "reason": "Keywords: contrat, bail",
+    "llm_folder_name": "United Arab Emirates/Construction Site",
+    "llm_confidence": 0.85,
+    "rerank_top_score": 0.12,
+    "classification_disagree": false,
+    "primary_purpose": "LeaseAgreements",
+    "candidate_scores": [
+      {"folder_name": "United Arab Emirates/Construction Site", "score": 0.12},
+      {"folder_name": "Uncertain", "score": 0.0}
+    ]
+  },
+  "gates": {
+    "file_path": "/tmp/2523c15a-252c-46ce-a3e7-73f5465c4235 2.JPG",
+    "quality_score": 0.61,
+    "low_signal": false,
+    "extraction_source": "image_ocr"
+  },
+  "gold_after_gates": "Uncertain"
+}

@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "venv", "__pycache__", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+# LLM prompt corpora — line breaks would alter model-facing text.
+[tool.ruff.lint.per-file-ignores]
+"main.py" = ["E402"]  # dotenv + logging bootstrap before FastAPI imports
+"ingestor.py" = ["E402"]
+"semantic_rerank.py" = ["E402"]
+"routes/job_routes_analyze.py" = ["E402"]
+"services/routing/capability_router.py" = ["E402"]
+"**/*.py" = ["E501"]
+
+[tool.vulture]
+# Include tests; suppress Pydantic v2 @field_validator classmethod first-arg false positives.
+paths = ["."]
+exclude = [".venv", "venv", "__pycache__", "build", "dist"]
+min_confidence = 80
+ignore_names = ["cls"]

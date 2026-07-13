@@ -1,0 +1,9 @@
+{
+  "id": "statutory_form_secondary_keywords",
+  "text": "National program enrollment form. Employer name and monthly salary fields must be completed. Accountant signature line. Primary request: benefits and service enrollment.",
+  "existing_folders": ["Government Forms", "EmploymentRecords", "TaxDocuments", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["enrollment", "form"],
+  "gold_folder": "Government Forms",
+  "document_hint": "Program enrollment form"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "bank_releve_fr",
+  "text": "Relevé de compte — IBAN CH12 3456 7890 1234 5678 9 — Solde au 30.09.2025. Opérations: salaire crédité, loyer débité, carte Visa.",
+  "existing_folders": ["Bank Statements", "Payroll", "Leases", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["releve", "septembre"],
+  "gold_folder": "Bank Statements",
+  "source_filename": "releve_septembre_2025.pdf"
+}

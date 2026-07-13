@@ -1,0 +1,57 @@
+name: Sort staging gate
+
+on:
+  schedule:
+    # 07:00 UTC — after nightly unit tests; probes live VPS + broker.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  staging-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify sort GA readiness (staging VPS)
+        env:
+          # Enables LiteLLM /key/generate probe; when unset the script skips that check.
+          LITELLM_MASTER_KEY: ${{ secrets.LITELLM_MASTER_KEY }}
+        run: npm run verify:sort-ga
+      - name: Cloud auth smoke
+        continue-on-error: true
+        run: npm run verify:cloud-auth
+
+  staging-classify:
+    runs-on: ubuntu-latest
+    needs: staging-readiness
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --prefer-binary -r requirements.txt
+      - name: Staging classify smoke
+        run: npm run ga:staging-classify
+
+  staging-vision:
+    runs-on: ubuntu-latest
+    needs: staging-readiness
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Staging vision smoke (moondream + sort-worker hybrid)
+        env:
+          LITELLM_MASTER_KEY: ${{ secrets.LITELLM_MASTER_KEY }}
+        run: |
+          if [[ -z "${LITELLM_MASTER_KEY:-}" ]]; then
+            echo "LITELLM_MASTER_KEY secret not set — skipping vision gate"
+            exit 0
+          fi
+          export EXO_BACKEND_STAGING_KEY="$LITELLM_MASTER_KEY"
+          npm run ga:staging-vision

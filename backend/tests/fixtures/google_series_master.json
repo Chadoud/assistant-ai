@@ -1,0 +1,7 @@
+{
+  "id": "abc123standupmaster",
+  "summary": "Weekly standup",
+  "recurrence": ["RRULE:FREQ=WEEKLY;BYDAY=TU"],
+  "start": { "dateTime": "2026-06-04T10:00:00+02:00", "timeZone": "Europe/Paris" },
+  "end": { "dateTime": "2026-06-04T10:30:00+02:00", "timeZone": "Europe/Paris" }
+}

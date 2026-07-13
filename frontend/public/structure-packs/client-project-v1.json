@@ -1,0 +1,27 @@
+{
+  "id": "client-project",
+  "version": 1,
+  "name": "Client → Project",
+  "template": {
+    "version": 1,
+    "enabled": true,
+    "modules": [
+      {
+        "id": "level-client",
+        "theme": "custom",
+        "customLabel": "Client",
+        "max_folders": 5,
+        "overflow_policy": "merge_into_other",
+        "children": [
+          {
+            "id": "level-project",
+            "theme": "project",
+            "max_folders": null,
+            "overflow_policy": "merge_into_other",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "student",
+  "name": "Student",
+  "description": "Courses, readings, and assignment deadlines.",
+  "instructions": "Organize by course and exam dates. Keep summaries short and scannable.",
+  "tool_allowlist": ["search_memories", "list_tasks", "create_task"],
+  "memory_seeds": []
+}

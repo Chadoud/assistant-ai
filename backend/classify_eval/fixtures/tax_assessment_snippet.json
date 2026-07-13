@@ -1,0 +1,8 @@
+{
+  "id": "tax_assessment_snippet",
+  "text": "Cantonal tax assessment 2024. Taxable income, deductions for pillar 3a, final amount payable by 31 March. Reference AHV number shown for identification only.",
+  "existing_folders": ["Taxes", "Payroll", "Insurance", "Uncertain"],
+  "folder_contexts": {},
+  "filename_tokens": ["tax", "2024"],
+  "gold_folder": "Taxes"
+}

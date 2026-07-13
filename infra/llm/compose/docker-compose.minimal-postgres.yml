@@ -1,0 +1,42 @@
+# Adds Postgres so LiteLLM /key/generate works (GA virtual keys).
+# Use with minimal-staging + infomaniak overlays:
+#   docker compose -f compose/docker-compose.minimal-staging.yml \
+#     -f compose/docker-compose.minimal-postgres.yml \
+#     -f compose/docker-compose.infomaniak.yml --env-file .env up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: litellm-postgres
+    environment:
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: litellm
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - internal
+
+  litellm:
+    build:
+      context: ../litellm
+      dockerfile: Dockerfile
+      args:
+        LITELLM_BASE: docker.litellm.ai/berriai/litellm-database:main-stable
+    image: exo-litellm:pillow
+    environment:
+      DATABASE_URL: postgresql://litellm:${POSTGRES_PASSWORD}@postgres:5432/litellm
+      STORE_MODEL_IN_DB: "True"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

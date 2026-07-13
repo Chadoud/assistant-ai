@@ -1,0 +1,614 @@
+name: Build Installers
+
+on:
+  push:
+    tags: ["v*"]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  quality-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Validate Electron IPC manifest
+        run: node scripts/validate-electron-ipc-manifest.cjs
+      - name: Validate electron.d.ts preload parity
+        run: node scripts/validate-electron-dts.cjs
+      - name: Secret logging audit
+        run: node scripts/audit-secret-logging.cjs
+      - name: Tracked env secret audit
+        run: bash scripts/audit-env-secrets-in-repo.sh
+
+  quality-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - working-directory: frontend
+        run: npm install
+      - name: npm audit (root, high+)
+        continue-on-error: true
+        run: npm audit --audit-level=high
+      - name: npm audit (frontend, high+)
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --audit-level=high
+      - name: Frontend lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Locale key parity
+        working-directory: frontend
+        run: npm run check-locale-keys
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Strict unused checks (frontend + backend)
+        run: pip install -r backend/requirements-dev.txt && npm run check:unused:strict
+      - name: Frontend build
+        working-directory: frontend
+        run: npm run build
+      - name: Frontend unit tests (with coverage)
+        working-directory: frontend
+        run: npm test -- --coverage
+      - name: Upload frontend coverage
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: |
+            frontend/coverage/coverage-summary.json
+            frontend/coverage/lcov.info
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Frontend E2E (Playwright)
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npm run test:e2e
+
+  quality-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install --prefer-binary -r requirements.txt -r requirements-dev.txt
+      - name: pip-audit (backend)
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt --desc on -f markdown -o pip-audit-report.md
+          cat pip-audit-report.md
+      - name: Backend pytest (voice + job_service coverage)
+        working-directory: backend
+        run: python -m pytest -q --cov=voice --cov=job_service --cov=health_checks --cov-fail-under=25 --cov-report=term --cov-report=xml
+      - name: Upload backend coverage
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          retention-days: 7
+      - name: Sync crypto tests
+        run: python -m pytest sync/tests -q
+      - name: Classification eval (no Ollama)
+        working-directory: backend
+        run: OLLAMA_EVAL=0 python -m classify_eval.run_eval
+        shell: bash
+      - name: KPI guardrails (fixture)
+        working-directory: backend
+        run: python -m classify_eval.kpi_guardrails --sort-plan classify_eval/fixtures/baseline_sort_plan.csv --max-uncertain-rate 0.60 --max-error-rate 0.10 --max-p90-ms 5000
+
+  quality-electron:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Electron integration + main-process command tests
+        run: npm run test:electron
+      - name: npm audit (cloud-node, high+)
+        continue-on-error: true
+        working-directory: cloud-node
+        run: npm audit --audit-level=high
+
+  quality-cloud:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - name: Cloud-node unit tests
+        working-directory: cloud-node
+        run: npm install && npm test
+      - name: Cloud auth verify (live API smoke)
+        # Optional on PRs/forks — needs reachable api.exosites.ch, not repo secrets.
+        continue-on-error: true
+        run: npm run verify:cloud-auth
+
+  quality:
+    needs: [quality-contract, quality-frontend, quality-backend, quality-electron, quality-cloud]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All quality gates passed"
+
+  # ── Quality gates (lint, typecheck+build, pytest) ───────────────────────────
+  # (split into parallel jobs above; kept `quality` as aggregation for installers)
+  # ── Windows installer (.exe) ──────────────────────────────────────────────
+  build-windows:
+    needs: quality
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install root Node dependencies
+        run: npm install
+
+      - name: Install frontend Node dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        # VITE_SENTRY_DSN is baked in at build time; absent on PRs/forks so those
+        # builds simply ship without Sentry (backend crash-ingest still applies).
+        # Privacy/Terms URLs are public pages baked into every distributable so
+        # the in-app legal links always resolve (first-run acceptance step).
+        run: npm run build:frontend
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_PRIVACY_POLICY_URL: https://exosites.ch/eng/app-privacy
+          VITE_TERMS_OF_SERVICE_URL: https://exosites.ch/eng/app-terms
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: pip install --prefer-binary -r requirements.txt pyinstaller
+
+      - name: Build backend binary (Windows)
+        working-directory: backend
+        run: python -m PyInstaller backend.spec
+
+      - name: Move backend.exe to resources
+        run: |
+          New-Item -ItemType Directory -Force -Path electron/resources
+          Copy-Item backend/dist/backend.exe electron/resources/backend.exe
+
+      - name: Bundle release resources (integration config + optional Gmail OAuth)
+        shell: bash
+        run: bash scripts/prepare-release-resources.sh
+        env:
+          GMAIL_OAUTH_CLIENT_JSON_B64: ${{ secrets.GMAIL_OAUTH_CLIENT_JSON_B64 }}
+          EXOSITES_DROPBOX_APP_KEY: ${{ secrets.EXOSITES_DROPBOX_APP_KEY }}
+          EXOSITES_MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets.EXOSITES_MICROSOFT_OAUTH_CLIENT_ID }}
+          EXOSITES_NOTION_CLIENT_ID: ${{ secrets.EXOSITES_NOTION_CLIENT_ID }}
+          EXOSITES_NOTION_CLIENT_SECRET: ${{ secrets.EXOSITES_NOTION_CLIENT_SECRET }}
+          EXOSITES_INFOMANIAK_CLIENT_ID: ${{ secrets.EXOSITES_INFOMANIAK_CLIENT_ID }}
+          EXOSITES_INFOMANIAK_CLIENT_SECRET: ${{ secrets.EXOSITES_INFOMANIAK_CLIENT_SECRET }}
+          EXOSITES_SLACK_CLIENT_ID: ${{ secrets.EXOSITES_SLACK_CLIENT_ID }}
+          EXOSITES_SLACK_CLIENT_SECRET: ${{ secrets.EXOSITES_SLACK_CLIENT_SECRET }}
+          STRICT_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '0' }}
+
+      - name: Package app
+        # Note: WIN_CSC_* are not consumed by the manual packager yet — see docs/PRODUCTION_RELEASE.md.
+        run: npm run package:win
+
+      - name: Build Inno Setup installer
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Upload Windows installer
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXO-Windows
+          retention-days: 7
+          path: |
+            dist-installer/Exo Setup.exe
+            dist-installer/latest.yml
+            dist-installer/*.blockmap
+          if-no-files-found: warn
+
+      - name: Windows build OK (artifacts skipped on branch pushes)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' }}
+        run: echo "Packaging succeeded; artifact upload runs on v* tags and workflow_dispatch only (saves Actions storage quota)."
+
+  # ── macOS backend (Intel) — paired with arm64 slice in universal .dmg ─────────
+  build-macos-backend-x64:
+    needs: quality
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: pip install --prefer-binary -r requirements.txt pyinstaller
+
+      - name: Build backend binary (x86_64 native)
+        working-directory: backend
+        run: |
+          python -m PyInstaller backend.spec
+          file dist/backend
+          if ! file dist/backend | grep -q x86_64; then
+            echo "::error::Intel runner did not produce x86_64 backend"
+            exit 1
+          fi
+
+      - name: Smoke-test x86_64 backend (/health)
+        run: bash scripts/verify-mac-backend-health.sh backend/dist/backend
+        env:
+          VERIFY_BACKEND_HEALTH_TIMEOUT_SEC: "180"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend-macos-x64
+          path: backend/dist/backend
+          retention-days: 3
+
+  # ── macOS installer (.dmg) ───────────────────────────────────────────────
+  build-macos:
+    needs: [quality, build-macos-backend-x64]
+    runs-on: macos-latest
+    timeout-minutes: 75
+    # GitHub forbids `secrets.*` in step `if:` — mirror signing secrets into env first.
+    env:
+      MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+      MAC_SIGN_IDENTITY: ${{ secrets.MAC_SIGN_IDENTITY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rosetta (needed for universal2 binary compilation)
+        run: softwareupdate --install-rosetta --agree-to-license
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install root Node dependencies
+        run: npm install
+
+      - name: Install frontend Node dependencies
+        working-directory: frontend
+        run: npm install
+
+      - name: Build frontend
+        # VITE_SENTRY_DSN is baked in at build time; absent on PRs/forks so those
+        # builds simply ship without Sentry (backend crash-ingest still applies).
+        # Privacy/Terms URLs are public pages baked into every distributable so
+        # the in-app legal links always resolve (first-run acceptance step).
+        run: npm run build:frontend
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_PRIVACY_POLICY_URL: https://exosites.ch/eng/app-privacy
+          VITE_TERMS_OF_SERVICE_URL: https://exosites.ch/eng/app-terms
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: pip install --prefer-binary -r requirements.txt pyinstaller
+
+      - name: Download x86_64 backend (Intel runner)
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-macos-x64
+          path: /tmp/backend-x64
+
+      - name: Build backend binaries (macOS — separate arch slices, no lipo)
+        working-directory: backend
+        # PyInstaller one-file bundles embed arch-specific Python — lipo produces a
+        # broken "universal" Mach-O (x86_64 bootloader extracts arm64 Python). Ship
+        # backend-x64 and backend-arm64 side by side; Electron picks at runtime.
+        run: |
+          set -e
+          test -f /tmp/backend-x64/backend || (echo "::error::Intel backend artifact missing" && exit 1)
+          rm -rf build dist
+          PYINSTALLER_TARGET_ARCH=arm64 python -m PyInstaller backend.spec
+          cp dist/backend /tmp/backend_arm64
+          file /tmp/backend_arm64
+          file /tmp/backend-x64/backend
+          if ! file /tmp/backend-x64/backend | grep -q x86_64; then
+            echo "::error::Intel backend artifact is not x86_64"
+            exit 1
+          fi
+          if ! file /tmp/backend_arm64 | grep -q arm64; then
+            echo "::error::Apple Silicon backend build is not arm64"
+            exit 1
+          fi
+
+      - name: Smoke-test arm64 backend (/health)
+        run: bash scripts/verify-mac-backend-health.sh /tmp/backend_arm64
+        env:
+          VERIFY_BACKEND_HEALTH_TIMEOUT_SEC: "180"
+
+      - name: Stage macOS backend slices for packaging
+        run: |
+          mkdir -p electron/resources
+          cp /tmp/backend-x64/backend electron/resources/backend-x64
+          cp /tmp/backend_arm64 electron/resources/backend-arm64
+          chmod +x electron/resources/backend-x64 electron/resources/backend-arm64
+          EXO_MAC_UNIVERSAL=1 node scripts/stage-mac-backend-slices.cjs
+          file electron/resources/backend-x64
+          file electron/resources/backend-arm64
+
+      - name: Generate macOS app icon (.icns)
+        run: node scripts/generate-mac-icns.js
+
+      - name: Generate DMG background
+        run: node scripts/generate-dmg-background.js
+
+      - name: Bundle release resources (integration config + optional Gmail OAuth)
+        run: bash scripts/prepare-release-resources.sh
+        env:
+          GMAIL_OAUTH_CLIENT_JSON_B64: ${{ secrets.GMAIL_OAUTH_CLIENT_JSON_B64 }}
+          EXOSITES_DROPBOX_APP_KEY: ${{ secrets.EXOSITES_DROPBOX_APP_KEY }}
+          EXOSITES_MICROSOFT_OAUTH_CLIENT_ID: ${{ secrets.EXOSITES_MICROSOFT_OAUTH_CLIENT_ID }}
+          EXOSITES_NOTION_CLIENT_ID: ${{ secrets.EXOSITES_NOTION_CLIENT_ID }}
+          EXOSITES_NOTION_CLIENT_SECRET: ${{ secrets.EXOSITES_NOTION_CLIENT_SECRET }}
+          EXOSITES_INFOMANIAK_CLIENT_ID: ${{ secrets.EXOSITES_INFOMANIAK_CLIENT_ID }}
+          EXOSITES_INFOMANIAK_CLIENT_SECRET: ${{ secrets.EXOSITES_INFOMANIAK_CLIENT_SECRET }}
+          EXOSITES_SLACK_CLIENT_ID: ${{ secrets.EXOSITES_SLACK_CLIENT_ID }}
+          EXOSITES_SLACK_CLIENT_SECRET: ${{ secrets.EXOSITES_SLACK_CLIENT_SECRET }}
+          STRICT_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '0' }}
+
+      # Signing/notarization vars are exported to the environment ONLY on release
+      # runs where MAC_CSC_LINK is present. Passing CSC_LINK="" inline makes
+      # electron-builder treat the empty string as a certificate path and abort
+      # with "not a file", so unsigned PR/fork builds must not define it at all.
+      #
+      # Import the .p12 first, then point electron-builder at the keychain via
+      # CSC_KEYCHAIN + CSC_NAME. Exporting CSC_LINK makes electron-builder
+      # re-import into a second keychain and often hangs waiting for a keychain
+      # password prompt that never appears on CI.
+
+      - name: Import codesign certificate to keychain
+        if: env.MAC_CSC_LINK != ''
+        env:
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          KEYCHAIN_PASSWORD: actions
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "CSC_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+
+          echo "$MAC_CSC_LINK" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -P "$CSC_KEY_PASSWORD" -A -t cert -f pkcs12 \
+            -k "$KEYCHAIN" -T /usr/bin/codesign -T /usr/bin/security
+          security list-keychain -d user -s "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          echo "Signing identities in release keychain:"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: Configure macOS signing (release only)
+        if: env.MAC_CSC_LINK != ''
+        run: |
+          CSC_NAME="${MAC_SIGN_IDENTITY#Developer ID Application: }"
+          {
+            echo "CSC_NAME=${CSC_NAME}"
+            echo "CSC_KEY_PASSWORD=${{ secrets.MAC_CSC_KEY_PASSWORD }}"
+            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
+            echo "APPLE_APP_SPECIFIC_PASSWORD=${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}"
+            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+          } >> "$GITHUB_ENV"
+
+      - name: Codesign PyInstaller backend (signed releases)
+        if: env.MAC_CSC_LINK != '' && env.MAC_SIGN_IDENTITY != ''
+        run: |
+          for bin in electron/resources/backend-x64 electron/resources/backend-arm64; do
+            codesign --force --options runtime --timestamp \
+              --entitlements electron/entitlements.mac.plist \
+              --sign "$MAC_SIGN_IDENTITY" "$bin"
+            codesign --verify --strict --verbose=2 "$bin"
+          done
+
+      - name: Package universal app (.dmg)
+        # Developer ID signing + notarization run only when the signing step above
+        # exported credentials (release runs). When absent, auto-discovery is
+        # disabled so unsigned builds on PRs/forks still succeed. The notarize
+        # afterSign hook is a no-op unless the APPLE_* credentials are present.
+        # `zip` is built alongside `dmg` so electron-updater gets its feed
+        # artifacts (the .zip + latest-mac.yml that checkForUpdatesAndNotify reads).
+        run: |
+          npx electron-builder --config electron-builder.mac.cjs --mac dmg zip --universal --publish never
+          node -e "require('./scripts/lib/mac-packaging.cjs').copyPrimaryDmgAlias(require('path').join(process.cwd(),'dist-installer'))"
+        env:
+          EXO_MAC_UNIVERSAL: "1"
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.MAC_CSC_LINK != '' && 'true' || 'false' }}
+
+      - name: Verify packaged app (preload, integration config, exo://)
+        run: node scripts/verify-packaged-app.cjs
+        env:
+          EXO_MAC_UNIVERSAL: "1"
+          EXO_MAC_VERIFY_SLICE_ARCH: "1"
+          STRICT_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '0' }}
+
+      - name: Verify universal backend slices (Intel + Apple Silicon)
+        run: |
+          if [[ -f dist-installer/Exo.dmg ]]; then
+            EXO_MAC_UNIVERSAL=1 bash scripts/verify-mac-backend-slices-from-dmg.sh dist-installer/Exo.dmg
+          else
+            APP="$(node -p "require('./scripts/find-packaged-mac-app.cjs').findPackagedMacApp(process.cwd())")"
+            if [[ -n "$APP" && -d "$APP" ]]; then
+              EXO_MAC_UNIVERSAL=1 EXO_MAC_VERIFY_SLICE_ARCH=1 node scripts/verify-packaged-app.cjs "$APP"
+            else
+              echo "::error::No Exo.dmg or Exo.app found under dist-installer/"
+              ls -la dist-installer/ || true
+              exit 1
+            fi
+          fi
+
+      - name: Upload macOS installer
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXO-macOS
+          retention-days: 7
+          path: |
+            dist-installer/Exo.dmg
+            dist-installer/*.zip
+            dist-installer/latest-mac.yml
+            dist-installer/*.blockmap
+          if-no-files-found: warn
+
+      - name: macOS build OK (artifacts skipped on branch pushes)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' }}
+        run: echo "Packaging succeeded; artifact upload runs on v* tags and workflow_dispatch only (saves Actions storage quota)."
+
+  # ── Production cloud auth (tags only) ───────────────────────────────────────
+  verify-cloud-auth:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify api.exosites.ch auth + GO SYNC relay
+        run: npm run verify:cloud-auth
+
+      - name: Verify legal URLs (store blocker)
+        run: npm run verify:legal-urls
+
+  # ── GitHub Release (tags v* only) ─────────────────────────────────────────
+  publish-release:
+    needs: [build-windows, build-macos, verify-cloud-auth]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout (CHANGELOG for release notes)
+        uses: actions/checkout@v4
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: EXO-Windows
+          path: release-assets
+
+      - name: Download macOS installer
+        uses: actions/download-artifact@v4
+        with:
+          name: EXO-macOS
+          path: release-assets
+
+      - name: Extract changelog section for this tag
+        # Pulls the `## [x.y.z]` block matching the tag out of CHANGELOG.md so the
+        # release body is the curated changelog (generated notes are appended).
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "_No CHANGELOG.md section found for ${VERSION}._" > release-notes.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          body_path: release-notes.md
+          generate_release_notes: true
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── Publish update feed to exosites.ch (tags v* only) ─────────────────────
+  # Uploads installers to exosites.ch **Web** hosting (exosites-agency docroot),
+  # NOT api.exosites.ch. GitHub secrets EXOSITES_DEPLOY_SSH_* must match
+  # exosites-agency SSH (e.g. YOUR_IK_ID_*.ftp.infomaniak.com), not the Node host.
+  publish-website:
+    needs: [build-windows, build-macos, verify-cloud-auth]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    env:
+      EXOSITES_DEPLOY_SSH_HOST: ${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}
+    steps:
+      - name: Checkout (CHANGELOG for release notes)
+        uses: actions/checkout@v4
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: EXO-Windows
+          path: site-assets
+
+      - name: Download macOS installer
+        uses: actions/download-artifact@v4
+        with:
+          name: EXO-macOS
+          path: site-assets
+
+      - name: Flatten artifacts + write latest.json
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BASE="https://exosites.ch/downloads/ai-file-manager"
+          mkdir -p publish
+          find site-assets -type f -exec cp -f {} publish/ \;
+          # Escape changelog section into a single JSON string (newlines + quotes).
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { f = 1; next }
+            f && /^## \[/ { exit }
+            f { print }
+          ' CHANGELOG.md | node scripts/format-changelog-notes.cjs)
+          cat > publish/latest.json <<EOF
+          {
+            "version": "$VERSION",
+            "notes": $NOTES,
+            "mac": "$BASE/Exo.dmg",
+            "windows": "$BASE/Exo%20Setup.exe"
+          }
+          EOF
+          echo "Publishing:" && ls -1 publish && echo "---" && cat publish/latest.json
+
+      - name: Upload to exosites.ch over SSH
+        if: env.EXOSITES_DEPLOY_SSH_HOST != ''
+        env:
+          SSHPASS: ${{ secrets.EXOSITES_DEPLOY_SSH_PASSWORD }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y sshpass rsync
+          DEST="${{ secrets.EXOSITES_DEPLOY_SSH_USER }}@${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}:${{ secrets.EXOSITES_DOWNLOADS_PATH }}"
+          sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" publish/ "$DEST/"

@@ -1,0 +1,26 @@
+{
+  "id": "real-estate-country-property",
+  "version": 1,
+  "name": "Properties by country",
+  "template": {
+    "version": 1,
+    "enabled": true,
+    "modules": [
+      {
+        "id": "level-country",
+        "theme": "country",
+        "max_folders": 3,
+        "overflow_policy": "merge_into_other",
+        "children": [
+          {
+            "id": "level-property",
+            "theme": "property",
+            "max_folders": null,
+            "overflow_policy": "merge_into_other",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

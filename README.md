@@ -9,46 +9,47 @@
 
 <p align="center">
   <a href="https://exosites.ch/downloads/ai-file-manager/"><img src="https://img.shields.io/badge/Download-macOS%20%26%20Windows-111111?style=for-the-badge" alt="Download" /></a>
-  &nbsp;
-  <a href="https://github.com/Chadoud/assistant-ai/releases"><img src="https://img.shields.io/github/v/release/Chadoud/assistant-ai?style=for-the-badge&label=Release&color=6d28d9" alt="Release" /></a>
-  &nbsp;
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20NC-555555?style=for-the-badge" alt="License" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Chadoud/assistant-ai/releases"><img src="https://img.shields.io/github/v/release/Chadoud/assistant-ai?style=flat&label=Release&color=6d28d9" alt="Release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20NC-555555?style=flat" alt="License" /></a>
 </p>
 
 <p align="center">
   <img src="docs/media/assistant.gif" alt="Exo — assistant, chat, and voice" width="880" />
 </p>
 
-<br />
-
-EXO is a local-first desktop app for **AI file sorting**, a **second brain** (memories, tasks, conversations), and an **assistant** with chat and voice. Drop a messy pile of PDFs, scans, photos, and spreadsheets; review each proposed folder with a plain-language reason; apply in bulk — and undo anything.
-
-**Your files stay on your machine.** Classification for sorting runs on **Exo cloud infrastructure** when you sign in (no local LLM or API key required for sort). Optional local tools handle OCR, scans, and offline speech.
-
 <p align="center">
-  <sub>Gmail · Google Drive · OneDrive · Outlook · Dropbox · Notion · Infomaniak · WhatsApp · and more</sub>
+  <sub>local-first · cloud sort · macOS + Windows · v1.1.46</sub>
 </p>
+
+- **Smart sort** — drop messy files, review plain-language reasons, apply in bulk, undo anytime
+- **Second brain** — memories, map, tasks, and conversations in one place
+- **Connectors** — Gmail, Google Drive, OneDrive, Outlook, Dropbox, Notion, Infomaniak, WhatsApp, and more
+
+EXO is a local-first desktop app for AI file sorting, a second brain, and an assistant with chat and voice.
+
+**Your files stay on your machine.** Sort classification runs on Exo cloud when you sign in — no local LLM or sort API key required. Optional local tools handle OCR, scans, and offline speech.
 
 ---
 
 ## Preview
 
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="docs/media/smart-sort.jpg" alt="Smart sort" width="100%" /><br />
-      <sub><b>Smart sort</b> — classify and route files</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/media/memory-map.gif" alt="Memory map" width="100%" /><br />
-      <sub><b>Memory map</b> — files, memories, conversations</sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/media/external-sources.jpg" alt="External sources" width="100%" /><br />
-      <sub><b>External sources</b> — connect your accounts</sub>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/media/smart-sort.jpg" alt="Smart sort — classify and route files" width="880" /><br />
+  <sub><b>Smart sort</b> — classify and route files</sub>
+</p>
+
+<p align="center">
+  <img src="docs/media/memory-map.gif" alt="Memory map — files, memories, conversations" width="880" /><br />
+  <sub><b>Memory map</b> — files, memories, conversations</sub>
+</p>
+
+<p align="center">
+  <img src="docs/media/external-sources.jpg" alt="External sources — connect your accounts" width="880" /><br />
+  <sub><b>External sources</b> — connect your accounts</sub>
+</p>
 
 ---
 
@@ -59,7 +60,7 @@ EXO is a local-first desktop app for **AI file sorting**, a **second brain** (me
 | **Windows** (x64) | [`EXO Setup.exe`](https://exosites.ch/downloads/ai-file-manager/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
 | **macOS** (Intel + Apple Silicon) | [`EXO.dmg`](https://exosites.ch/downloads/ai-file-manager/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
 
-> Installers are currently **unsigned** — Windows SmartScreen and macOS Gatekeeper will warn on first launch. See [docs/INSTALL.md](docs/INSTALL.md) and [docs/MACOS.md](docs/MACOS.md).
+<sub>Installers are unsigned — Windows SmartScreen and macOS Gatekeeper will warn on first launch. See [INSTALL](docs/INSTALL.md) · [macOS](docs/MACOS.md).</sub>
 
 ### Quickstart
 
@@ -67,13 +68,14 @@ EXO is a local-first desktop app for **AI file sorting**, a **second brain** (me
 2. **Sign in** with your Exo account — sorting uses Exo’s cloud AI (no Ollama / sort API key needed).
 3. **Choose an output folder**, drop files on **Sort**, review reasons, **Apply**. Undo anytime from **History**.
 
-Optional (not required for cloud sort):
+<sub>Optional: OCR, local vision, and chat API keys — see [docs/INSTALL.md](docs/INSTALL.md).</sub>
 
-- **Tesseract OCR** — better text from scanned PDFs/images (setup wizard or Settings)
-- **Vision model** — local model for difficult scans (**Settings → AI models → Photos & scans**)
-- **Chat / voice** — add a Gemini / OpenAI / Anthropic API key in Settings for cloud assistant features beyond sort
+<details>
+<summary><strong>How it works, privacy &amp; troubleshooting</strong></summary>
 
-### How processing works
+<br />
+
+#### How processing works
 
 | What | Where it runs |
 |:-----|:--------------|
@@ -84,40 +86,40 @@ Optional (not required for cloud sort):
 | Vision for scans | Local Ollama model (optional) |
 | Memory search embeddings | Optional local Ollama; lexical search always works offline |
 
-Developers can run **local Ollama** for sort instead of cloud — see [Development](#development).
+Developers can run **local Ollama** for sort instead of cloud — see Development below.
 
-### System requirements
+#### System requirements
 
 - **Windows 10/11 (x64)** or **macOS 12+** (Apple Silicon or Intel)
 - Disk: ~500 MB for the app; optional local add-ons (vision ~1–4 GB, Whisper, Tesseract ~50 MB)
 - RAM: 8 GB minimum; 16 GB recommended for local vision or large batches
 - Network: required for **sign-in** and **cloud sort**
 
-### Privacy
+#### Privacy
 
 - **Files** are read and moved on your device. Sort sends **document text** (not necessarily whole files) to Exo’s LLM gateway when you use cloud sort.
 - **Chat** uses whichever cloud provider you configure.
 - Analytics and crash reports are **on by default** ([Terms](https://exosites.ch/eng/app-terms), [Privacy](https://exosites.ch/eng/app-privacy)); opt out under **Settings → Privacy & diagnostics**. See [SECURITY.md](SECURITY.md).
 
-### Troubleshooting
+#### Troubleshooting
 
 | Issue | What to try |
 |:------|:------------|
 | Sort unavailable / not signed in | Sign in under **Settings → Account** |
 | Offline / API not reachable | Use **Retry** on the status pill; check port `7799` |
 | Cloud sort errors (401 / 503) | Sign out and back in to refresh credentials |
-| OCR / scans | Install Tesseract; hard scans can fall back to Exo cloud vision when signed in |
 | Support bundle | **Help → Copy diagnostics** (`F1` / `Ctrl+Shift+/`) |
-| Offline speech | **Settings → Voice control → Prepare offline model** |
-| Video sorting | Needs `ffmpeg` / `ffprobe` on `PATH` — see `backend/.env.example` |
 
 More: [`docs/README.md`](docs/README.md) · [`docs/INSTALL.md`](docs/INSTALL.md) · [`SECURITY.md`](SECURITY.md) · [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md)
 
----
+</details>
 
-## Development
+<details>
+<summary><strong>Development</strong></summary>
 
-### Running in development mode
+<br />
+
+#### Running in development mode
 
 **Windows**
 
@@ -144,7 +146,7 @@ OLLAMA_API_KEY=<staging virtual key from ops>
 
 Local `ollama serve` is **not** used for sort (`OLLAMA_MODE=local` is pytest-only).
 
-### Browser-only (same UI, no Electron)
+#### Browser-only (same UI, no Electron)
 
 1. Backend: `cd backend && python -m uvicorn main:app --host 127.0.0.1 --port 7799`
 2. Frontend: `cd frontend && npm run dev`
@@ -152,19 +154,19 @@ Local `ollama serve` is **not** used for sort (`OLLAMA_MODE=local` is pytest-onl
 
 Set `VITE_API_BASE` in `frontend/.env` if the API is not on `127.0.0.1:7799`, and add that origin to `connect-src` in `frontend/index.html`.
 
-### Building installers
+#### Building installers
 
 - **CI:** [`.github/workflows/build.yml`](.github/workflows/build.yml); tag `v*` publishes a GitHub release from [CHANGELOG.md](CHANGELOG.md)
 - **macOS DMG:** `npm run build:mac` → `dist-installer/EXO.dmg`
 - Signing / auto-update: [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)
 
-### Quality gates
+#### Quality gates
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) · [docs/QUALITY_GATES.md](docs/QUALITY_GATES.md)
 - Unused code: `npm run check:unused` (Knip + Vulture)
 - Sort accuracy: [docs/classification-accuracy.md](docs/classification-accuracy.md)
 
-### Project structure
+#### Project structure
 
 Authoritative layout: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · inventory: [`docs/STRUCTURAL_AUDIT.md`](docs/STRUCTURAL_AUDIT.md)
 
@@ -178,7 +180,7 @@ assistant-ai/
 └── docs/               # Architecture, SaaS sort UX, distribution
 ```
 
-### Architecture (production)
+#### Architecture (production)
 
 ```
 Electron (main process)
@@ -198,7 +200,7 @@ Electron (main process)
 
 All sort inference models run on the VPS. See [`docs/CLOUD_LLM_ONLY.md`](docs/CLOUD_LLM_ONLY.md).
 
-### Tech stack
+#### Tech stack
 
 | Layer | Technology |
 |:------|:-----------|
@@ -210,6 +212,8 @@ All sort inference models run on the VPS. See [`docs/CLOUD_LLM_ONLY.md`](docs/CL
 | Memory | SQLite (`assistant_memory`, conversations, tasks) |
 | File parsing | PyMuPDF, python-docx, pandas, Pillow, Tesseract |
 | Packaging | PyInstaller, Inno Setup (Windows), electron-builder (macOS) |
+
+</details>
 
 ## License
 

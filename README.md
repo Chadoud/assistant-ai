@@ -2,18 +2,28 @@
 
 **Every file lands in the right folder — without you doing the work.**
 
+<p align="center">
+  <img src="docs/media/assistant.jpg" alt="Exo — assistant, chat, and voice" width="860" />
+</p>
+
 EXO is a local-first desktop app for **AI file sorting**, a **second brain** (memories, tasks, conversations), and an **assistant** with chat and voice. Drop a messy pile of PDFs, scans, photos, and spreadsheets; review each proposed folder with a plain-language reason; apply in bulk — and undo anything.
 
 **Your files stay on your machine.** Classification for sorting runs on **Exo cloud infrastructure** when you sign in (no local LLM or API key required for sort). Optional local tools handle OCR, scans, and offline speech.
 
 Connectors: Gmail, Google Drive, OneDrive, Outlook, Dropbox, Notion, Infomaniak, WhatsApp, and more.
 
+## Screenshots
+
+| Smart sort | Memory map | External sources |
+|:---:|:---:|:---:|
+| <img src="docs/media/smart-sort.jpg" alt="Smart sort — classify and route files" width="280" /> | <img src="docs/media/memory-map.jpg" alt="Memory map — files, memories, conversations" width="280" /> | <img src="docs/media/external-sources.jpg" alt="External sources — Gmail, Drive, Dropbox, and more" width="280" /> |
+
 ## Download
 
 | Platform | File |
 |----------|------|
-| **Windows** (x64) | `EXO Setup.exe` — from [Releases](https://github.com/Chadoud/ai-file-sorter/releases) |
-| **macOS** (Intel + Apple Silicon, one universal download) | `EXO.dmg` — from [Releases](https://github.com/Chadoud/ai-file-sorter/releases) |
+| **Windows** (x64) | `EXO Setup.exe` — [exosites.ch](https://exosites.ch/downloads/ai-file-manager/) or [Releases](https://github.com/Chadoud/assistant-ai/releases) |
+| **macOS** (Intel + Apple Silicon, one universal download) | `EXO.dmg` — [exosites.ch](https://exosites.ch/downloads/ai-file-manager/) or [Releases](https://github.com/Chadoud/assistant-ai/releases) |
 
 > **Note:** installers are currently **unsigned** — Windows SmartScreen and macOS Gatekeeper will warn on first launch. See [docs/INSTALL.md](docs/INSTALL.md) and [docs/MACOS.md](docs/MACOS.md).
 

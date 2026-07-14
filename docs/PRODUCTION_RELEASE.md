@@ -69,7 +69,7 @@ node scripts/verify-packaged-app.cjs
 | `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | Notarize |
 | `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD` | Sign Windows (when wired in CI) |
 | `EXOSITES_DEPLOY_SSH_USER`, `EXOSITES_DEPLOY_SSH_PASSWORD`, `EXOSITES_DEPLOY_SSH_HOST` | **exosites.ch Web** SSH (same as `exosites-agency` `.env`) — not `api.exosites.ch` |
-| `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/ai-file-manager` |
+| `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/exo-assistant` |
 | `VITE_SENTRY_DSN` | Crash reporting in renderer |
 | `GMAIL_OAUTH_CLIENT_JSON_B64` | Optional bundled Gmail OAuth client |
 

@@ -64,7 +64,7 @@ rerun_publish_jobs() {
   gh run rerun "$run_id" --failed
   echo -e "${GREEN}==> Watching run…${NC}"
   gh run watch "$run_id" --exit-status
-  echo -e "${GREEN}Done.${NC} Check https://exosites.ch/downloads/ai-file-manager/latest.json"
+  echo -e "${GREEN}Done.${NC} Check https://exosites.ch/downloads/exo-assistant/latest.json"
 }
 
 stage_from_dir() {

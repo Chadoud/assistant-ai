@@ -585,7 +585,7 @@ jobs:
       - name: Flatten artifacts + write latest.json
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          BASE="https://exosites.ch/downloads/ai-file-manager"
+          BASE="https://exosites.ch/downloads/exo-assistant"
           mkdir -p publish
           find site-assets -type f -exec cp -f {} publish/ \;
           # Escape changelog section into a single JSON string (newlines + quotes).

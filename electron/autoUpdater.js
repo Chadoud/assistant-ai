@@ -20,12 +20,12 @@ const https = require("https");
 const state = require("./state");
 
 const FEED_BASE = (
-  process.env.EXOSITES_UPDATE_FEED_URL || "https://exosites.ch/downloads/ai-file-manager"
+  process.env.EXOSITES_UPDATE_FEED_URL || "https://exosites.ch/downloads/exo-assistant"
 ).replace(/\/$/, "");
 const LATEST_JSON_URL = `${FEED_BASE}/latest.json`;
 const DOWNLOAD_PAGE_URL =
   process.env.EXOSITES_DOWNLOAD_PAGE_URL ||
-  "https://exosites.ch/eng/projects/ai-file-manager";
+  "https://exosites.ch/eng/projects/exo-ai";
 
 const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 10_000;

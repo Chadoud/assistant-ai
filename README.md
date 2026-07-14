@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://exosites.ch/downloads/ai-file-manager/"><img src="https://img.shields.io/badge/Download-macOS%20%26%20Windows-111111?style=for-the-badge" alt="Download" /></a>
+  <a href="https://exosites.ch/downloads/exo-assistant/"><img src="https://img.shields.io/badge/Download-macOS%20%26%20Windows-111111?style=for-the-badge" alt="Download" /></a>
 </p>
 
 <p align="center">
@@ -57,8 +57,8 @@ EXO is a local-first desktop app for AI file sorting, a second brain, and an ass
 
 | Platform | Installer |
 |:---------|:----------|
-| **Windows** (x64) | [`EXO Setup.exe`](https://exosites.ch/downloads/ai-file-manager/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
-| **macOS** (Intel + Apple Silicon) | [`EXO.dmg`](https://exosites.ch/downloads/ai-file-manager/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
+| **Windows** (x64) | [`EXO Setup.exe`](https://exosites.ch/downloads/exo-assistant/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
+| **macOS** (Intel + Apple Silicon) | [`EXO.dmg`](https://exosites.ch/downloads/exo-assistant/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
 
 <sub>Installers are unsigned — Windows SmartScreen and macOS Gatekeeper will warn on first launch. See [INSTALL](docs/INSTALL.md) · [macOS](docs/MACOS.md).</sub>
 

@@ -6,7 +6,7 @@
 #
 # Setup (cloud-node/.env.deploy):
 #   DOWNLOADS_SSH_USER, DOWNLOADS_SSH_HOST, DOWNLOADS_SSH_PASSWORD
-#   DOWNLOADS_REMOTE_PATH=./sites/exosites.ch/downloads/ai-file-manager
+#   DOWNLOADS_REMOTE_PATH=./sites/exosites.ch/downloads/exo-assistant
 # Optional signing/notarize (export before running or add to .env.deploy):
 #   MAC_SIGN_IDENTITY, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
 #
@@ -20,7 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT}/cloud-node/.env.deploy"
 DIST="${ROOT}/dist-installer"
-FEED_BASE="${EXOSITES_UPDATE_FEED_URL:-https://exosites.ch/downloads/ai-file-manager}"
+FEED_BASE="${EXOSITES_UPDATE_FEED_URL:-https://exosites.ch/downloads/exo-assistant}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -40,7 +40,7 @@ set +a
 
 : "${DOWNLOADS_SSH_USER:?Set DOWNLOADS_SSH_USER in cloud-node/.env.deploy (exosites.ch Web — see exosites-agency .env)}"
 : "${DOWNLOADS_SSH_HOST:?Set DOWNLOADS_SSH_HOST in cloud-node/.env.deploy}"
-: "${DOWNLOADS_REMOTE_PATH:?Set DOWNLOADS_REMOTE_PATH (e.g. ./sites/exosites.ch/downloads/ai-file-manager)}"
+: "${DOWNLOADS_REMOTE_PATH:?Set DOWNLOADS_REMOTE_PATH (e.g. ./sites/exosites.ch/downloads/exo-assistant)}"
 
 VERSION="${RELEASE_VERSION:-$(node -p "require('${ROOT}/package.json').version")}"
 if [[ "${SKIP_BUILD:-0}" == "1" && -z "${RELEASE_VERSION:-}" && -f "${DIST}/latest-mac.yml" ]]; then

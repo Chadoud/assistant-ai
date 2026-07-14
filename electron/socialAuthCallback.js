@@ -101,15 +101,27 @@ function ingestArgvProtocolUrls() {
 
 /**
  * Register exo:// handler (call once from main before OAuth).
+ *
+ * On macOS, Electron ignores the path/args variants of setAsDefaultProtocolClient —
+ * LaunchServices binds the scheme to this process's .app bundle. With
+ * ELECTRON_OVERRIDE_DIST_PATH that bundle is electron/dev-macos/Electron.app; the
+ * prepare-mac-dev-app launcher wrapper injects the project root so cold-start
+ * via "Open Exo" does not show Electron's default splash.
  */
 function registerSocialAuthProtocol() {
-  if (process.defaultApp) {
+  if (process.defaultApp && process.platform !== "darwin") {
     const path = require("path");
+    // Windows/Linux: pass the script path so a cold protocol launch finds the app.
     app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [
       path.resolve(process.argv[1]),
     ]);
   } else {
     app.setAsDefaultProtocolClient(PROTOCOL);
+  }
+  if (process.defaultApp && process.platform === "darwin") {
+    console.log(
+      "[socialAuth] registered exo:// on branded Electron.app (macOS); launcher must inject project root",
+    );
   }
   ingestArgvProtocolUrls();
 }

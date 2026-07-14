@@ -6,6 +6,16 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.45] - 2026-07-14
+
+### Fixed
+
+- **macOS Google sign-in (dev + exo://):** Dock branding via `ELECTRON_OVERRIDE_DIST_PATH` no longer opens a bare Electron splash on “Open Exo”. A separate `ExoDev` launcher handles cold-start protocol opens while the real `Electron` binary stays intact so preload and Google/Apple buttons keep working.
+
+### Changed
+
+- **Protocol registration:** Documented that macOS ignores Electron’s path/args for `setAsDefaultProtocolClient`; branded app Info.plist now declares the `exo://` URL scheme.
+
 ## [1.1.44] - 2026-07-10
 
 ### Added

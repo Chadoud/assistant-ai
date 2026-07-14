@@ -3,7 +3,7 @@
 **Every file lands in the right folder — without you doing the work.**
 
 <p align="center">
-  <img src="docs/media/assistant.jpg" alt="Exo — assistant, chat, and voice" width="860" />
+  <img src="docs/media/assistant.gif" alt="Exo — assistant, chat, and voice" width="860" />
 </p>
 
 EXO is a local-first desktop app for **AI file sorting**, a **second brain** (memories, tasks, conversations), and an **assistant** with chat and voice. Drop a messy pile of PDFs, scans, photos, and spreadsheets; review each proposed folder with a plain-language reason; apply in bulk — and undo anything.
@@ -12,11 +12,11 @@ EXO is a local-first desktop app for **AI file sorting**, a **second brain** (me
 
 Connectors: Gmail, Google Drive, OneDrive, Outlook, Dropbox, Notion, Infomaniak, WhatsApp, and more.
 
-## Screenshots
+## Preview
 
 | Smart sort | Memory map | External sources |
 |:---:|:---:|:---:|
-| <img src="docs/media/smart-sort.jpg" alt="Smart sort — classify and route files" width="280" /> | <img src="docs/media/memory-map.jpg" alt="Memory map — files, memories, conversations" width="280" /> | <img src="docs/media/external-sources.jpg" alt="External sources — Gmail, Drive, Dropbox, and more" width="280" /> |
+| <img src="docs/media/smart-sort.jpg" alt="Smart sort — classify and route files" width="280" /> | <img src="docs/media/memory-map.gif" alt="Memory map — files, memories, conversations" width="280" /> | <img src="docs/media/external-sources.jpg" alt="External sources — Gmail, Drive, Dropbox, and more" width="280" /> |
 
 ## Download
 

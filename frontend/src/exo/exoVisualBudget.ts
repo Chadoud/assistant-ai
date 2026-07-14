@@ -18,7 +18,7 @@ export const EXO_MOTION_VOICE_STATUSES = [
 
 export type ExoMotionVoiceStatus = (typeof EXO_MOTION_VOICE_STATUSES)[number] | "IDLE" | string;
 
-export type ExoVisualBudgetInput = {
+type ExoVisualBudgetInput = {
   /** Off-tab, page hidden, or main window unfocused. */
   hidden: boolean;
 };

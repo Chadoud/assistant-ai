@@ -6,6 +6,12 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.46] - 2026-07-14
+
+### Fixed
+
+- **CI:** Knip unused exported types in exo visual budget hooks (blocked installer build).
+
 ## [1.1.45] - 2026-07-14
 
 ### Fixed

@@ -26,12 +26,12 @@ function useWindowFocused(): boolean {
   return focused;
 }
 
-export type UseExoVisualBudgetArgs = {
+type UseExoVisualBudgetArgs = {
   visuallyHidden: boolean;
   voiceStatus: ExoMotionVoiceStatus;
 };
 
-export type UseExoVisualBudgetResult = {
+type UseExoVisualBudgetResult = {
   budget: ExoVisualBudgetState;
   /** True → clear 20 Hz analyser (idle CSS can still run). */
   suspendVoiceAnalyser: boolean;

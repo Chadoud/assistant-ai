@@ -152,8 +152,8 @@ async function proxyBackendHttp(
     }
   }
   let body: string | undefined;
-  let bodyBase64 = options?.bodyBase64;
-  let contentType = options?.contentType;
+  const bodyBase64 = options?.bodyBase64;
+  const contentType = options?.contentType;
   if (!bodyBase64 && options?.body != null && typeof options.body === "string") {
     body = options.body;
   }

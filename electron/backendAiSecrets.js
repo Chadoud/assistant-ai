@@ -4,7 +4,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { getSecret, setSecret, clearSecret } = require("./secretsStore");
+const secretsStore = require("./secretsStore");
 const { parseDotenvFile } = require("./readGmailDotenvForBackend");
 
 /** safeStorage key → backend env var (matches frontend secretsStorage.ts). */
@@ -26,7 +26,7 @@ const WRITABLE_ENV_AI_KEYS = new Set([
 ]);
 
 function getManualRemoteLlmApiKey() {
-  return getSecret(MANUAL_REMOTE_LLM_SECRET) || "";
+  return secretsStore.getSecret(MANUAL_REMOTE_LLM_SECRET) || "";
 }
 
 /**
@@ -36,17 +36,17 @@ function getManualRemoteLlmApiKey() {
 function setManualRemoteLlmApiKey(apiKey) {
   const value = String(apiKey || "").trim();
   if (!value) {
-    clearSecret(MANUAL_REMOTE_LLM_SECRET);
+    secretsStore.clearSecret(MANUAL_REMOTE_LLM_SECRET);
     return { ok: true };
   }
-  return setSecret(MANUAL_REMOTE_LLM_SECRET, value);
+  return secretsStore.setSecret(MANUAL_REMOTE_LLM_SECRET, value);
 }
 
 /** Build env fragment for backend child process spawn. */
 function readAiProviderEnvForBackendSpawn() {
   const out = {};
   for (const [secretKey, envKey] of PROVIDER_ENV_BY_SECRET_KEY) {
-    const value = getSecret(secretKey);
+    const value = secretsStore.getSecret(secretKey);
     if (value && value.trim()) out[envKey] = value.trim();
   }
   return out;
@@ -88,23 +88,39 @@ function stripAiKeysFromEnvFile(envPath) {
 }
 
 /**
- * Migrate plaintext AI keys from userData `.env` into safeStorage.
+ * Import provider keys from plaintext `.env` files into safeStorage when missing.
+ * Settings / safeStorage is the product source of truth; env files are a legacy cache.
+ *
  * @param {string | undefined} userData
+ * @param {{ extraEnvPaths?: string[]; stripUserDataEnv?: boolean }} [options]
  */
-function migrateAiKeysFromWritableEnv(userData) {
-  if (!userData) return { migrated: false };
-  const envPath = path.join(userData, ".env");
-  const parsed = parseDotenvFile(envPath, WRITABLE_ENV_AI_KEYS);
-  let migrated = false;
-  for (const [secretKey, envKey] of PROVIDER_ENV_BY_SECRET_KEY) {
-    const legacy = String(parsed[envKey] || "").trim();
-    if (!legacy) continue;
-    if (!getSecret(secretKey)) {
-      setSecret(secretKey, legacy);
-    }
-    migrated = true;
+function migrateAiKeysFromWritableEnv(userData, options = {}) {
+  const extraEnvPaths = Array.isArray(options.extraEnvPaths) ? options.extraEnvPaths : [];
+  const stripUserDataEnv = options.stripUserDataEnv !== false;
+  const envPaths = [];
+  if (userData) envPaths.push(path.join(userData, ".env"));
+  for (const p of extraEnvPaths) {
+    if (p && typeof p === "string") envPaths.push(p);
   }
-  if (migrated) stripAiKeysFromEnvFile(envPath);
+
+  let migrated = false;
+  for (const envPath of envPaths) {
+    const parsed = parseDotenvFile(envPath, WRITABLE_ENV_AI_KEYS);
+    for (const [secretKey, envKey] of PROVIDER_ENV_BY_SECRET_KEY) {
+      const legacy = String(parsed[envKey] || "").trim();
+      if (!legacy) continue;
+      if (!secretsStore.getSecret(secretKey)) {
+        secretsStore.setSecret(secretKey, legacy);
+        migrated = true;
+      }
+    }
+  }
+
+  // Strip only userData `.env` (writable app data). Never strip repo `backend/.env`
+  // that developers edit — safeStorage already wins on spawn via readAiProviderEnvForBackendSpawn.
+  if (stripUserDataEnv && userData) {
+    stripAiKeysFromEnvFile(path.join(userData, ".env"));
+  }
   return { migrated };
 }
 

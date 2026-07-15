@@ -27,6 +27,7 @@ const { APP_NAME, IS_MAC, IS_DEV } = require("./constants");
 const { registerHandlers } = require("./ipcHandlers");
 const { createSetupWindow, createMainWindow, startMainAppFlow } = require("./windows");
 const { killBackend, ensureBackendRunning, syncGoogleOauthClientIdForElectronMain, syncRemoteLlmEnvForMainProcess } = require("./backendProcess");
+const { migrateAiKeysFromWritableEnv } = require("./backendAiSecrets");
 const { isUnlimitedEntitlementBuild } = require("./buildProfile");
 const { startBackendCaptureServer, stopBackendCaptureServer } = require("./backendCaptureServer");
 const { needsSetup } = require("./setup/runSetup");
@@ -112,6 +113,16 @@ if (!gotLock) {
 app.whenReady().then(async () => {
   // Bundled cloud URL + OAuth client IDs must be in process.env before any window IPC.
   syncGoogleOauthClientIdForElectronMain();
+
+  // Lift plaintext AI keys into safeStorage before the renderer hydrates Settings.
+  // Chat and voice both require Settings/safeStorage — orphan backend/.env alone must not unlock voice.
+  try {
+    migrateAiKeysFromWritableEnv(app.getPath("userData"), {
+      extraEnvPaths: IS_DEV ? [path.join(__dirname, "..", "backend", ".env")] : [],
+    });
+  } catch (err) {
+    console.warn("[main] AI key migration failed:", err && err.message);
+  }
 
   try {
     /**

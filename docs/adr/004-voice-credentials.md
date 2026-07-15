@@ -26,13 +26,15 @@ Users configure Gemini once in Settings → AI Provider. If only the in-memory c
 
 1. Renderer reads the Gemini key from `AppSettings` ([`resolveGeminiApiKeyFromSettings`](../../frontend/src/utils/syncGeminiKeyToBackend.ts)).
 2. Renderer calls `POST /ai/set-key` with `X-App-Token` ([`pushProviderKeyToBackend`](../../frontend/src/utils/syncGeminiKeyToBackend.ts)) → backend upserts `GEMINI_API_KEY` in `backend/.env` and the running process.
-3. Before voice start, call [`ensureVoiceBackendReady`](../../frontend/src/voice/ensureVoiceBackendReady.ts): sync → `GET /voice/status` until `ready: true`.
+3. Before voice start, call [`ensureVoiceBackendReady`](../../frontend/src/voice/ensureVoiceBackendReady.ts): require Settings/safeStorage connected ([`isGeminiConnectedInSettings`](../../frontend/src/utils/geminiConnection.ts)) → sync if needed → `GET /voice/status` until `ready: true`.
+4. On app ready (and before backend spawn), migrate orphan plaintext keys from userData `.env` and (dev) `backend/.env` into safeStorage when missing — so chat and voice share one user-facing source.
 
 All voice entry points (conversation mic, push-to-talk, settings test, auto-start on launch) must use the same helper — no duplicate one-off sync effects.
 
 ## Consequences
 
-- **Settings is the single user-facing place** to add or rotate a Gemini key; voice and chat share the same stored key.
-- **Backend restart** reloads `.env`; the renderer re-syncs on the next voice attempt or app focus if the in-process env was stale.
-- **Future improvement (ADR-006):** move keys from `localStorage` to Electron `safeStorage`; sync pipeline stays the same, only the read path changes.
-- Chat can still work in a bare browser against a backend with no env key; voice cannot until sync succeeds.
+- **Settings / safeStorage is the single user-facing place** to add or rotate a Gemini key; voice and chat share the same readiness gate ([`isGeminiConnectedInSettings`](../../frontend/src/utils/geminiConnection.ts)).
+- **Orphan `GEMINI_API_KEY` in `backend/.env` alone must not unlock voice** while chat still shows “Connect Gemini.”
+- **Backend restart** reloads env from safeStorage injection + sync; the renderer re-syncs on the next voice attempt or app focus if the in-process env was stale.
+- Chat can still work in a bare browser against a backend with no env key when Settings holds a key; voice cannot until sync succeeds.
+- Packaged builds may hydrate a secret **mask** into Settings; that counts as connected for readiness without exposing the raw key to XSS in the renderer.

@@ -80,7 +80,10 @@ function readRemoteLlmEnvForBackendSpawn() {
   const ud = exositesUserDataEnv();
   const backendDir = path.join(__dirname, "..", "backend");
   migrateCloudSortKeyFromOverrides();
-  migrateAiKeysFromWritableEnv(ud);
+  migrateAiKeysFromWritableEnv(ud, {
+    // Dev: lift orphan backend/.env keys into safeStorage so chat + voice share one source.
+    extraEnvPaths: IS_DEV ? [path.join(__dirname, "..", "backend", ".env")] : [],
+  });
   migrateLegacyHomeGmailMirror();
   migrateManualRemoteLlmKeyFromOverrides();
 

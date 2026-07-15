@@ -6,6 +6,18 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.48] - 2026-07-15
+
+### Security
+
+- **Update feed (M1c):** Ed25519-signed `latest.json`; packaged clients reject missing/invalid signatures. Mac in-app self-update requires Developer ID–signed running app.
+- **Deploy:** CI prefers SSH key (`EXOSITES_DEPLOY_SSH_PRIVATE_KEY`) for downloads rsync; password/`sshpass` remains fallback.
+- **Gemini / voice:** Settings/safeStorage is the connection source of truth (including packaged secret masks); migrate leftover plaintext AI keys into safeStorage on startup.
+
+### Changed
+
+- Publish scripts and tag `publish-website` sign `latest.json` with `UPDATE_FEED_PRIVATE_KEY_HEX` (fail closed if unset).
+
 ## [1.1.47] - 2026-07-15
 
 ### Security

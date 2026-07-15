@@ -4,19 +4,21 @@
 
 - Installers are produced in CI ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
   - **Windows** — Inno Setup `.exe` (manual packager + Inno; **Authenticode not wired yet**)
-  - **macOS** — universal `.dmg` + `.zip` (Intel + Apple Silicon) via electron-builder
+  - **macOS** — universal `.dmg` + `.zip` (Intel + Apple Silicon) via electron-builder; **Developer ID + notarized** when Apple secrets are present (from **1.1.47+**)
 - Tag pushes (`v*`) attach installers to a GitHub **release** and rsync the update
   feed to **`https://exosites.ch/downloads/exo-assistant/`** (`latest.json`,
   `latest-mac.yml`, DMG/EXE).
 - **Auto-updates** (`electron/autoUpdater.js`):
   - **macOS (packaged):** electron-updater **generic** provider against
     `EXOSITES_UPDATE_FEED_URL` (default `https://exosites.ch/downloads/exo-assistant`),
-    using `latest-mac.yml` + zip sha512. Discovery/notes also use `latest.json`.
+    using `latest-mac.yml` + zip sha512. Discovery/notes use **Ed25519-signed**
+    `latest.json` (packaged clients reject missing/invalid `sig`). Self-update
+    requires the running app to be **Developer ID–signed**.
   - **Windows:** no electron-updater self-update — opens the download page /
     `latest.json` URL in the browser.
   - Dev builds and unreachable feeds no-op safely.
-- **Builds are currently unsigned** — SmartScreen (Windows) and Gatekeeper
-  (macOS) warn on first launch. End users: [INSTALL.md](INSTALL.md). Certificate
+- **Windows builds remain unsigned** (SmartScreen may warn). Mac public builds
+  from 1.1.47+ are notarized. End users: [INSTALL.md](INSTALL.md). Certificate
   status: [runbooks/signing-secrets-inventory.md](runbooks/signing-secrets-inventory.md).
 
 End-user Mac guide: [MACOS.md](MACOS.md).  
@@ -71,8 +73,17 @@ wired into `scripts/package-app.js` / Inno / `build.yml` yet (M1b).
    Local signed builds: set `MAC_SIGN_IDENTITY` so `scripts/build-mac-release.sh`
    codesigns the backend child.
 
-Until certificates exist, keep **unsigned-build warnings** in the README,
-[INSTALL.md](INSTALL.md), and release notes.
+Until Windows certificates exist, keep **unsigned-build warnings** for Windows in the
+README, [INSTALL.md](INSTALL.md), and release notes.
+
+### Update feed (`latest.json`) — Ed25519
+
+| Secret / env | Purpose |
+|--------------|---------|
+| `UPDATE_FEED_PRIVATE_KEY_HEX` | CI/local: sign `latest.json` (see [`tools/update-feed-keygen/`](../tools/update-feed-keygen/)) |
+
+Public key is embedded in [`electron/updateFeed/embeddedPublicKey.js`](../electron/updateFeed/embeddedPublicKey.js).
+Tag `publish-website` **fails** if the private key secret is missing.
 
 ## Auto-update operational notes
 
@@ -81,9 +92,11 @@ Until certificates exist, keep **unsigned-build warnings** in the README,
   (`--publish never` in CI).
 - Legacy path `/downloads/ai-file-manager/` **301-redirects** to `exo-assistant`.
 - Compromise of Infomaniak deploy credentials or the downloads directory can
-  replace feed files — mitigate with signing (M1a), signed `latest.json` (M1c),
-  and SSH key deploy (M1c.3).
-- Unsigned macOS builds cannot auto-update (Squirrel.Mac requires a signed app).
+  replace feed files — mitigated by Mac notarization (M1a), signed `latest.json`
+  (M1c.1), Developer ID gate on self-update (M1c.2), and SSH key deploy (M1c.3).
+- Prefer GitHub secret `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` (PEM); password/`sshpass`
+  remains a temporary fallback until the key is installed.
+- Unsigned macOS builds cannot auto-update (self-update requires Developer ID).
 - Windows does not self-update via electron-updater today.
 
 Keep [`package.json`](../package.json), [`frontend/package.json`](../frontend/package.json),

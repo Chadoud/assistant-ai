@@ -5,11 +5,12 @@
  */
 
 import type { AppSettings } from "../types/settings";
+import { GEMINI_SECRET_MASK } from "../utils/geminiConnection";
 
 const SECRET_KEY_GEMINI = "geminiApiKey";
 const PROVIDER_KEY_PREFIX = "chatProvider.";
 /** Must match electron/ipc/secretsHandlers.js SECRET_MASK */
-const SECRET_MASK = "••••••••";
+const SECRET_MASK = GEMINI_SECRET_MASK;
 
 function providerSecretStorageKey(providerId: string): string {
   return `${PROVIDER_KEY_PREFIX}${providerId}.apiKey`;

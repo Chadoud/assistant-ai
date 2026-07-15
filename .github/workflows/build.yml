@@ -582,7 +582,9 @@ jobs:
           name: EXO-macOS
           path: site-assets
 
-      - name: Flatten artifacts + write latest.json
+      - name: Flatten artifacts + write + sign latest.json
+        env:
+          UPDATE_FEED_PRIVATE_KEY_HEX: ${{ secrets.UPDATE_FEED_PRIVATE_KEY_HEX }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           BASE="https://exosites.ch/downloads/exo-assistant"
@@ -602,13 +604,30 @@ jobs:
             "windows": "$BASE/Exo%20Setup.exe"
           }
           EOF
+          if [ -z "${UPDATE_FEED_PRIVATE_KEY_HEX:-}" ]; then
+            echo "::error::UPDATE_FEED_PRIVATE_KEY_HEX secret is required to sign latest.json"
+            exit 1
+          fi
+          node tools/update-feed-keygen/sign-latest.cjs publish/latest.json
           echo "Publishing:" && ls -1 publish && echo "---" && cat publish/latest.json
 
       - name: Upload to exosites.ch over SSH
         if: env.EXOSITES_DEPLOY_SSH_HOST != ''
         env:
           SSHPASS: ${{ secrets.EXOSITES_DEPLOY_SSH_PASSWORD }}
+          EXOSITES_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.EXOSITES_DEPLOY_SSH_PRIVATE_KEY }}
         run: |
-          sudo apt-get update && sudo apt-get install -y sshpass rsync
+          sudo apt-get update && sudo apt-get install -y rsync openssh-client
           DEST="${{ secrets.EXOSITES_DEPLOY_SSH_USER }}@${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}:${{ secrets.EXOSITES_DOWNLOADS_PATH }}"
-          sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" publish/ "$DEST/"
+          if [ -n "${EXOSITES_DEPLOY_SSH_PRIVATE_KEY:-}" ]; then
+            install -m 700 -d ~/.ssh
+            KEY_FILE="$HOME/.ssh/exosites_downloads_deploy"
+            printf '%s\n' "$EXOSITES_DEPLOY_SSH_PRIVATE_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            rsync -avz -e "ssh -i $KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+              publish/ "$DEST/"
+          else
+            echo "::warning::EXOSITES_DEPLOY_SSH_PRIVATE_KEY unset — falling back to sshpass (deprecated)"
+            sudo apt-get install -y sshpass
+            sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" publish/ "$DEST/"
+          fi

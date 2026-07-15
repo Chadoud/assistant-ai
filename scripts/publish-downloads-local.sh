@@ -5,9 +5,12 @@
 # NOT on the api.exosites.ch Node host used by deploy-cloud-api.sh.
 #
 # Setup (cloud-node/.env.deploy):
-#   DOWNLOADS_SSH_USER, DOWNLOADS_SSH_HOST, DOWNLOADS_SSH_PASSWORD
-#   DOWNLOADS_REMOTE_PATH=./sites/exosites.ch/downloads/exo-assistant
-# Optional signing/notarize (export before running or add to .env.deploy):
+#   DOWNLOADS_SSH_USER, DOWNLOADS_SSH_HOST, DOWNLOADS_REMOTE_PATH
+# Prefer key auth: DOWNLOADS_SSH_KEY_FILE=~/.ssh/id_ed25519_exosites_downloads
+# Fallback: DOWNLOADS_SSH_PASSWORD (+ sshpass)
+# Feed signing (required unless ALLOW_UNSIGNED_LATEST_JSON=1):
+#   UPDATE_FEED_PRIVATE_KEY_HEX or UPDATE_FEED_PRIVATE_KEY_FILE
+# Optional Mac signing/notarize (export before running or add to .env.deploy):
 #   MAC_SIGN_IDENTITY, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
 #
 # Usage:
@@ -51,13 +54,41 @@ if [[ "${SKIP_BUILD:-0}" == "1" && -z "${RELEASE_VERSION:-}" && -f "${DIST}/late
 fi
 PUBLISH_DIR="${ROOT}/.publish-downloads"
 
+ssh_cmd_prefix() {
+  # Prints a single ssh/rsync -e command string. Prefer key file over password.
+  if [[ -n "${DOWNLOADS_SSH_KEY_FILE:-}" && -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
+    printf 'ssh -i %q -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' "${DOWNLOADS_SSH_KEY_FILE}"
+  else
+    printf 'ssh -o StrictHostKeyChecking=accept-new'
+  fi
+}
+
 run_downloads_ssh() {
-  if [[ -n "${DOWNLOADS_SSH_PASSWORD:-}" ]] && command -v sshpass >/dev/null 2>&1; then
+  if [[ -n "${DOWNLOADS_SSH_KEY_FILE:-}" && -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
+    ssh -i "${DOWNLOADS_SSH_KEY_FILE}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+      "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
+  elif [[ -n "${DOWNLOADS_SSH_PASSWORD:-}" ]] && command -v sshpass >/dev/null 2>&1; then
+    echo -e "${YELLOW}Using DOWNLOADS_SSH_PASSWORD (deprecated — prefer DOWNLOADS_SSH_KEY_FILE)${NC}" >&2
     sshpass -p "${DOWNLOADS_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=accept-new \
       "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
   else
     ssh -o StrictHostKeyChecking=accept-new "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
   fi
+}
+
+sign_latest_json() {
+  local target="${PUBLISH_DIR}/latest.json"
+  if [[ -n "${UPDATE_FEED_PRIVATE_KEY_HEX:-}" || -n "${UPDATE_FEED_PRIVATE_KEY_FILE:-}" ]]; then
+    node "${ROOT}/tools/update-feed-keygen/sign-latest.cjs" "$target"
+    return
+  fi
+  if [[ "${ALLOW_UNSIGNED_LATEST_JSON:-0}" == "1" ]]; then
+    echo -e "${YELLOW}ALLOW_UNSIGNED_LATEST_JSON=1 — publishing unsigned latest.json${NC}"
+    return
+  fi
+  echo -e "${RED}Missing UPDATE_FEED_PRIVATE_KEY_HEX or UPDATE_FEED_PRIVATE_KEY_FILE.${NC}"
+  echo "Set the feed signing key, or ALLOW_UNSIGNED_LATEST_JSON=1 for an emergency unsigned publish."
+  exit 1
 }
 
 write_latest_json() {
@@ -81,6 +112,7 @@ write_latest_json() {
   "windows": "${FEED_BASE%/}/Exo%20Setup.exe"
 }
 EOF
+  sign_latest_json
   echo -e "${GREEN}Wrote ${PUBLISH_DIR}/latest.json${NC}"
   cat "${PUBLISH_DIR}/latest.json"
 }
@@ -171,12 +203,16 @@ upload_bundle() {
   run_downloads_ssh "mkdir -p ${remote_path}"
 
   echo -e "${GREEN}==> Uploading to ${dest}${NC}"
-  if [[ -n "${DOWNLOADS_SSH_PASSWORD:-}" ]] && command -v sshpass >/dev/null 2>&1; then
-    sshpass -p "${DOWNLOADS_SSH_PASSWORD}" rsync -avz --progress -e "ssh -o StrictHostKeyChecking=accept-new" \
+  local ssh_e
+  ssh_e=$(ssh_cmd_prefix)
+  if [[ -n "${DOWNLOADS_SSH_KEY_FILE:-}" && -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
+    rsync -avz --progress -e "$ssh_e" "${PUBLISH_DIR}/" "$dest"
+  elif [[ -n "${DOWNLOADS_SSH_PASSWORD:-}" ]] && command -v sshpass >/dev/null 2>&1; then
+    echo -e "${YELLOW}Using DOWNLOADS_SSH_PASSWORD (deprecated — prefer DOWNLOADS_SSH_KEY_FILE)${NC}"
+    sshpass -p "${DOWNLOADS_SSH_PASSWORD}" rsync -avz --progress -e "$ssh_e" \
       "${PUBLISH_DIR}/" "$dest"
   else
-    rsync -avz --progress -e "ssh -o StrictHostKeyChecking=accept-new" \
-      "${PUBLISH_DIR}/" "$dest"
+    rsync -avz --progress -e "$ssh_e" "${PUBLISH_DIR}/" "$dest"
   fi
 
   echo -e "${GREEN}==> Verifying latest.json on server${NC}"

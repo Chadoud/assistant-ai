@@ -51,7 +51,7 @@ flowchart TD
 |------|---------------|----------|
 | Mac signing | CI path exists; secrets optional → **unsigned ships** | P0 distribution |
 | Windows signing | Documented; **not wired** (manual packager + Inno) | P0 distribution |
-| Auto-update | Mac: `latest-mac.yml` + sha512; discovery via **unsigned** `latest.json`; Win: no self-update | P0–P1 |
+| Auto-update | Mac: `latest-mac.yml` + sha512; discovery via **Ed25519-signed** `latest.json` (M1c); Win: no self-update | mitigated (Win Authenticode still open) |
 | Local API | Loopback + `X-App-Token`; auth **off** if token unset or `EXOSITES_INSECURE_LOCAL` | P0 if misconfigured |
 | Secrets | `safeStorage` good; residual **gmail_oauth.json**, `.env`, legacy `*.b64`, XSS→`getSecret` | P0–P1 |
 | Paths | Denylist OS roots; **entire `$HOME` still allowed** for many ops | P1 |
@@ -94,16 +94,17 @@ flowchart TD
 | M1b.2 | Sign `Exo.exe` after pack + `Exo Setup.exe` after Inno | `scripts/package-app.js`, `installer.iss`, `build.yml` |
 | M1b.3 | Stop claiming Win secrets “auto-apply” until this lands | docs |
 
-### M1c — Update-channel integrity (≈1 week)
+### M1c — Update-channel integrity (≈1 week) — **implemented 2026-07-15**
 
-| ID | Work | Paths |
-|----|------|-------|
-| M1c.1 | Authenticate `latest.json` (ed25519 — license signing already in repo) **or** stop using it as sole Mac discovery source | `electron/autoUpdater.js`, publish scripts |
-| M1c.2 | After first signed ship: refuse/auto-skip unsigned updates (`forceCodeSignatureVerification` or equivalent policy) | `electron/autoUpdater.js` |
-| M1c.3 | Harden deploy: SSH **key** (not password), scoped `downloads/exo-assistant` only | `build.yml` `publish-website`, Infomaniak |
-| M1c.4 | Decide Win self-update later; until then keep redirect to download page (honest) | `autoUpdater.js` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M1c.1 | Authenticate `latest.json` (dedicated Ed25519; license pattern reused) | `electron/updateFeed/*`, `tools/update-feed-keygen/`, publish scripts | **Done** |
+| M1c.2 | Packaged clients reject bad/missing feed `sig`; Mac self-update only if Developer ID–signed | `electron/autoUpdater.js` | **Done** |
+| M1c.3 | CI deploy prefers `EXOSITES_DEPLOY_SSH_PRIVATE_KEY`; password/`sshpass` fallback until key installed | `build.yml` `publish-website`, local publish script | **Wired** (ops: add key secret, then drop password) |
+| M1c.4 | Win self-update deferred; redirect to download page | `autoUpdater.js` | **Done** (unchanged policy) |
 
-**Done when:** Public `v*` Mac is notarized; Win signed; feed not spoofable by mere HTTPS file replace without key; README can drop “unsigned” warning for signed platforms.
+**Done when:** Public `v*` Mac is notarized; Win signed; feed not spoofable by mere HTTPS file replace without key; README can drop “unsigned” warning for signed platforms.  
+**Remaining for “done when”:** Win Authenticode (M1b); install Infomaniak SSH key and remove password fallback.
 
 ---
 
@@ -286,7 +287,7 @@ Record answers in this table (date + initials). Defaults below are the **recomme
 |----|---------------|
 | M1c.1 | Tampered `latest.json` on a staging host → client rejects (bad/missing signature) **or** client ignores it for install path (D3-B) |
 | M1c.2 | Signed client offered unsigned update → skip/fail closed |
-| M1c.3 | CI deploy uses key auth; password secret removed or unused |
+| M1c.3 | CI prefers key auth (`EXOSITES_DEPLOY_SSH_PRIVATE_KEY`); password fallback until key installed |
 
 ### M2
 

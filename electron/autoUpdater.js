@@ -12,12 +12,19 @@
  *   - Windows: the renderer opens the website download page (the Windows build ships via
  *     Inno Setup, which electron-updater cannot self-update — a redirect is the honest UX).
  *
- * Defensive by design: missing feed / offline / dev build must never throw or block startup.
+ * Integrity (M1c): packaged clients require a valid Ed25519 `sig` on latest.json.
+ * Mac self-update additionally requires the running app to be Developer ID–signed.
+ *
+ * Defensive by design: missing feed / offline / bad signature / dev build must never
+ * throw or block startup.
  */
 
 const { ipcMain, shell, app } = require("electron");
 const https = require("https");
 const state = require("./state");
+const { compareVersions } = require("./updateFeed/canonical");
+const { verifyUpdateFeed } = require("./updateFeed/verify");
+const { isDeveloperIdSigned } = require("./updateFeed/isDeveloperIdSigned");
 
 const FEED_BASE = (
   process.env.EXOSITES_UPDATE_FEED_URL || "https://exosites.ch/downloads/exo-assistant"
@@ -35,6 +42,8 @@ const AUTO_INSTALL_DELAY_MS = 2000;
 let started = false;
 let macUpdater = null;
 let autoInstallTimer = null;
+/** Cached Developer ID check for the running .app (packaged Mac only). */
+let runningAppDeveloperIdSigned = null;
 
 /**
  * Latest snapshot the renderer can read on mount (events may fire before the UI exists).
@@ -99,23 +108,27 @@ function isMac() {
   return process.platform === "darwin";
 }
 
-/** True only when electron-updater loaded — avoids "Update now" opening the DMG fallback. */
-function canSelfUpdateMac() {
-  return isMac() && app.isPackaged && macUpdater != null;
+function ensureRunningAppDeveloperIdSigned() {
+  if (runningAppDeveloperIdSigned != null) return runningAppDeveloperIdSigned;
+  if (!isMac() || !app.isPackaged) {
+    runningAppDeveloperIdSigned = false;
+    return false;
+  }
+  runningAppDeveloperIdSigned = isDeveloperIdSigned();
+  return runningAppDeveloperIdSigned;
 }
 
-/** Compare dotted numeric versions. Returns 1 if a > b, -1 if a < b, 0 if equal. */
-function compareVersions(a, b) {
-  const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
-  const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
-  const len = Math.max(pa.length, pb.length);
-  for (let i = 0; i < len; i += 1) {
-    const da = pa[i] || 0;
-    const db = pb[i] || 0;
-    if (da > db) return 1;
-    if (da < db) return -1;
-  }
-  return 0;
+/**
+ * True only when electron-updater loaded AND the running Mac app is Developer ID–signed.
+ * Unsigned packaged builds must not self-update (fail closed).
+ */
+function canSelfUpdateMac() {
+  return (
+    isMac() &&
+    app.isPackaged &&
+    macUpdater != null &&
+    ensureRunningAppDeveloperIdSigned()
+  );
 }
 
 function fetchJson(url) {
@@ -154,6 +167,30 @@ function downloadUrlFor(feed) {
   return url || DOWNLOAD_PAGE_URL;
 }
 
+/**
+ * Packaged: require valid sig. Dev: if sig present, verify; if absent, allow (local UI).
+ * @param {object} feed
+ * @returns {Promise<boolean>}
+ */
+async function feedSignatureAcceptable(feed) {
+  const hasSig = feed && typeof feed.sig === "string" && feed.sig.trim();
+  if (app.isPackaged) {
+    const v = await verifyUpdateFeed(feed);
+    if (!v.ok) {
+      console.warn("[updater] latest.json signature rejected:", v.reason || "invalid");
+      return false;
+    }
+    return true;
+  }
+  if (!hasSig) return true;
+  const v = await verifyUpdateFeed(feed);
+  if (!v.ok) {
+    console.warn("[updater] latest.json signature rejected (dev):", v.reason || "invalid");
+    return false;
+  }
+  return true;
+}
+
 async function checkLatestJson() {
   setState({ status: "checking", error: null });
   let feed;
@@ -161,6 +198,11 @@ async function checkLatestJson() {
     feed = await fetchJson(LATEST_JSON_URL);
   } catch (err) {
     // Offline / no feed yet — not an error worth surfacing to the user.
+    setState({ status: "idle", error: null });
+    return;
+  }
+
+  if (!(await feedSignatureAcceptable(feed))) {
     setState({ status: "idle", error: null });
     return;
   }
@@ -210,6 +252,12 @@ function setupMacUpdater() {
     macUpdater.setFeedURL({ provider: "generic", url: FEED_BASE });
   } catch (err) {
     console.warn("[updater] setFeedURL failed:", err && err.message);
+  }
+
+  if (!ensureRunningAppDeveloperIdSigned()) {
+    console.warn(
+      "[updater] running app is not Developer ID–signed — Mac self-update disabled"
+    );
   }
 
   macUpdater.on("download-progress", (p) => {
@@ -277,6 +325,14 @@ function registerUpdateHandlers() {
   });
 
   ipcMain.handle("update:start", async () => {
+    if (isMac() && app.isPackaged && macUpdater && !ensureRunningAppDeveloperIdSigned()) {
+      const message =
+        "This build is not Developer ID–signed; in-app update is disabled.";
+      setState({ status: "error", error: message });
+      sendToRenderer("update:error", { message });
+      return { ok: false, mode: "download", reason: message };
+    }
+
     if (lastState.canSelfUpdate && macUpdater) {
       try {
         setState({ status: "downloading", progress: 0 });

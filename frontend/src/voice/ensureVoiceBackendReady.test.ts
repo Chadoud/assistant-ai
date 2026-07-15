@@ -12,9 +12,17 @@ vi.mock("../api/client", () => ({
 }));
 
 vi.mock("../utils/syncGeminiKeyToBackend", () => ({
-  resolveGeminiApiKeyFromSettings: vi.fn(() => "AIza-test-key"),
+  resolveGeminiApiKeyFromSettings: vi.fn(() => "AIzaSy0123456789012345678901234567890"),
   syncGeminiKeyToBackend: vi.fn(async () => true),
 }));
+
+vi.mock("../utils/geminiConnection", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../utils/geminiConnection")>();
+  return {
+    ...actual,
+    isGeminiConnectedInSettings: vi.fn(() => true),
+  };
+});
 
 vi.mock("../desktopClient", () => ({
   desktopClient: {
@@ -28,7 +36,14 @@ describe("ensureVoiceBackendReady", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     const { desktopClient } = await import("../desktopClient");
+    const { isGeminiConnectedInSettings } = await import("../utils/geminiConnection");
+    const { resolveGeminiApiKeyFromSettings, syncGeminiKeyToBackend } = await import(
+      "../utils/syncGeminiKeyToBackend"
+    );
     vi.mocked(desktopClient.getVoiceStatus).mockReset();
+    vi.mocked(isGeminiConnectedInSettings).mockReturnValue(true);
+    vi.mocked(resolveGeminiApiKeyFromSettings).mockReturnValue("AIzaSy0123456789012345678901234567890");
+    vi.mocked(syncGeminiKeyToBackend).mockResolvedValue(true);
   });
 
   it("returns offline when backendOnline is false", async () => {
@@ -36,7 +51,23 @@ describe("ensureVoiceBackendReady", () => {
     expect(result).toEqual({ ready: false, reason: "offline" });
   });
 
-  it("returns ready when voice status is already configured (skips sync)", async () => {
+  it("returns missing_key when Settings has no Gemini key even if backend env is ready", async () => {
+    const { desktopClient } = await import("../desktopClient");
+    const { isGeminiConnectedInSettings } = await import("../utils/geminiConnection");
+    const { syncGeminiKeyToBackend } = await import("../utils/syncGeminiKeyToBackend");
+    vi.mocked(isGeminiConnectedInSettings).mockReturnValue(false);
+    vi.mocked(desktopClient.getVoiceStatus).mockResolvedValue({
+      ready: true,
+      model: "gemini-live",
+    });
+
+    const result = await ensureVoiceBackendReady(baseSettings, { backendOnline: true });
+    expect(result).toEqual({ ready: false, reason: "missing_key" });
+    expect(syncGeminiKeyToBackend).not.toHaveBeenCalled();
+    expect(desktopClient.getVoiceStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns ready when Settings is connected and voice status is already configured (skips sync)", async () => {
     const { desktopClient } = await import("../desktopClient");
     const { syncGeminiKeyToBackend } = await import("../utils/syncGeminiKeyToBackend");
     vi.mocked(desktopClient.getVoiceStatus).mockResolvedValueOnce({
@@ -72,8 +103,8 @@ describe("ensureVoiceBackendReady", () => {
   });
 
   it("assertVoiceBackendReady throws user-facing message", async () => {
-    const { resolveGeminiApiKeyFromSettings } = await import("../utils/syncGeminiKeyToBackend");
-    vi.mocked(resolveGeminiApiKeyFromSettings).mockReturnValueOnce("");
+    const { isGeminiConnectedInSettings } = await import("../utils/geminiConnection");
+    vi.mocked(isGeminiConnectedInSettings).mockReturnValue(false);
 
     await expect(assertVoiceBackendReady(baseSettings)).rejects.toThrow(
       voiceBackendNotReadyMessage({ ready: false, reason: "missing_key" }),

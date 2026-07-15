@@ -1,12 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_APP_SETTINGS } from "../settings/appSettingsHydration";
 import { getChatBlockReason, isChatReady } from "./chatReadiness";
+import { GEMINI_SECRET_MASK } from "./geminiConnection";
 
 describe("chatReadiness", () => {
   it("allows chat when only Gemini is configured (backend optional)", () => {
     const settings = {
       ...DEFAULT_APP_SETTINGS,
       geminiApiKey: "AIzaSy0123456789012345678901234567890",
+    };
+    expect(isChatReady(settings)).toBe(true);
+    expect(getChatBlockReason(settings)).toBeNull();
+  });
+
+  it("allows chat when packaged hydrate returned the secret mask", () => {
+    const settings = {
+      ...DEFAULT_APP_SETTINGS,
+      geminiApiKey: GEMINI_SECRET_MASK,
     };
     expect(isChatReady(settings)).toBe(true);
     expect(getChatBlockReason(settings)).toBeNull();

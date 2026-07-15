@@ -1,5 +1,6 @@
 import { desktopClient } from "../desktopClient";
 import type { AppSettings } from "../types/settings";
+import { isGeminiConnectedInSettings } from "../utils/geminiConnection";
 import { resolveGeminiApiKeyFromSettings, syncGeminiKeyToBackend } from "../utils/syncGeminiKeyToBackend";
 
 type VoiceBackendReadyResult =
@@ -8,6 +9,7 @@ type VoiceBackendReadyResult =
 
 /**
  * Sync Gemini credentials to the backend env and verify /voice/status before opening a session.
+ * Settings / safeStorage is required first — an orphan backend/.env key alone is not enough.
  */
 async function readVoiceBackendStatus(): Promise<VoiceBackendReadyResult | null> {
   try {
@@ -29,6 +31,11 @@ export async function ensureVoiceBackendReady(
     return { ready: false, reason: "offline" };
   }
 
+  // Same gate as chat: user must have connected Gemini in Settings / safeStorage.
+  if (!isGeminiConnectedInSettings(settings)) {
+    return { ready: false, reason: "missing_key" };
+  }
+
   const alreadyReady = await readVoiceBackendStatus();
   if (alreadyReady?.ready) {
     return alreadyReady;
@@ -36,7 +43,9 @@ export async function ensureVoiceBackendReady(
 
   const apiKey = resolveGeminiApiKeyFromSettings(settings);
   if (!apiKey) {
-    return { ready: false, reason: "missing_key" };
+    // Packaged mask-only: main already injects safeStorage into the backend on spawn.
+    // If status is not ready yet, surface backend_not_ready rather than inventing a sync.
+    return { ready: false, reason: "backend_not_ready" };
   }
 
   try {

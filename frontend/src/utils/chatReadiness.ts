@@ -1,15 +1,14 @@
 import type { AppSettings } from "../types/settings";
-import { isGeminiApiKeyConfigured } from "./geminiApiKey";
-import { resolveGeminiApiKeyFromSettings } from "./syncGeminiKeyToBackend";
+import { isGeminiConnectedInSettings } from "./geminiConnection";
 
 type ChatBlockReason = "gemini";
 
 /**
- * Chat uses Gemini cloud — ready when a key is configured.
- * The local app service is optional for basic chat; required only for files, sort, and integrations.
+ * Chat uses Gemini cloud — ready when Settings / safeStorage has a key
+ * (same gate as voice; see geminiConnection.ts).
  */
 export function isChatReady(settings: AppSettings): boolean {
-  return isGeminiApiKeyConfigured(resolveGeminiApiKeyFromSettings(settings));
+  return isGeminiConnectedInSettings(settings);
 }
 
 /** Why the composer is blocked — null when the user can send messages. */

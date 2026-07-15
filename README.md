@@ -60,7 +60,7 @@ EXO is a local-first desktop app for AI file sorting, a second brain, and an ass
 | **Windows** (x64) | [`EXO Setup.exe`](https://exosites.ch/downloads/exo-assistant/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
 | **macOS** (Intel + Apple Silicon) | [`EXO.dmg`](https://exosites.ch/downloads/exo-assistant/) · [GitHub Releases](https://github.com/Chadoud/assistant-ai/releases) |
 
-<sub>Installers are unsigned — Windows SmartScreen and macOS Gatekeeper will warn on first launch. See [INSTALL](docs/INSTALL.md) · [macOS](docs/MACOS.md).</sub>
+<sub>macOS builds are Developer ID signed and notarized. Windows installers are still unsigned — SmartScreen will warn. See [docs/INSTALL.md](docs/INSTALL.md) and [docs/MACOS.md](docs/MACOS.md).</sub>
 
 ### Quickstart
 

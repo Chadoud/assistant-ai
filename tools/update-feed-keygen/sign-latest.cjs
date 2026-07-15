@@ -2,6 +2,8 @@
 /**
  * Sign publish/latest.json (Ed25519). Adds/overwrites `sig` (base64url).
  *
+ * Uses Node.js built-in crypto (no npm install required in CI).
+ *
  * Usage:
  *   UPDATE_FEED_PRIVATE_KEY_HEX=<64-hex> node tools/update-feed-keygen/sign-latest.cjs publish/latest.json
  *   UPDATE_FEED_PRIVATE_KEY_FILE=path/to/secret.hex node tools/update-feed-keygen/sign-latest.cjs publish/latest.json
@@ -11,6 +13,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const {
   canonicalUpdateFeedPayload,
@@ -29,7 +32,16 @@ function loadPrivateKey() {
   return null;
 }
 
-async function main() {
+/** PKCS#8 DER for an Ed25519 seed (RFC 8410). */
+function privateKeyFromSeed(seed) {
+  const der = Buffer.concat([
+    Buffer.from("302e020100300506032b657004220420", "hex"),
+    seed,
+  ]);
+  return crypto.createPrivateKey({ key: der, format: "der", type: "pkcs8" });
+}
+
+function main() {
   const target = process.argv[2];
   if (!target) {
     console.error(
@@ -57,16 +69,17 @@ async function main() {
   }
 
   const canonical = canonicalUpdateFeedPayload(feed);
-  const message = new TextEncoder().encode(canonical);
-  const ed = await import("@noble/ed25519");
-  const sig = await ed.signAsync(message, Uint8Array.from(sk));
+  const message = Buffer.from(canonical, "utf8");
+  const key = privateKeyFromSeed(sk);
+  const sig = crypto.sign(null, message, key);
+  if (sig.length !== 64) {
+    console.error(`Unexpected signature length ${sig.length}`);
+    process.exit(1);
+  }
   feed.sig = Buffer.from(sig).toString("base64url");
 
   fs.writeFileSync(abs, `${JSON.stringify(feed, null, 2)}\n`, "utf8");
   console.log(`Signed ${abs} (version ${feed.version})`);
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main();

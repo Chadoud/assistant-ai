@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <sub>local-first · cloud sort · macOS + Windows · v1.1.46</sub>
+  <sub>local-first · cloud sort · macOS + Windows · v1.1.47</sub>
 </p>
 
 - **Smart sort** — drop messy files, review plain-language reasons, apply in bulk, undo anytime

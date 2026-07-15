@@ -6,6 +6,20 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.47] - 2026-07-15
+
+### Security
+
+- **Packaged local API:** Fail-closed app token (`EXOSITES_REQUIRE_APP_TOKEN`); ignore `EXOSITES_INSECURE_LOCAL` in packaged builds; stop writing `.dev-app-token` to disk.
+- **Secrets IPC:** Packaged builds return masked values from `secrets:get` (raw keys stay in main / safeStorage).
+- **Agent tools:** Expand approval-required tools (computer control, file workspace, voice sort, browser control, etc.); voice `start_local_file_sort` defaults to review-first (`auto_apply=false`).
+- **browser_control:** Public-URL SSRF guard on `go_to`; narrow `terminal_safe` (no `cat` / free `npm run`).
+
+### Changed
+
+- **macOS distribution:** First release intended to ship with Developer ID signing + notarization when CI secrets are present.
+- **Docs:** Distribution feed documented as `exosites.ch/downloads/exo-assistant`; signing secrets inventory updated.
+
 ## [1.1.46] - 2026-07-14
 
 ### Fixed

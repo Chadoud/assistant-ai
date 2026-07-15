@@ -129,6 +129,11 @@ export interface AppSettings {
   brainMapIncludeMailTasks: boolean;
   /** Allow the assistant to plan and execute autonomous multi-step tasks. */
   assistantAgentEnabled: boolean;
+  /**
+   * When on, chat and voice may run sensitive tools without per-call AutonomyPolicy blocks.
+   * Approval-tier tools in voice still show the consent modal. Default off (fail-closed).
+   */
+  autonomousMode: boolean;
   /** When using Gemini as chat provider, attach Google Search grounding so the model can fetch live facts. */
   chatWebSearchEnabled: boolean;
   /** Active AI provider for text chat (see {@link ChatProviderId}). */

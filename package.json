@@ -1,6 +1,6 @@
 {
   "name": "exosites-assistant",
-  "version": "1.1.48",
+  "version": "1.1.49",
   "description": "Exo — AI file sorting and second brain (desktop; cloud sort for subscribers)",
   "main": "electron/main.js",
   "author": "Exosites",
@@ -52,6 +52,7 @@
     "ga:enable-prometheus-vps": "powershell -ExecutionPolicy Bypass -File scripts/ga-enable-prometheus-vps.ps1",
     "wait:cloud-api-virtual-keys": "bash scripts/wait-for-cloud-api-virtual-keys.sh",
     "verify:legal-urls": "bash scripts/verify-legal-urls.sh",
+    "verify:security-posture": "node scripts/verify-security-posture.mjs",
     "verify:packaged-preload": "node scripts/verify-packaged-preload.cjs",
     "verify:packaged-app": "node scripts/verify-packaged-app.cjs",
     "verify:production": "node scripts/verify-main-register-handlers.cjs && node scripts/validate-electron-ipc-manifest.cjs && npm run verify:legal-urls && VERIFY_GO_SYNC=1 bash scripts/verify-cloud-auth-api.sh",

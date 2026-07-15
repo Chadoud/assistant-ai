@@ -125,15 +125,20 @@ def plan_and_execute(parameters: dict[str, Any]) -> dict[str, Any]:
         )
 
     try:
-        # User-initiated task: side effects the user asked for are allowed, but every
-        # action is audited and bounded, and self-recursion stays blocked.
+        allow_sensitive = bool(
+            parameters.get("allow_sensitive")
+            or parameters.get("autonomous_mode")
+            or parameters.get("_approval_granted")
+        )
+        # One-shot: when plan_and_execute was voice-approved, sensitive steps inside
+        # this goal run are allowed; otherwise fail closed unless autonomous mode.
         result = orchestrate(
             goal,
             max_steps=max_steps,
             reason_fn=reason_fn,
             memory=memory_adapter(),
             skills=skill_adapter(),
-            policy=AutonomyPolicy(allow_sensitive=True),
+            policy=AutonomyPolicy(allow_sensitive=allow_sensitive),
             budget=Budget(max_tool_calls=max_steps),
             audit=audit_adapter(goal),
             progress=progress,

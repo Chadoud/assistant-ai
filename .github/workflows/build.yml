@@ -614,20 +614,17 @@ jobs:
       - name: Upload to exosites.ch over SSH
         if: env.EXOSITES_DEPLOY_SSH_HOST != ''
         env:
-          SSHPASS: ${{ secrets.EXOSITES_DEPLOY_SSH_PASSWORD }}
           EXOSITES_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.EXOSITES_DEPLOY_SSH_PRIVATE_KEY }}
         run: |
           sudo apt-get update && sudo apt-get install -y rsync openssh-client
           DEST="${{ secrets.EXOSITES_DEPLOY_SSH_USER }}@${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}:${{ secrets.EXOSITES_DOWNLOADS_PATH }}"
-          if [ -n "${EXOSITES_DEPLOY_SSH_PRIVATE_KEY:-}" ]; then
-            install -m 700 -d ~/.ssh
-            KEY_FILE="$HOME/.ssh/exosites_downloads_deploy"
-            printf '%s\n' "$EXOSITES_DEPLOY_SSH_PRIVATE_KEY" > "$KEY_FILE"
-            chmod 600 "$KEY_FILE"
-            rsync -avz -e "ssh -i $KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
-              publish/ "$DEST/"
-          else
-            echo "::warning::EXOSITES_DEPLOY_SSH_PRIVATE_KEY unset — falling back to sshpass (deprecated)"
-            sudo apt-get install -y sshpass
-            sshpass -e rsync -avz -e "ssh -o StrictHostKeyChecking=accept-new" publish/ "$DEST/"
+          if [ -z "${EXOSITES_DEPLOY_SSH_PRIVATE_KEY:-}" ]; then
+            echo "::error::EXOSITES_DEPLOY_SSH_PRIVATE_KEY is required (password/sshpass fallback removed)"
+            exit 1
           fi
+          install -m 700 -d ~/.ssh
+          KEY_FILE="$HOME/.ssh/exosites_downloads_deploy"
+          printf '%s\n' "$EXOSITES_DEPLOY_SSH_PRIVATE_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          rsync -avz -e "ssh -i $KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
+            publish/ "$DEST/"

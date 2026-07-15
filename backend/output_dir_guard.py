@@ -61,6 +61,24 @@ def _system_blocked_roots() -> list[pathlib.Path]:
     return blocked
 
 
+def _app_data_blocked_roots() -> list[pathlib.Path]:
+    """
+    Electron userData (and secrets subtree) must never be a sort destination (M2.8).
+    Paths come from EXOSITES_USER_DATA / EXOSITES_DATA_DIR set by the desktop shell.
+    """
+    blocked: list[pathlib.Path] = []
+    for env_key in ("EXOSITES_USER_DATA", "EXOSITES_DATA_DIR"):
+        raw = (os.environ.get(env_key) or "").strip()
+        if not raw:
+            continue
+        p = _resolve_safe(raw)
+        if p is None:
+            continue
+        blocked.append(p)
+        blocked.append(p / "settings_secrets_v1")
+    return blocked
+
+
 def _resolve_safe(raw: str) -> pathlib.Path | None:
     try:
         return pathlib.Path(raw).expanduser().resolve()
@@ -81,7 +99,13 @@ def is_safe_output_dir(output_dir: str) -> tuple[bool, str]:
     if resolved is None:
         return False, "Output directory path is invalid."
 
-    for root in _system_blocked_roots():
+    if resolved.name == "settings_secrets_v1":
+        return False, (
+            f"Output directory '{resolved}' is an application secrets path "
+            f"and cannot be used as a sort destination."
+        )
+
+    for root in (*_system_blocked_roots(), *_app_data_blocked_roots()):
         root_r = _resolve_safe(str(root))
         if root_r is None:
             continue

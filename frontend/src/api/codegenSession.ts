@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ChatProviderId } from "../types/settings";
 import { API_BASE, getApiHeaders } from "./client";
 import { requestValidated } from "./client";
+import { apiKeyForBackendRequest } from "../utils/geminiConnection";
 
 export interface StartCodegenSessionOptions {
   goal: string;
@@ -34,7 +35,7 @@ export function startCodegenSession({
       goal,
       provider,
       model: model.trim() || null,
-      api_key: provider === "ollama" ? "" : apiKey,
+      api_key: provider === "ollama" ? "" : apiKeyForBackendRequest(apiKey),
       base_url: provider === "custom" ? baseUrl : "",
       follow_up: followUp,
       prior_session_id: followUp && priorSessionId ? priorSessionId : null,

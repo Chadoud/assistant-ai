@@ -47,7 +47,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from app_auth import app_token_auth_enabled, validate_app_token
+from app_auth import app_token_auth_enabled, require_app_token, validate_app_token
 from classifier import classify_candidates, classify_scored
 from codegen.routes import router as codegen_router
 from codegen.session_store import load_persisted_sessions
@@ -94,19 +94,17 @@ def _cors_origins() -> list[str]:
     """
     Allowed CORS origins for the local FastAPI server.
 
-    Covers:
-    - Vite dev server (localhost and 127.0.0.1, standard port 5173)
-    - Electron packaged app (file:// → browser sends "null" or "app://." depending on platform)
-    - Override via EXOSITES_CORS_EXTRA_ORIGINS (comma-separated) for custom setups
+    Electron HTTP now goes through main-process ``backend:http`` (no browser CORS).
+    Keep Vite dev origins; do not allow the opaque ``null`` origin (M2.9).
+    ``EXOSITES_CORS_EXTRA_ORIGINS`` is ignored when packaged auth is required.
     """
     origins = [
         "http://127.0.0.1:5173",
         "http://localhost:5173",
-        # Electron production: file:// origin is reported as "null" by Chromium.
-        "null",
-        # Electron on some platforms / Electron Forge.
         "app://.",
     ]
+    if require_app_token():
+        return origins
     extra = os.environ.get("EXOSITES_CORS_EXTRA_ORIGINS", "").strip()
     if extra:
         origins += [o.strip() for o in extra.split(",") if o.strip()]

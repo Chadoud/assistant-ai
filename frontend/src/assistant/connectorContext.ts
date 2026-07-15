@@ -31,7 +31,6 @@ import type {
   MailMessage,
   MailRow,
 } from "../systemCommands/assistantPrompts";
-import { desktopClient } from "../desktopClient";
 
 export { MS_GRAPH_PROVIDER_IDS, loadConnectedIntegrationIds } from "../utils/assistantIntegrationProviders";
 
@@ -243,58 +242,17 @@ export async function fetchRealContext(
 /**
  * Relay OAuth tokens from the Electron keychain to the backend credential cache.
  *
- * Called before dispatching an external_source_task so the backend connector
- * tools can retrieve valid tokens without requiring an IPC round-trip per call.
- *
- * Silently no-ops when the Electron bridge is unavailable (web mode) or when
- * the bridge does not expose integrationGetToken (older Electron builds).
+ * Main process performs the relay (M2.3) so raw tokens never enter the renderer.
  */
 export async function relayConnectorTokens(): Promise<void> {
-  if (
-    !hasElectronBridge() ||
-    typeof window.electronAPI?.integrationGetAccounts !== "function"
-  ) {
+  if (!hasElectronBridge()) return;
+  const relayAll = window.electronAPI?.integrationRelayAllTokens;
+  if (typeof relayAll === "function") {
+    try {
+      await relayAll();
+    } catch {
+      /* non-critical */
+    }
     return;
   }
-
-  let accounts: Array<{ providerId: string; connected: boolean }> = [];
-  try {
-    const res = await window.electronAPI.integrationGetAccounts();
-    if (!res?.ok || !Array.isArray(res.accounts)) return;
-    accounts = res.accounts;
-  } catch {
-    return;
-  }
-
-  const relayPromises = accounts
-    .filter((a) => a.connected)
-    .map(async (account) => {
-      const getToken = window.electronAPI?.integrationGetToken;
-      if (typeof getToken !== "function") return;
-
-      try {
-        const tokenRes = await getToken({ providerId: account.providerId });
-        if (!tokenRes?.ok || !tokenRes.token) return;
-
-        const body = {
-          provider_id: account.providerId,
-          token: tokenRes.token,
-          expires_in: tokenRes.expiresIn ?? 0,
-        };
-
-        await desktopClient.postIntegrationTokenRelay(body);
-
-        // Generic fallbacks used by connector tools (google_workspace try_get_token chains).
-        if (account.providerId.startsWith("google-") || account.providerId === "google") {
-          await desktopClient.postIntegrationTokenRelay({ ...body, provider_id: "google" });
-        }
-        if (["microsoft", "onedrive", "outlook"].includes(account.providerId)) {
-          await desktopClient.postIntegrationTokenRelay({ ...body, provider_id: "microsoft" });
-        }
-      } catch {
-        // Non-critical — backend surfaces actionable errors if a tool runs without a token.
-      }
-    });
-
-  await Promise.allSettled(relayPromises);
 }

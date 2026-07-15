@@ -135,7 +135,7 @@ def _result_from_worker_json(body: dict[str, Any]) -> SortAnalyzeResult:
         confidence=float(row.get("confidence") or 0.0),
         reason=str(row.get("reason") or ""),
         rule_applied_id=row.get("rule_applied_id"),
-        approved=bool(row.get("approved", True)),
+        approved=bool(row.get("approved", False)),
         status=str(row.get("status") or "review_ready"),
         new_folder_name=row.get("new_folder_name"),
         analyze_extract_ms=row.get("analyze_extract_ms"),

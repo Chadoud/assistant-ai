@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ChatProviderId } from "../types/settings";
 import { requestValidated } from "./client";
+import { apiKeyForBackendRequest } from "../utils/geminiConnection";
 
 interface StartAgentTaskOptions {
   goal: string;
@@ -26,7 +27,7 @@ export function startAgentTask({
       goal,
       provider,
       model: model.trim() || null,
-      api_key: provider === "ollama" ? "" : apiKey,
+      api_key: provider === "ollama" ? "" : apiKeyForBackendRequest(apiKey),
       base_url: provider === "custom" ? baseUrl : "",
     }),
   });

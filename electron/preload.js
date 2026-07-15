@@ -6,7 +6,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openDirectory: (options) => ipcRenderer.invoke("dialog:openDirectory", options ?? {}),
   readComposerAttachment: (filePath) => ipcRenderer.invoke("dialog:readComposerAttachment", filePath),
   getDefaultOutputDir: () => ipcRenderer.invoke("app:getDefaultOutputDir"),
+  // Deprecated M2.3: always empty; use backendHttp / voiceMintWsAuthTicket.
   getBackendToken: () => ipcRenderer.invoke("app:getBackendToken"),
+  backendHttp: (payload) => ipcRenderer.invoke("backend:http", payload),
+  voiceMintWsAuthTicket: () => ipcRenderer.invoke("voice:mintWsAuthTicket"),
   getRendererDiagnosticsLogPath: () => ipcRenderer.invoke("app:getRendererDiagnosticsLogPath"),
   appendRendererDiagnostic: (payload) => ipcRenderer.invoke("app:appendRendererDiagnostic", payload),
   getSystemSpecs: () => ipcRenderer.invoke("app:getSystemSpecs"),
@@ -79,6 +82,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   privacyWipeElectronFiles: () => ipcRenderer.invoke("privacy:wipeElectronFiles"),
   privacyWipeAllLocalData: () => ipcRenderer.invoke("privacy:wipeAllLocalData"),
   voicePrimeSession: (payload) => ipcRenderer.invoke("voice:primeSession", payload),
+  integrationRelayAllTokens: () => ipcRenderer.invoke("integration:relayAllTokens"),
   syncGetStatus: () => ipcRenderer.invoke("sync:getStatus"),
   syncSetEnabled: (enabled) => ipcRenderer.invoke("sync:setEnabled", enabled),
   syncRunNow: () => ipcRenderer.invoke("sync:runNow"),
@@ -93,7 +97,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   systemCommandExecute: (payload) => ipcRenderer.invoke("systemCommand:execute", payload),
   integrationListProviders: () => ipcRenderer.invoke("integration:listProviders"),
   integrationGetAccounts: () => ipcRenderer.invoke("integration:getAccounts"),
-  integrationGetToken: (payload) => ipcRenderer.invoke("integration:getToken", payload),
+  // M2.3: raw tokens stay in main — use integrationRelayAllTokens / voicePrimeSession.
   integrationConnect: (payload) => ipcRenderer.invoke("integration:connect", payload),
   integrationDisconnect: (payload) => ipcRenderer.invoke("integration:disconnect", payload),
   integrationListGoogleDriveFiles: (payload) =>

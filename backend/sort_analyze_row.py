@@ -413,6 +413,8 @@ def run_sort_analyze_for_path(params: SortAnalyzeParams) -> SortAnalyzeResult:
         if folder_name != uncertain and folder_name not in existing_folders:
             new_folder = folder_name
 
+        is_uncertain = folder_name.strip().lower() == uncertain.strip().lower()
+
         return SortAnalyzeResult(
             ok=True,
             size_bytes=size_bytes,
@@ -439,7 +441,7 @@ def run_sort_analyze_for_path(params: SortAnalyzeParams) -> SortAnalyzeResult:
             confidence=confidence,
             reason=reason,
             rule_applied_id=rule_applied_id,
-            approved=True,
+            approved=not is_uncertain,
             status="review_ready",
             error=None,
             new_folder_name=new_folder,

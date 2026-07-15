@@ -13,9 +13,9 @@
 const MAX_TERMINAL_CMD_CHARS = 512;
 
 const TERMINAL_SAFE_PREFIXES = Object.freeze([
-  "ls", "dir", "pwd", "echo", "cat",
+  "ls", "dir", "pwd", "echo",
   "git status", "git log", "git diff",
-  "npm run", "python --version", "node --version",
+  "python --version", "node --version",
   "pip list", "pip show",
 ]);
 

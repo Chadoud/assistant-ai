@@ -10,6 +10,13 @@ import { resolveGeminiApiKeyFromSettings } from "./syncGeminiKeyToBackend";
 /** Must match electron/ipc/secretsHandlers.js and secretsStorage.ts */
 export const GEMINI_SECRET_MASK = "••••••••";
 
+/** Strip UI mask so backend falls back to spawn-injected env keys (M2.3). */
+export function apiKeyForBackendRequest(apiKey: string | undefined | null): string {
+  const raw = (apiKey || "").trim();
+  if (!raw || raw === GEMINI_SECRET_MASK) return "";
+  return raw;
+}
+
 /**
  * True when the user has connected Gemini in the app (Settings / safeStorage).
  * Packaged builds hydrate a mask instead of the raw key — that still counts as connected.

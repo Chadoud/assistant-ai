@@ -107,7 +107,7 @@ def run_orchestrator_for_task(task: Any, loop: asyncio.AbstractEventLoop) -> dic
         reason_fn=_build_reason_fn(task, loop),
         memory=memory_adapter(),
         skills=skill_adapter(),
-        policy=AutonomyPolicy(allow_sensitive=True),
+        policy=AutonomyPolicy(allow_sensitive=False),
         budget=Budget(max_tool_calls=8),
         audit=audit_adapter(task.goal),
         progress=_progress,

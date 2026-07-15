@@ -54,7 +54,7 @@ test("gmail_search_messages rejects missing query", () => {
   assert.strictEqual(r.error, "gmail_search_bad_query");
 });
 
-for (const cmd of ["ls", "ls -la", "git status", "npm run build", "pip show requests"]) {
+for (const cmd of ["ls", "ls -la", "git status", "pip show requests"]) {
   test(`terminal_safe accepts read-only command: ${cmd}`, () => {
     const r = validateExecutePayload({ commandId: "terminal_safe", args: { cmd } });
     assert.strictEqual(r.ok, true);
@@ -65,6 +65,9 @@ for (const cmd of [
   "ls && rm -rf ~",
   "ls; rm -rf ~",
   "cat file | sh",
+  "cat secrets.txt",
+  "npm run build",
+  "npm run postinstall",
   "echo $(rm -rf ~)",
   "echo `rm -rf ~`",
   "ls > /etc/passwd",

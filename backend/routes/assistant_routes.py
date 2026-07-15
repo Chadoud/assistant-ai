@@ -40,6 +40,8 @@ class AssistantChatBody(BaseModel):
     base_url: str | None = Field(default=None, max_length=512)
     use_web_search: bool = Field(default=False)
     enable_tools: bool = Field(default=True)
+    autonomous_mode: bool = Field(default=False)
+    allow_sensitive: bool | None = Field(default=None)
 
 
 class AssistantTurnBody(BaseModel):
@@ -61,6 +63,8 @@ class AssistantTurnBody(BaseModel):
     base_url: str | None = Field(default=None, max_length=512)
     use_web_search: bool = False
     enable_tools: bool = True
+    autonomous_mode: bool = False
+    allow_sensitive: bool | None = None
 
 
 def create_assistant_router() -> APIRouter:
@@ -228,7 +232,14 @@ def create_assistant_router() -> APIRouter:
         )
 
         def generate():
-            for payload in stream_chat_with_relay(candidates, request_messages, tools=tools):
+            allow_sensitive = (
+                body.allow_sensitive
+                if body.allow_sensitive is not None
+                else body.autonomous_mode
+            )
+            for payload in stream_chat_with_relay(
+                candidates, request_messages, tools=tools, allow_sensitive=allow_sensitive
+            ):
                 yield f"data: {payload}\n\n"
 
         return StreamingResponse(generate(), media_type="text/event-stream")
@@ -267,7 +278,14 @@ def create_assistant_router() -> APIRouter:
         )
 
         def generate():
-            for payload in stream_chat_with_relay(candidates, request_messages, tools=tools):
+            allow_sensitive = (
+                body.allow_sensitive
+                if body.allow_sensitive is not None
+                else body.autonomous_mode
+            )
+            for payload in stream_chat_with_relay(
+                candidates, request_messages, tools=tools, allow_sensitive=allow_sensitive
+            ):
                 yield f"data: {payload}\n\n"
 
         return StreamingResponse(generate(), media_type="text/event-stream")

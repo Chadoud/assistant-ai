@@ -20,13 +20,16 @@
 ## Threat model (local desktop app)
 
 - **Not a multi-tenant server:** The app assumes the **OS user** can read their own files and `userData`. Mitigations target **untrusted path strings** from the renderer/HTTP and **defense in depth** against mistakes — not protection against malware already running as the same user.
-- **Remote code:** Unauthenticated network peers must not be able to invoke sort endpoints; bind the API to **loopback** in default configurations. Packaged builds set `EXOSITES_REQUIRE_APP_TOKEN=1` and ignore `EXOSITES_INSECURE_LOCAL`.
-- **OAuth tokens** for Google live in the **local backend / Electron** store; treat the machine as trusted; wiping tokens = disconnect in UI or remove stored credentials. Integration OAuth tokens use Electron **safeStorage** in the main process and **fail closed** when OS encryption is unavailable (no new plaintext fallback writes). Packaged builds return **masked** values from `secrets:get` (raw secrets stay in main).
-- **Hardening roadmap:** [`docs/SECURITY_HARDENING_PLAN.md`](docs/SECURITY_HARDENING_PLAN.md) (signing, feed trust, agent approvals).
+- **Residual same-user risk (honest):** A process with the user’s privileges can still reach loopback, inspect the Electron/backend processes, or read local stores. App-token auth, path guards, and approval gates reduce *casual* abuse and XSS blast radius; they do **not** defend a fully compromised OS user session.
+- **Remote code:** Unauthenticated network peers must not be able to invoke sort endpoints; bind the API to **loopback** in default configurations. Packaged builds require the app token and ignore `EXOSITES_INSECURE_LOCAL`.
+- **Renderer secrets (M2.3):** The renderer does **not** receive the durable app token or raw API/OAuth secrets. `secrets:get` returns a **mask** only; HTTP goes through main-process `backend:http`; voice uses short-lived tickets (`voiceMintWsAuthTicket`). Provider keys are not durable secret storage in `localStorage`.
+- **OAuth tokens** for Google live in the **local backend / Electron** store; treat the machine as trusted; wiping tokens = disconnect in UI or remove stored credentials. Integration OAuth tokens use Electron **safeStorage** in the main process and **fail closed** when OS encryption is unavailable (no new plaintext fallback writes).
+- **Agent tools:** Risk tiers and approval requirements — [`docs/AGENT_TOOL_THREAT_MODEL.md`](docs/AGENT_TOOL_THREAT_MODEL.md).
+- **Hardening roadmap:** [`docs/SECURITY_HARDENING_PLAN.md`](docs/SECURITY_HARDENING_PLAN.md) (signing, feed trust, agent approvals). Deeper threat model: [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ## Distribution
 
-- **Code signing** (Windows Authenticode, Apple Developer ID) and **verified updates** reduce tampering risk. See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md).
+- **macOS:** Developer ID signed and notarized. **Windows:** Authenticode still open (M1b) — installers may be unsigned until then. Verified Mac update feeds use Ed25519-signed discovery. See [`docs/DISTRIBUTION.md`](docs/DISTRIBUTION.md).
 
 ## Reporting
 

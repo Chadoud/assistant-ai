@@ -19,6 +19,7 @@ interface AssistantTurnRequest {
   base_url?: string;
   use_web_search?: boolean;
   enable_tools?: boolean;
+  autonomous_mode?: boolean;
 }
 
 export interface AssistantTurnJsonResponse {

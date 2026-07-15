@@ -44,6 +44,8 @@ def dispatch_sync(
         }
 
     raw_params = parameters if isinstance(parameters, dict) else {}
+    if approval_granted:
+        raw_params = {**raw_params, "_approval_granted": True}
     logger.debug("[tool] START    %s | args=%s", name, _safe_repr(raw_params))
     t0 = time.perf_counter()
 

@@ -94,8 +94,8 @@ Tag `publish-website` **fails** if the private key secret is missing.
 - Compromise of Infomaniak deploy credentials or the downloads directory can
   replace feed files — mitigated by Mac notarization (M1a), signed `latest.json`
   (M1c.1), Developer ID gate on self-update (M1c.2), and SSH key deploy (M1c.3).
-- Prefer GitHub secret `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` (PEM); password/`sshpass`
-  remains a temporary fallback until the key is installed.
+- Prefer GitHub secret `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` (PEM). CI fails closed
+  if the key is missing (password/`sshpass` fallback removed).
 - Unsigned macOS builds cannot auto-update (self-update requires Developer ID).
 - Windows does not self-update via electron-updater today.
 

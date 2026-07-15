@@ -19,6 +19,13 @@ const WIPE_FILES = [
   "sort_credentials_meta.json",
   "cloud_session_prefs.json",
   "cloud_session.json",
+  // M2.7 leftovers (encrypted + legacy plaintext)
+  "notion-oauth-client.enc",
+  "notion-oauth-client.b64",
+  "slack-oauth-client.enc",
+  "slack-oauth-client.b64",
+  "infomaniak-api-token.enc",
+  "infomaniak-api-token.b64",
 ];
 
 /**

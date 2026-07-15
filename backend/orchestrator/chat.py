@@ -53,6 +53,7 @@ def stream_chat_with_relay(
     messages: list[dict[str, Any]],
     *,
     tools: list[ToolSpec] | None = None,
+    allow_sensitive: bool = False,
 ) -> Iterator[str]:
     """Stream a chat completion, relaying across candidates on transient failure.
 
@@ -98,6 +99,7 @@ def stream_chat_with_relay(
             tools=tools,
             api_key=cand.api_key,
             base_url=cand.base_url,
+            allow_sensitive=allow_sensitive,
         ):
             kind, obj = _classify(payload)
             if kind in ("delta", "tool_call", "tool_result"):

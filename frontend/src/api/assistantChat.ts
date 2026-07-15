@@ -1,6 +1,7 @@
 import type { ChatProviderId } from "../types/settings";
 import { getApiHeaders, mapFetchFailureToError } from "./client";
 import { desktopClient } from "../desktopClient";
+import { apiKeyForBackendRequest } from "../utils/geminiConnection";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -33,6 +34,8 @@ interface StreamAssistantChatOptions {
   useWebSearch?: boolean;
   /** Allow the backend tool-calling loop (default true). */
   enableTools?: boolean;
+  /** Pre-authorize sensitive tool side effects (Settings → Autonomous mode). */
+  autonomousMode?: boolean;
   /** Desktop shell action from manage_connection (connect/disconnect/setup). */
   onClientAction?: (detail: {
     action: string;
@@ -62,6 +65,7 @@ export async function streamAssistantChat({
   baseUrl = "",
   useWebSearch = false,
   enableTools = true,
+  autonomousMode = false,
   onClientAction,
 }: StreamAssistantChatOptions): Promise<void> {
   let res: Response;
@@ -74,10 +78,11 @@ export async function streamAssistantChat({
         messages,
         provider,
         // Cloud providers need a key; Ollama (local) never sends one.
-        api_key: provider === "ollama" ? "" : apiKey,
+        api_key: provider === "ollama" ? "" : apiKeyForBackendRequest(apiKey),
         base_url: provider === "custom" ? baseUrl : "",
         use_web_search: provider === "gemini" ? useWebSearch : false,
         enable_tools: enableTools,
+        autonomous_mode: autonomousMode,
       }),
       signal,
     });

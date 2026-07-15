@@ -58,6 +58,7 @@ def stream_chat_completion(
     tools: list[ToolSpec] | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    allow_sensitive: bool = False,
 ) -> Iterator[str]:
     """Run the full chat + tool-calling loop, yielding SSE JSON payload strings."""
     from tool_registry import dispatch_sync
@@ -127,6 +128,7 @@ def stream_chat_completion(
                     model=model,
                     api_key=api_key,
                     base_url=base_url,
+                    allow_sensitive=allow_sensitive,
                 ):
                     if kind == "relay":
                         yield json.dumps({"relay": payload})
@@ -173,8 +175,11 @@ def _run_tool(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    allow_sensitive: bool = False,
 ) -> dict[str, Any]:
     """Execute one tool call, never raising — failures become a result the model can read."""
+    from orchestrator.policy import AutonomyPolicy
+
     arguments = inject_provider_tool_args(
         call.name,
         dict(call.arguments),
@@ -184,9 +189,12 @@ def _run_tool(
         preferred_base_url=base_url,
     )
     try:
-        # Text chat has no interactive approval surface; tools needing approval are denied
-        # by dispatch_sync and the model is told so via the returned error.
-        return dispatch_sync(call.name, arguments, approval_granted=False)
+        policy = AutonomyPolicy(allow_sensitive=allow_sensitive)
+        decision = policy.check(call.name, arguments)
+        if not decision.allowed:
+            return {"ok": False, "error": decision.reason}
+        # Autonomous mode pre-authorizes side effects; otherwise approval-tier tools stay denied.
+        return dispatch_sync(call.name, arguments, approval_granted=allow_sensitive)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Tool %s crashed in chat loop", call.name)
         return {"ok": False, "error": str(exc)}
@@ -200,6 +208,7 @@ def _run_tool_streaming_relays(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    allow_sensitive: bool = False,
 ) -> Iterator[tuple[str, dict[str, Any]]]:
     """Run a tool while streaming provider hand-offs that happen *inside* it.
 
@@ -223,6 +232,7 @@ def _run_tool_streaming_relays(
                 model=model,
                 api_key=api_key,
                 base_url=base_url,
+                allow_sensitive=allow_sensitive,
             )
 
     worker = threading.Thread(target=_worker, name=f"tool-{call.name}", daemon=True)

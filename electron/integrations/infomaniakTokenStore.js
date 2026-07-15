@@ -1,8 +1,8 @@
 /**
  * Secure storage for the user's Infomaniak personal API token.
  *
- * Uses Electron safeStorage (OS keychain / DPAPI / libsecret) when available,
- * with a graceful fallback for environments where encryption is unavailable.
+ * Uses Electron safeStorage (OS keychain / DPAPI / libsecret). Fail-closed when
+ * encryption is unavailable (no plaintext fallback).
  *
  * The token is never logged or sent to any external service beyond the
  * Infomaniak API itself.
@@ -53,16 +53,17 @@ async function saveInfomaniakApiToken(token) {
  */
 function loadInfomaniakApiToken() {
   try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const encPath = tokenFilePath(ENC_FILE);
-      if (!fs.existsSync(encPath)) return null;
-      const buf = fs.readFileSync(encPath);
-      return safeStorage.decryptString(buf) || null;
+    // M2.7: wipe legacy plaintext leftover; never read it.
+    try {
+      fs.unlinkSync(tokenFilePath(PLAIN_FALLBACK_FILE));
+    } catch {
+      /* ignore */
     }
-    const fallbackPath = tokenFilePath(PLAIN_FALLBACK_FILE);
-    if (!fs.existsSync(fallbackPath)) return null;
-    const encoded = fs.readFileSync(fallbackPath, "utf8").trim();
-    return Buffer.from(encoded, "base64").toString("utf8") || null;
+    if (!safeStorage.isEncryptionAvailable()) return null;
+    const encPath = tokenFilePath(ENC_FILE);
+    if (!fs.existsSync(encPath)) return null;
+    const buf = fs.readFileSync(encPath);
+    return safeStorage.decryptString(buf) || null;
   } catch {
     return null;
   }

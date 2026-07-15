@@ -1,4 +1,10 @@
-import { API_BASE, getApiHeaders, mapFetchFailureToError } from "../api/client";
+import {
+  API_BASE,
+  getApiHeaders,
+  mapFetchFailureToError,
+  hasBackendHttpProxy,
+  proxyBackendHttp,
+} from "../api/client";
 import type { ChatProviderId } from "../types/settings";
 
 type VoiceStatusResponse = {
@@ -39,11 +45,21 @@ type SetKeyPayload = {
  * Centralizes API_BASE, auth headers, and common endpoint shapes.
  */
 export class DesktopClient {
-  /** Low-level fetch with API_BASE and X-App-Token headers. */
+  /** Low-level fetch with API_BASE; in Electron uses main-process proxy (no app token in renderer). */
   async fetch(path: string, init?: RequestInit): Promise<Response> {
-    const extra = (init?.headers as Record<string, string> | undefined) ?? {};
-    const headers = await getApiHeaders(extra);
     try {
+      if (hasBackendHttpProxy()) {
+        const headers = await getApiHeaders((init?.headers as Record<string, string> | undefined) ?? {});
+        const body =
+          typeof init?.body === "string"
+            ? init.body
+            : init?.body != null
+              ? String(init.body)
+              : undefined;
+        return await proxyBackendHttp(path, { ...init, headers, body });
+      }
+      const extra = (init?.headers as Record<string, string> | undefined) ?? {};
+      const headers = await getApiHeaders(extra);
       return await fetch(`${API_BASE}${path}`, { ...init, headers });
     } catch (e: unknown) {
       if (e instanceof DOMException && e.name === "AbortError") throw e;

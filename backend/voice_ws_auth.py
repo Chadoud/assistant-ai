@@ -10,26 +10,34 @@ from fastapi import WebSocket
 from starlette.websockets import WebSocketDisconnect
 
 from app_auth import app_token_auth_enabled, validate_app_token
+from voice_ws_tickets import consume_voice_ws_ticket
 
 logger = logging.getLogger(__name__)
 
 AUTH_MESSAGE_TIMEOUT_S = 5.0
 
 
-async def authenticate_voice_websocket(ws: WebSocket, query_token: str | None) -> bool:
+def _token_ok(token: str | None) -> bool:
+    if consume_voice_ws_ticket(token):
+        return True
+    return validate_app_token(token)
+
+
+async def authenticate_voice_websocket(ws: WebSocket) -> bool:
     """
-    Validate the per-run app token for a voice WebSocket.
+    Validate the per-run app token (or a short-lived voice WS ticket) for a voice WebSocket.
 
     Accepts, in order:
-    1. ``X-App-Token`` header (tests / non-browser clients)
-    2. ``?token=`` query param (legacy — avoid in new clients; may appear in logs)
-    3. First JSON frame ``{"type":"app_auth","token":"..."}`` within 5s (preferred)
+    1. ``X-App-Token`` header (tests / non-browser clients) — full app token or ticket
+    2. First JSON frame ``{"type":"app_auth","token":"..."}`` within 5s
+
+    Query ``?token=`` is intentionally unsupported (may appear in logs / referrers).
     """
     if not app_token_auth_enabled():
         return True
 
     header_token = ws.headers.get("x-app-token") or ws.headers.get("X-App-Token")
-    if validate_app_token(query_token or header_token):
+    if _token_ok(header_token):
         return True
 
     try:
@@ -37,7 +45,7 @@ async def authenticate_voice_websocket(ws: WebSocket, query_token: str | None) -
         data = json.loads(raw)
         if isinstance(data, dict) and data.get("type") == "app_auth":
             token = str(data.get("token") or "").strip()
-            return validate_app_token(token)
+            return _token_ok(token)
     except asyncio.TimeoutError:
         logger.debug("voice WS auth timed out waiting for app_auth frame")
     except WebSocketDisconnect:

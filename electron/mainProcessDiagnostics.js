@@ -91,6 +91,12 @@ function handle(kind, value) {
   appendMainDiagnosticLine({ event: kind, message: normalized.message, stack: normalized.stack });
   // eslint-disable-next-line no-console
   console.error(`[main-diagnostics] ${kind}:`, normalized.message);
+  try {
+    const { deleteMaterializedGmailOAuthMirror } = require("./gmailOAuthMirrorStore");
+    deleteMaterializedGmailOAuthMirror(app.getPath("userData"));
+  } catch {
+    /* best-effort wipe of ephemeral gmail mirror (M2.4) */
+  }
   relayToRenderer(kind, normalized);
   maybeShowDialog(normalized);
 }

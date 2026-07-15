@@ -47,7 +47,16 @@ class TestDestinationPath(unittest.TestCase):
     def test_destination_dir_joins(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = destination_dir(tmp, "Career/Job Applications")
-            self.assertEqual(d, pathlib.Path(tmp) / "Career" / "Job Applications")
+            self.assertEqual(d, pathlib.Path(tmp).resolve() / "Career" / "Job Applications")
+
+    def test_destination_dir_stays_under_resolved_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp).resolve()
+            d = destination_dir(tmp, "Career/Job Applications")
+            self.assertTrue(d == root or d.is_relative_to(root))
+            # Invalid relative paths normalize to uncertain under root
+            u = destination_dir(tmp, "../escape")
+            self.assertEqual(u, root / UNCERTAIN_FOLDER)
 
     def test_list_relative_paths_walks_nested(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Accepted (amended 2026-07-15 — M2.5: no query `?token=`)
 
 ## Context
 
@@ -18,25 +18,26 @@ Electron generates a per-run random token in [`backendProcess.js`](../../electro
 |-------|-----------|
 | Token generation | 32-byte hex secret per backend spawn; `EXOSITES_APP_TOKEN` env on child process |
 | HTTP | `X-App-Token` header on every non-exempt path |
-| WebSocket `/ws/voice` | Query param `?token=<EXOSITES_APP_TOKEN>` (primary); fallback `X-App-Token` header if present |
-| Validation timing | **Before** `ws.accept()` — reject with close code `4401` and reason `Unauthorized` |
-| Auth disabled | Only when `EXOSITES_APP_TOKEN` is unset **or** `EXOSITES_INSECURE_LOCAL=1` (explicit pytest / debug escape hatch) |
+| WebSocket `/ws/voice` | **Preferred:** first JSON frame `{"type":"app_auth","token":"..."}` (browser). **Also:** `X-App-Token` header (tests / native clients). **Not accepted:** query `?token=` (leaks to logs) |
+| Validation timing | After `ws.accept()` so the client can send `app_auth`; then close `4401` if auth fails |
+| Auth disabled | Only when `EXOSITES_APP_TOKEN` is unset **or** `EXOSITES_INSECURE_LOCAL=1` (explicit pytest / debug escape hatch); packaged builds refuse insecure mode |
 
-**Client wiring** ([`useVoiceSession.ts`](../../frontend/src/hooks/useVoiceSession.ts)):
+**Client wiring** ([`useVoiceWebSocket.ts`](../../frontend/src/voice/useVoiceWebSocket.ts)):
 
 ```text
-ws://127.0.0.1:7799/ws/voice?memory=1&startup=1&token=<appToken>&session_id=<uuid>
+ws://127.0.0.1:7799/ws/voice?memory=1&startup=1&session_id=<uuid>
+→ first frame: {"type":"app_auth","token":"<appToken>"}
 ```
 
-**Server wiring** ([`voice_routes.py`](../../backend/routes/voice_routes.py)):
+**Server wiring** ([`voice_routes.py`](../../backend/routes/voice_routes.py), [`voice_ws_auth.py`](../../backend/voice_ws_auth.py)):
 
-1. Read `token` query param or `X-App-Token` header.
-2. If `app_token_auth_enabled()` and `validate_app_token` fails → close without accepting.
-3. Only then `await ws.accept()` and process frames (including `token_relay` for OAuth).
+1. `await ws.accept()`.
+2. Authenticate via header or first-frame `app_auth`.
+3. On failure → close with code `4401` and reason `Unauthorized`.
 
 ## Consequences
 
-- Other localhost processes cannot drive voice without the per-run secret held in Electron main.
-- Token appears in WebSocket URL — acceptable on loopback; not sent to remote hosts.
-- Tests set `EXOSITES_APP_TOKEN` and connect with `?token=` ([`test_voice_ws_auth.py`](../../backend/tests/test_voice_ws_auth.py)).
-- Bare `uvicorn` dev without Electron must set `EXOSITES_INSECURE_LOCAL=1` or provide a matching token manually.
+- Other localhost processes cannot drive voice without the per-run secret.
+- Token does not appear in WebSocket URLs (avoids access-log leakage).
+- Tests use `X-App-Token` or an `app_auth` frame ([`test_voice_ws_auth.py`](../../backend/tests/test_voice_ws_auth.py)).
+- Bare `uvicorn` without Electron must set `EXOSITES_INSECURE_LOCAL=1` or provide a matching token.

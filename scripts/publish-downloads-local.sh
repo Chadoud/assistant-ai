@@ -6,8 +6,8 @@
 #
 # Setup (cloud-node/.env.deploy):
 #   DOWNLOADS_SSH_USER, DOWNLOADS_SSH_HOST, DOWNLOADS_REMOTE_PATH
-# Prefer key auth: DOWNLOADS_SSH_KEY_FILE=~/.ssh/id_ed25519_exosites_downloads
-# Fallback: DOWNLOADS_SSH_PASSWORD (+ sshpass)
+# Prefer key auth: DOWNLOADS_SSH_KEY_FILE=~/.ssh/exosites_downloads_deploy
+# (Password/sshpass fallback removed — key required.)
 # Feed signing (required unless ALLOW_UNSIGNED_LATEST_JSON=1):
 #   UPDATE_FEED_PRIVATE_KEY_HEX or UPDATE_FEED_PRIVATE_KEY_FILE
 # Optional Mac signing/notarize (export before running or add to .env.deploy):
@@ -55,25 +55,22 @@ fi
 PUBLISH_DIR="${ROOT}/.publish-downloads"
 
 ssh_cmd_prefix() {
-  # Prints a single ssh/rsync -e command string. Prefer key file over password.
+  # Prints a single ssh/rsync -e command string (key auth only).
   if [[ -n "${DOWNLOADS_SSH_KEY_FILE:-}" && -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
     printf 'ssh -i %q -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new' "${DOWNLOADS_SSH_KEY_FILE}"
   else
-    printf 'ssh -o StrictHostKeyChecking=accept-new'
+    echo -e "${RED}Set DOWNLOADS_SSH_KEY_FILE to an existing private key (password/sshpass fallback removed).${NC}" >&2
+    exit 1
   fi
 }
 
 run_downloads_ssh() {
-  if [[ -n "${DOWNLOADS_SSH_KEY_FILE:-}" && -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
-    ssh -i "${DOWNLOADS_SSH_KEY_FILE}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-      "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
-  elif [[ -n "${DOWNLOADS_SSH_PASSWORD:-}" ]] && command -v sshpass >/dev/null 2>&1; then
-    echo -e "${YELLOW}Using DOWNLOADS_SSH_PASSWORD (deprecated — prefer DOWNLOADS_SSH_KEY_FILE)${NC}" >&2
-    sshpass -p "${DOWNLOADS_SSH_PASSWORD}" ssh -o StrictHostKeyChecking=accept-new \
-      "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
-  else
-    ssh -o StrictHostKeyChecking=accept-new "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
+  if [[ -z "${DOWNLOADS_SSH_KEY_FILE:-}" || ! -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
+    echo -e "${RED}Set DOWNLOADS_SSH_KEY_FILE to an existing private key (password/sshpass fallback removed).${NC}" >&2
+    exit 1
   fi
+  ssh -i "${DOWNLOADS_SSH_KEY_FILE}" -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+    "${DOWNLOADS_SSH_USER}@${DOWNLOADS_SSH_HOST}" "$@"
 }
 
 sign_latest_json() {
@@ -205,15 +202,7 @@ upload_bundle() {
   echo -e "${GREEN}==> Uploading to ${dest}${NC}"
   local ssh_e
   ssh_e=$(ssh_cmd_prefix)
-  if [[ -n "${DOWNLOADS_SSH_KEY_FILE:-}" && -f "${DOWNLOADS_SSH_KEY_FILE}" ]]; then
-    rsync -avz --progress -e "$ssh_e" "${PUBLISH_DIR}/" "$dest"
-  elif [[ -n "${DOWNLOADS_SSH_PASSWORD:-}" ]] && command -v sshpass >/dev/null 2>&1; then
-    echo -e "${YELLOW}Using DOWNLOADS_SSH_PASSWORD (deprecated — prefer DOWNLOADS_SSH_KEY_FILE)${NC}"
-    sshpass -p "${DOWNLOADS_SSH_PASSWORD}" rsync -avz --progress -e "$ssh_e" \
-      "${PUBLISH_DIR}/" "$dest"
-  else
-    rsync -avz --progress -e "$ssh_e" "${PUBLISH_DIR}/" "$dest"
-  fi
+  rsync -avz --progress -e "$ssh_e" "${PUBLISH_DIR}/" "$dest"
 
   echo -e "${GREEN}==> Verifying latest.json on server${NC}"
   run_downloads_ssh "test -f ${remote_path%/}/latest.json && head -c 400 ${remote_path%/}/latest.json"

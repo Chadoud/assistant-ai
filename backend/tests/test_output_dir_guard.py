@@ -86,6 +86,23 @@ class TestSshBlocked:
         assert not ok, "~/.gnupg must be blocked"
 
 
+class TestAppDataBlocked:
+    def test_user_data_env_blocked(self, monkeypatch, tmp_path):
+        ud = tmp_path / "ExoUserData"
+        ud.mkdir()
+        monkeypatch.setenv("EXOSITES_USER_DATA", str(ud))
+        ok, reason = is_safe_output_dir(str(ud))
+        assert not ok, reason
+        ok2, _ = is_safe_output_dir(str(ud / "settings_secrets_v1"))
+        assert not ok2
+
+    def test_settings_secrets_dirname_blocked(self, tmp_path):
+        secrets = tmp_path / "settings_secrets_v1"
+        secrets.mkdir()
+        ok, reason = is_safe_output_dir(str(secrets))
+        assert not ok, reason
+
+
 class TestAssertRaises:
     def test_raises_value_error_for_blocked_path(self):
         home = pathlib.Path.home()

@@ -38,6 +38,7 @@ interface RunAssistantChatStreamParams {
   baseUrl: string;
   useWebSearch: boolean;
   assistantToolsEnabled: boolean;
+  autonomousMode: boolean;
   wantsPrefetch: boolean;
   previousUserContent: string | null;
   outboundRingRef: React.MutableRefObject<OutboundChatRecord[]>;
@@ -69,6 +70,7 @@ export async function runAssistantChatStream({
   baseUrl,
   useWebSearch,
   assistantToolsEnabled,
+  autonomousMode,
   wantsPrefetch,
   previousUserContent,
   outboundRingRef,
@@ -135,6 +137,8 @@ export async function runAssistantChatStream({
     apiKey,
     baseUrl,
     useWebSearch,
+    enableTools: assistantToolsEnabled,
+    autonomousMode,
     signal,
     onToolCall: (toolName) => {
       anyToolCalled = true;

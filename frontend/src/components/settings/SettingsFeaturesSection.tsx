@@ -223,6 +223,19 @@ export default function SettingsFeaturesSection({
           <input
             type="checkbox"
             className="mt-0.5 rounded border-border text-accent focus:ring-accent"
+            checked={settings.autonomousMode}
+            onChange={(e) => onSettingsPatch({ autonomousMode: e.target.checked })}
+          />
+          <span>
+            <span className={`${SECTION_LABEL_CLASS} mb-0`}>{t("settings.autonomousModeLabel")}</span>
+            <span className="mt-1 block text-xs leading-snug text-muted">{t("settings.autonomousModeHint")}</span>
+          </span>
+        </label>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-bg-secondary/40 px-3 py-3 group">
+          <input
+            type="checkbox"
+            className="mt-0.5 rounded border-border text-accent focus:ring-accent"
             checked={settings.assistantAgentEnabled}
             onChange={(e) => onSettingsPatch({ assistantAgentEnabled: e.target.checked })}
           />

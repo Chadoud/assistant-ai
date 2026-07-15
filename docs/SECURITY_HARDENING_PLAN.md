@@ -1,10 +1,10 @@
 # Exo security hardening plan
 
-**Status:** Execution-ready plan (not yet implemented)  
-**Date:** 2026-07-15 · **Amended:** 2026-07-15 (execution appendix)  
+**Status:** M2 / M3 / M4 implemented in-tree (2026-07-15). **M1b** (Windows Authenticode) still open (ops/cert). **§8 legal** — verify separately (`npm run verify:legal-urls` + live privacy LI copy).  
+**Date:** 2026-07-15 · **Amended:** 2026-07-15 (execution appendix + status)  
 **Scope:** Close gaps from the honest security assessment + deep audit of signing/updater, local API/secrets, and agent/sorter blast radius.  
 **Repo:** `assistant-ai` (mirror critical path changes to `ai-file-sorter` only if still shipping from it)  
-**Companion:** This document is the single source of truth for the hardening epic. Do not start M1a until **D1–D3** below are decided.
+**Companion:** This document is the single source of truth for the hardening epic.
 
 **Threat model (unchanged, honest):** Protect against untrusted path strings, remote peers, supply-chain tampering, prompt injection into agent tools, and casual same-machine abuse. **Not** defending against malware already running as the OS user with full process/env access.
 
@@ -88,11 +88,11 @@ flowchart TD
 
 ### M1b — Windows Authenticode (1–2 weeks + cert lead time)
 
-| ID | Work | Paths |
-|----|------|-------|
-| M1b.1 | Obtain OV/EV Authenticode cert; store `WIN_CSC_*` | Ops |
-| M1b.2 | Sign `Exo.exe` after pack + `Exo Setup.exe` after Inno | `scripts/package-app.js`, `installer.iss`, `build.yml` |
-| M1b.3 | Stop claiming Win secrets “auto-apply” until this lands | docs |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M1b.1 | Obtain OV/EV Authenticode cert; store `WIN_CSC_*` | Ops | **Open** (ops/cert) |
+| M1b.2 | Sign `Exo.exe` after pack + `Exo Setup.exe` after Inno | `scripts/package-app.js`, `installer.iss`, `build.yml` | **Open** |
+| M1b.3 | Stop claiming Win secrets “auto-apply” until this lands | docs | **Open** (docs already warn unsigned) |
 
 ### M1c — Update-channel integrity (≈1 week) — **implemented 2026-07-15**
 
@@ -100,11 +100,11 @@ flowchart TD
 |----|------|-------|--------|
 | M1c.1 | Authenticate `latest.json` (dedicated Ed25519; license pattern reused) | `electron/updateFeed/*`, `tools/update-feed-keygen/`, publish scripts | **Done** |
 | M1c.2 | Packaged clients reject bad/missing feed `sig`; Mac self-update only if Developer ID–signed | `electron/autoUpdater.js` | **Done** |
-| M1c.3 | CI deploy prefers `EXOSITES_DEPLOY_SSH_PRIVATE_KEY`; password/`sshpass` fallback until key installed | `build.yml` `publish-website`, local publish script | **Wired** (ops: add key secret, then drop password) |
+| M1c.3 | CI deploy prefers `EXOSITES_DEPLOY_SSH_PRIVATE_KEY`; password/`sshpass` fallback until key installed | `build.yml` `publish-website`, local publish script | **Done** (key-only; password fallback removed) |
 | M1c.4 | Win self-update deferred; redirect to download page | `autoUpdater.js` | **Done** (unchanged policy) |
 
 **Done when:** Public `v*` Mac is notarized; Win signed; feed not spoofable by mere HTTPS file replace without key; README can drop “unsigned” warning for signed platforms.  
-**Remaining for “done when”:** Win Authenticode (M1b); install Infomaniak SSH key and remove password fallback.
+**Remaining for “done when”:** Win Authenticode (M1b). Ops: delete unused `EXOSITES_DEPLOY_SSH_PASSWORD` GitHub secret + optional Infomaniak password rotate.
 
 ---
 
@@ -112,28 +112,28 @@ flowchart TD
 
 ### P0
 
-| ID | Work | Paths |
-|----|------|-------|
-| M2.1 | Never persist app token to disk in normal flows; remove/gate `.dev-app-token` | `electron/backendProcess.js` |
-| M2.2 | Packaged builds: refuse `EXOSITES_INSECURE_LOCAL`; fail closed if token unset | `electron/backendProcess.js`, `backend/app_auth.py` |
-| M2.3 | Stop returning raw secret values / app token to renderer; masked status only; main relays to backend | `electron/ipc/secretsHandlers.js`, `electron/preload.js`, `frontend` hydrate |
-| M2.4 | Shrink/eliminate plaintext `gmail_oauth.json` materialization window; guaranteed wipe on crash | `electron/gmailOAuthMirrorStore.js` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M2.1 | Never persist app token to disk in normal flows; remove/gate `.dev-app-token` | `electron/backendProcess.js` | **Done** |
+| M2.2 | Packaged builds: refuse `EXOSITES_INSECURE_LOCAL`; fail closed if token unset | `electron/backendProcess.js`, `backend/app_auth.py` | **Done** |
+| M2.3 | Stop returning raw secret values / app token to renderer; masked status only; main relays to backend | `electron/ipc/secretsHandlers.js`, `electron/preload.js`, `frontend` hydrate | **Done** |
+| M2.4 | Shrink/eliminate plaintext `gmail_oauth.json` materialization window; guaranteed wipe on crash | `electron/gmailOAuthMirrorStore.js` | **Done** |
 
 ### P1
 
-| ID | Work | Paths |
-|----|------|-------|
-| M2.5 | Remove voice `?token=` fallback; header + first-frame `app_auth` only | `backend/voice_ws_auth.py`, ADR-005, tests |
-| M2.6 | Cloud session: fail-closed (no plaintext write) when `safeStorage` unavailable | `electron/cloudAuth.js` |
-| M2.7 | Drop legacy `plain: true` / `*.b64` readers; wipe leftovers | `electron/integrations/storage.js`, notion/infomaniak stores, `localDataWipe.js` |
-| M2.8 | Path allowlists: remove blanket `$HOME` from `authorizedPaths`; block `userData` / secrets dirs in `output_dir_guard`; resolve+stay-under-root for destinations | `electron/authorizedPaths.js`, `backend/output_dir_guard.py`, `destination_path.py` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M2.5 | Remove voice `?token=` fallback; header + first-frame `app_auth` only | `backend/voice_ws_auth.py`, ADR-005, tests | **Done** |
+| M2.6 | Cloud session: fail-closed (no plaintext write) when `safeStorage` unavailable | `electron/cloudAuth.js` | **Done** |
+| M2.7 | Drop legacy `plain: true` / `*.b64` readers; wipe leftovers | `electron/integrations/storage.js`, notion/infomaniak stores, `localDataWipe.js` | **Done** |
+| M2.8 | Path allowlists: remove blanket `$HOME` from `authorizedPaths`; block `userData` / secrets dirs in `output_dir_guard`; resolve+stay-under-root for destinations | `electron/authorizedPaths.js`, `backend/output_dir_guard.py`, `destination_path.py` | **Done** |
 
 ### P2
 
-| ID | Work | Paths |
-|----|------|-------|
-| M2.9 | Drop CORS `"null"` if unused; no prod `CORS_EXTRA_ORIGINS` | `backend/main.py` |
-| M2.10 | Rate-limit unauthenticated WS accepts | `voice_routes.py` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M2.9 | Drop CORS `"null"` if unused; no prod `CORS_EXTRA_ORIGINS` | `backend/main.py` | **Done** |
+| M2.10 | Rate-limit unauthenticated WS accepts | `voice_routes.py` | **Done** |
 
 **Done when:** XSS cannot `getSecret`/`getBackendToken` full values; packaged backend always token-gated; no durable plaintext OAuth on disk; path grants are intentional.
 
@@ -145,28 +145,28 @@ flowchart TD
 
 ### P0
 
-| ID | Work | Paths |
-|----|------|-------|
-| M3.1 | Expand `TOOLS_NEEDING_APPROVAL`: at least `control_computer`, `os_control`, `file_workspace`, `start_local_file_sort`, `plan_and_execute`, mutating `browser_control`, `open_app`/`close_app`, write-y connectors | `backend/tool_registry/handlers.py`, `voice/tool_dispatch.py` |
-| M3.2 | Voice sort default `auto_apply=False` (Sort tab can stay auto-apply) | `backend/.../start_local_sort.py` |
-| M3.3 | SSRF-align `browser_control.go_to` with `safe_web_url` | `actions/browser_control.py` |
-| M3.4 | Narrow `terminal_safe` (`cat` / free `npm run`) | `system_safe.py`, tests |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M3.1 | Expand `TOOLS_NEEDING_APPROVAL`: at least `control_computer`, `os_control`, `file_workspace`, `start_local_file_sort`, `plan_and_execute`, mutating `browser_control`, `open_app`/`close_app`, write-y connectors | `backend/tool_registry/handlers.py`, `voice/tool_dispatch.py` | **Done** |
+| M3.2 | Voice sort default `auto_apply=False` (Sort tab can stay auto-apply) | `backend/.../start_local_sort.py` | **Done** |
+| M3.3 | SSRF-align `browser_control.go_to` with `safe_web_url` | `actions/browser_control.py` | **Done** |
+| M3.4 | Narrow `terminal_safe` (`cat` / free `npm run`) | `system_safe.py`, tests | **Done** |
 
 ### P1
 
-| ID | Work | Paths |
-|----|------|-------|
-| M3.5 | Apply `AutonomyPolicy` in chat + voice; default `allow_sensitive=False` unless Settings “Autonomous mode” | `llm/chat_loop.py`, `voice/tool_dispatch.py`, settings |
-| M3.6 | Single source of truth for SAFE / SENSITIVE / APPROVAL / BLOCKED | `handlers.py`, `orchestrator/policy.py`, planner copy |
-| M3.7 | `plan_and_execute`: one-shot “allow mutations for this goal” before sensitive steps | `agent_task.py`, `orchestrator_runner.py` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M3.5 | Apply `AutonomyPolicy` in chat + voice; default `allow_sensitive=False` unless Settings “Autonomous mode” | `llm/chat_loop.py`, `voice/tool_dispatch.py`, settings | **Done** |
+| M3.6 | Single source of truth for SAFE / SENSITIVE / APPROVAL / BLOCKED | `handlers.py`, `orchestrator/policy.py`, `risk_tiers.py` | **Done** |
+| M3.7 | `plan_and_execute`: one-shot “allow mutations for this goal” before sensitive steps | `agent_task.py`, `orchestrator_runner.py` | **Done** |
 
 ### P2
 
-| ID | Work | Paths |
-|----|------|-------|
-| M3.8 | Sandbox or hard-document `code_runner` (network off / cwd jail) | `actions/code_runner.py` |
-| M3.9 | `file_workspace` / `open_app`: workspace roots + curated app keys | file_workspace, `knownApplications.js` |
-| M3.10 | Uncertain sort rows default `approved=False` before apply | `job_service/_impl.py` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M3.8 | Sandbox or hard-document `code_runner` (network off / cwd jail) | `actions/code_runner.py` | **Done** (documented residual; no OS network jail) |
+| M3.9 | `file_workspace` / `open_app`: workspace roots + curated app keys | file_workspace, `knownApplications.js` | **Done** |
+| M3.10 | Uncertain sort rows default `approved=False` before apply | `job_service/_impl.py` | **Done** |
 
 **Done when:** Prompt injection cannot silently drive GUI control / home-wide file moves / voice auto-sort without a confirm; Sort-tab UX unchanged.
 
@@ -174,13 +174,13 @@ flowchart TD
 
 ## Milestone 4 — Docs, tests, gates
 
-| ID | Work | Paths |
-|----|------|-------|
-| M4.1 | Add `docs/AGENT_TOOL_THREAT_MODEL.md` (capability matrix) | new |
-| M4.2 | Update root `SECURITY.md` + `docs/SECURITY.md` (remove localStorage key myth; document residual same-user risk) | |
-| M4.3 | CI: security regression tests for approval set, voice auth (no query token), packaged auth fail-closed, path guards | `backend/tests/`, frontend e2e |
-| M4.4 | `npm run verify:legal-urls` style: optional `verify:security-posture` checklist script for release | `scripts/` |
-| M4.5 | After M1: README download note = signed platforms only | `README.md` |
+| ID | Work | Paths | Status |
+|----|------|-------|--------|
+| M4.1 | Add `docs/AGENT_TOOL_THREAT_MODEL.md` (capability matrix) | new | **Done** |
+| M4.2 | Update root `SECURITY.md` + `docs/SECURITY.md` (remove localStorage key myth; document residual same-user risk) | | **Done** |
+| M4.3 | CI: security regression tests for approval set, voice auth (no query token), packaged auth fail-closed, path guards | `backend/tests/test_security_hardening_gates.py` (+ existing voice/path/approval tests); CI already runs `pytest` | **Done** |
+| M4.4 | `npm run verify:legal-urls` style: optional `verify:security-posture` checklist script for release | `scripts/verify-security-posture.mjs` | **Done** |
+| M4.5 | After M1: README download note = signed platforms only | `README.md` — Mac signed/notarized; Win unsigned until M1b | **Done** (partial: Mac only) |
 
 ---
 
@@ -424,6 +424,8 @@ If a store submission starts, open a **separate** `docs/MOBILE_SECURITY_PLAN.md`
 ---
 
 ## 8. Legal / privacy verification (D10)
+
+**Status:** Verify separately from code milestones (not auto-closed by M2–M4). Run before calling privacy “done.”
 
 | Step | Action |
 |------|--------|

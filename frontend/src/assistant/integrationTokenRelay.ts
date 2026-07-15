@@ -1,72 +1,27 @@
 /**
- * Collect OAuth tokens from Electron and relay them to the backend (HTTP + optional WS).
+ * Collect OAuth tokens via main-process relay (never pull raw tokens into the renderer).
  */
 
 import type { AppSettings } from "../types/settings";
 import { resolveChatProviderCredentials } from "../utils/resolveChatProviderCredentials";
+import { GEMINI_SECRET_MASK } from "../utils/geminiConnection";
 import { relayConnectorTokens } from "./connectorContext";
 
-type IntegrationTokenMap = Record<string, { token: string; expires_in: number }>;
-
-/** Collect tokens for every connected integration account. */
-async function collectConnectedIntegrationTokens(): Promise<IntegrationTokenMap> {
-  const api = window.electronAPI;
-  if (!api || typeof api.integrationGetAccounts !== "function") {
-    return {};
-  }
-
-  let accounts: Array<{ providerId: string; connected: boolean }> = [];
-  try {
-    const res = await api.integrationGetAccounts();
-    if (!res?.ok || !Array.isArray(res.accounts)) return {};
-    accounts = res.accounts;
-  } catch {
-    return {};
-  }
-
-  const getToken = api.integrationGetToken;
-  if (typeof getToken !== "function") return {};
-
-  const tokens: IntegrationTokenMap = {};
-  await Promise.allSettled(
-    accounts
-      .filter((a) => a.connected)
-      .map(async (a) => {
-        try {
-          const res = await getToken({ providerId: a.providerId });
-          if (res?.ok && res.token) {
-            tokens[a.providerId] = { token: res.token, expires_in: res.expiresIn ?? 0 };
-          }
-        } catch {
-          // Non-critical per account.
-        }
-      }),
-  );
-  return tokens;
-}
-
-/** Send a token_relay frame on an open voice WebSocket. */
-export async function sendIntegrationTokensOverWebSocket(ws: WebSocket): Promise<void> {
-  const tokens = await collectConnectedIntegrationTokens();
-  if (Object.keys(tokens).length === 0) return;
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "token_relay", tokens }));
-  }
-}
-
-/** Relay the active chat provider so voice plan_and_execute uses the same engine. */
+/** Provider relay without raw API keys — main session-prime already injected secrets. */
 export function sendProviderRelayOverWebSocket(
   ws: WebSocket,
   settings: AppSettings,
 ): void {
   if (ws.readyState !== WebSocket.OPEN) return;
   const routing = resolveChatProviderCredentials(settings);
+  const rawKey = routing.provider === "ollama" ? "" : routing.apiKey;
+  const apiKey = rawKey === GEMINI_SECRET_MASK ? "" : rawKey;
   ws.send(
     JSON.stringify({
       type: "provider_relay",
       provider: routing.provider,
       model: routing.model,
-      api_key: routing.provider === "ollama" ? "" : routing.apiKey,
+      api_key: apiKey,
       base_url: routing.provider === "custom" ? routing.baseUrl : "",
     }),
   );
@@ -77,11 +32,8 @@ export async function relayIntegrationTokensAfterConnect(
   ws: WebSocket | null | undefined,
   settings?: AppSettings,
 ): Promise<void> {
-  if (ws?.readyState === WebSocket.OPEN) {
-    await sendIntegrationTokensOverWebSocket(ws);
-    if (settings) {
-      sendProviderRelayOverWebSocket(ws, settings);
-    }
+  if (ws?.readyState === WebSocket.OPEN && settings) {
+    sendProviderRelayOverWebSocket(ws, settings);
   }
   await relayConnectorTokens();
 }

@@ -55,6 +55,7 @@ from voice_session import GEMINI_VOICE_MODEL_DEFAULT, run_voice_session
 from voice_session_bootstrap import consume_voice_session_provider, prime_voice_session_provider
 from voice_tool_approval import VoiceToolApprovalWaiter
 from voice_ws_auth import authenticate_voice_websocket
+from voice_ws_rate_limit import record_voice_ws_auth_failure, voice_ws_auth_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,14 @@ async def voice_session_prime(body: VoiceSessionPrimeBody) -> JSONResponse:
     return JSONResponse({"ok": True})
 
 
+@router.post("/voice/ws-ticket")
+async def voice_ws_ticket() -> JSONResponse:
+    """Mint a one-shot short-lived ticket for voice WebSocket app_auth (M2.3)."""
+    from voice_ws_tickets import mint_voice_ws_ticket
+
+    return JSONResponse({"ok": True, "ticket": mint_voice_ws_ticket()})
+
+
 _MEETING_TRANSCRIBE_INSTRUCTION = (
     "You are silently transcribing a meeting. Do not respond, do not speak, do not "
     "call any tools. Only listen."
@@ -130,11 +139,19 @@ async def voice_ws(
     startup: bool = True,
     mode: str = "assistant",
     meeting_id: str | None = None,
-    token: str | None = None,
     session_id: str | None = None,
+    autonomous_mode: bool = False,
 ) -> None:
+    client_host = ws.client.host if ws.client else None
     await ws.accept()
-    if not await authenticate_voice_websocket(ws, token):
+    if not voice_ws_auth_allowed(client_host):
+        await ws.close(code=4429, reason="Too many auth failures")
+        return
+
+    # Auth after accept so browsers can send first-frame app_auth (no reliable WS headers).
+    # Query ?token= is not accepted (M2.5) — header or app_auth frame only.
+    if not await authenticate_voice_websocket(ws):
+        record_voice_ws_auth_failure(client_host)
         await ws.close(code=4401, reason="Unauthorized")
         return
 
@@ -446,6 +463,7 @@ async def voice_ws(
             meeting_id=meeting_id if transcribe_mode else None,
             provider_holder=provider_holder,
             pending_delete_holder=pending_delete_holder,
+            allow_sensitive=autonomous_mode,
         ):
             if not await _send_frame(frame_json):
                 break

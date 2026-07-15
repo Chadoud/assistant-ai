@@ -61,6 +61,7 @@ async def run_voice_session(
     meeting_id: str | None = None,
     provider_holder: ProviderContextHolder | None = None,
     pending_delete_holder: PendingDeleteSyncHolder | None = None,
+    allow_sensitive: bool = False,
 ) -> AsyncGenerator[str, None]:
     """
     Drive a persistent Gemini Live voice session.
@@ -121,5 +122,6 @@ async def run_voice_session(
         meeting_id=meeting_id,
         provider_holder=provider_holder,
         pending_delete_holder=pending_delete_holder,
+        allow_sensitive=allow_sensitive,
     ):
         yield event

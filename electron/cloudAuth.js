@@ -113,6 +113,11 @@ function readSession(userData) {
       console.warn("[cloudAuth] Cannot decrypt session: safeStorage unavailable. Clearing.");
       clearSession(userData);
       return null;
+    } else if (parsed && typeof parsed === "object" && parsed.access_token) {
+      // M2.6/M2.7: legacy plaintext session — wipe, do not use.
+      console.warn("[cloudAuth] Refusing plaintext cloud session; clearing.");
+      clearSession(userData);
+      return null;
     }
     if (!parsed || typeof parsed !== "object") return null;
     return parsed.access_token ? parsed : null;
@@ -121,16 +126,24 @@ function readSession(userData) {
   }
 }
 
+/**
+ * Persist session encrypted with safeStorage. Fail-closed when encryption is unavailable (M2.6).
+ * @returns {boolean} true when written
+ */
 function writeSession(userData, obj) {
+  if (!safeStorage?.isEncryptionAvailable?.()) {
+    console.warn("[cloudAuth] safeStorage unavailable — refusing plaintext session write.");
+    return false;
+  }
   const p = sessionPath(userData);
   fs.mkdirSync(path.dirname(p), { recursive: true });
   const payload = { v: 1, ...obj };
-  if (safeStorage?.isEncryptionAvailable?.()) {
+  try {
     const enc = safeStorage.encryptString(JSON.stringify(payload));
     fs.writeFileSync(p, JSON.stringify({ __enc: true, data: enc.toString("base64") }), "utf8");
-  } else {
-    console.warn("[cloudAuth] safeStorage unavailable — session stored without encryption.");
-    fs.writeFileSync(p, JSON.stringify(payload, null, 2), "utf8");
+  } catch (err) {
+    console.warn("[cloudAuth] session encrypt/write failed:", err && err.message);
+    return false;
   }
   try {
     const { broadcastCloudSessionChanged } = require("./cloudSessionBroadcast");
@@ -138,6 +151,7 @@ function writeSession(userData, obj) {
   } catch {
     /* ignore if Electron app not ready */
   }
+  return true;
 }
 
 function clearSession(userData) {
@@ -412,11 +426,15 @@ function clearRefreshInFlightOnceSettled(promise) {
 async function refreshSessionFromServer(userData, session) {
   try {
     const data = await postJson("/auth/refresh", { refresh_token: session.refresh_token });
-    writeSession(userData, {
+    const next = {
       access_token: data.access_token,
       refresh_token: data.refresh_token || session.refresh_token,
       email: session.email,
-    });
+    };
+    if (!writeSession(userData, next)) {
+      console.warn("[cloudAuth] refreshed tokens could not be persisted (safeStorage unavailable)");
+      return next;
+    }
     return readSession(userData);
   } catch (e) {
     if (isTransientRefreshFailure(e)) {
@@ -468,11 +486,15 @@ function resetRefreshInFlightForTests() {
 async function login(userData, email, password) {
   const em = String(email || "").trim().toLowerCase();
   const data = await postJson("/auth/login", { email: em, password: String(password || "") });
-  writeSession(userData, {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    email: em,
-  });
+  if (
+    !writeSession(userData, {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      email: em,
+    })
+  ) {
+    return { ok: false, error: "Secure storage unavailable on this device." };
+  }
   return { ok: true, email: em };
 }
 
@@ -487,13 +509,17 @@ async function register(userData, email, password, firstName, lastName) {
     last_name: normalizedLastName,
   });
   if (data.access_token && data.refresh_token) {
-    writeSession(userData, {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      email: em,
-      first_name: normalizedFirstName || null,
-      last_name: normalizedLastName || null,
-    });
+    if (
+      !writeSession(userData, {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        email: em,
+        first_name: normalizedFirstName || null,
+        last_name: normalizedLastName || null,
+      })
+    ) {
+      return { ok: false, error: "Secure storage unavailable on this device." };
+    }
     return { ok: true, email: em };
   }
   return login(userData, em, password);
@@ -506,11 +532,15 @@ async function register(userData, email, password, firstName, lastName) {
  */
 async function exchangeSocialCode(userData, code) {
   const data = await postJson("/auth/exchange", { code: String(code || "") });
-  writeSession(userData, {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    email: data.email || null,
-  });
+  if (
+    !writeSession(userData, {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      email: data.email || null,
+    })
+  ) {
+    return { ok: false, error: "Secure storage unavailable on this device." };
+  }
   return { ok: true, email: data.email || null };
 }
 

@@ -77,16 +77,24 @@ def normalize_rel_dest(raw: str, *, uncertain_folder: str = UNCERTAIN_FOLDER) ->
 
 
 def destination_dir(output_dir: str, rel: str) -> pathlib.Path:
-    """Absolute directory path for a normalized relative destination."""
-    root = pathlib.Path(output_dir).expanduser()
+    """
+    Absolute directory path for a normalized relative destination.
+
+    Resolves the result and requires it to stay under the resolved output root (M2.8).
+    Escapes fall back to the uncertain bucket under the root.
+    """
+    root = pathlib.Path(output_dir).expanduser().resolve()
     rel_n = normalize_rel_dest(rel)
     if rel_n == UNCERTAIN_FOLDER:
-        return root / UNCERTAIN_FOLDER
-    parts = rel_n.split("/")
-    p = root
-    for part in parts:
-        p = p / part
-    return p
+        candidate = (root / UNCERTAIN_FOLDER).resolve()
+    else:
+        candidate = root.joinpath(*rel_n.split("/")).resolve()
+    try:
+        if candidate == root or candidate.is_relative_to(root):
+            return candidate
+    except (ValueError, OSError, RuntimeError):
+        pass
+    return root / UNCERTAIN_FOLDER
 
 
 def list_relative_folder_paths_under_output(output_dir: str) -> list[str]:

@@ -59,25 +59,11 @@ from actions.run_workspace_google_drive_sort import run_google_drive_workspace_s
 from actions.start_codegen_studio import start_codegen_studio
 from actions.suggest_actions import review_and_suggest
 from actions.write_project_files import list_project_tree, read_project_file, write_project_files
+from tool_registry.risk_tiers import APPROVAL_TOOLS
 
 Handler = Callable[[dict[str, Any]], dict[str, Any]]
 
-TOOLS_NEEDING_APPROVAL = frozenset(
-    {
-        "screen_capture",
-        "code_runner",
-        "dev_scaffold_project",
-        "control_computer",
-        "os_control",
-        "file_workspace",
-        "start_local_file_sort",
-        "plan_and_execute",
-        "browser_control",
-        "open_app",
-        "close_app",
-        "web_agent",
-    }
-)
+TOOLS_NEEDING_APPROVAL = APPROVAL_TOOLS
 
 HANDLERS: dict[str, Handler] = {
     "list_directory": system_safe.list_directory,

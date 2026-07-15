@@ -7,7 +7,7 @@
 
 | Secret | Notes |
 |--------|--------|
-| `EXOSITES_DEPLOY_SSH_*` | Infomaniak deploy (host/user/password still present as fallback) |
+| `EXOSITES_DEPLOY_SSH_HOST` / `_USER` | Infomaniak **Web** SSH (downloads rsync) |
 | `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` | Ed25519 PEM for downloads rsync (M1c.3) — local `~/.ssh/exosites_downloads_deploy` |
 | `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/exo-assistant` |
 | `GMAIL_OAUTH_CLIENT_JSON_B64` | Bundled OAuth client |
@@ -25,7 +25,7 @@
 |--------|--------|
 | `WIN_CSC_LINK` / `WIN_CSC_KEY_PASSWORD` | Windows Authenticode (M1b — not wired in CI yet) |
 
-Password deploy (`EXOSITES_DEPLOY_SSH_PASSWORD`) can stay until you confirm a tagged `publish-website` run used key auth; then remove it from GitHub and Infomaniak if desired.
+Password deploy (`EXOSITES_DEPLOY_SSH_PASSWORD`) is **unused by CI** after the key-only cutover. Delete the GitHub secret when convenient; optionally rotate the Infomaniak account password (C3).
 
 ## Note
 

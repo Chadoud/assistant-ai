@@ -204,6 +204,16 @@ def delete_gmail_token_file() -> None:
         p.unlink()
 
 
+def _register_gmail_mirror_atexit() -> None:
+    """Best-effort wipe of ephemeral gmail_oauth.json on clean interpreter exit (M2.4)."""
+    import atexit
+
+    atexit.register(delete_gmail_token_file)
+
+
+_register_gmail_mirror_atexit()
+
+
 def is_gmail_connected() -> bool:
     data = load_gmail_token_payload()
     if not data:

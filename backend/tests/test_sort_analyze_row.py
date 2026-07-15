@@ -62,8 +62,32 @@ def test_run_sort_analyze_for_path_happy_path(tmp_path: pathlib.Path) -> None:
     result = run_sort_analyze_for_path(params)
     assert result.ok is True
     assert result.suggested_folder == "Invoices"
+    assert result.approved is True
     assert result.status == "review_ready"
     assert result.analyze_extract_ms is not None
+
+
+def test_uncertain_folder_sets_approved_false(tmp_path: pathlib.Path) -> None:
+    """Low-confidence / uncertain routing must not auto-apply on the Sort tab."""
+    def low_confidence_classify(t, folders, contexts, model, language, fn_tokens, **kw):
+        return {
+            "folder_name": "Uncertain",
+            "confidence": 0.2,
+            "reason": "low confidence",
+            "decision_reason": "llm",
+            "candidate_scores": [],
+        }
+
+    params = _make_base_params(
+        tmp_path,
+        "mystery.bin",
+        "opaque binary content",
+        classify_fn=low_confidence_classify,
+    )
+    result = run_sort_analyze_for_path(params)
+    assert result.ok is True
+    assert result.final_folder == "Uncertain"
+    assert result.approved is False
 
 
 def test_target_folder_rule_skips_llm(tmp_path: pathlib.Path) -> None:

@@ -5,7 +5,7 @@
  * (a compromised renderer could ask the main process to open or write to any
  * absolute path). Instead, every folder the user picks through a native dialog
  * is recorded here, and privileged file operations validate their target
- * against this store plus a small set of known-safe roots (userData, home).
+ * against this store plus known-safe roots (userData only — not the whole home).
  *
  * Sensitive subtrees (.ssh, .gnupg) are always denied.
  */
@@ -88,8 +88,8 @@ function recordAuthorizedParentDirs(filePaths) {
 
 /**
  * True when `targetPath` resolves to a location the user is allowed to open or
- * write to: under userData, under a previously granted folder, or under the
- * user's home directory — and never inside a blocked sensitive subtree.
+ * write to: under userData or under a previously granted folder — never under
+ * a blocked sensitive subtree, and never merely because it is under $HOME (M2.8).
  * @param {string} targetPath
  * @returns {boolean}
  */
@@ -110,12 +110,17 @@ function isAuthorizedFolder(targetPath) {
     if (isUnder(resolved, granted)) return true;
   }
 
-  const home = os.homedir();
-  return isUnder(resolved, home);
+  return false;
+}
+
+/** Test-only: reset in-memory cache between cases. */
+function resetAuthorizedPathsCacheForTests() {
+  cache = null;
 }
 
 module.exports = {
   recordAuthorizedPath,
   recordAuthorizedParentDirs,
   isAuthorizedFolder,
+  resetAuthorizedPathsCacheForTests,
 };

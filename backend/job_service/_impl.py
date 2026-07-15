@@ -509,7 +509,7 @@ class JobService:
         processed = 0
 
         for idx, file_row in enumerate(job["files"]):
-            approved = bool(file_row.get("approved", True))
+            approved = bool(file_row.get("approved", False))
             if not approved:
                 continue
             if retry_failed_only and file_row.get("status") != "error":

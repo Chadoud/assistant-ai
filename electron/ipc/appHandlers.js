@@ -376,7 +376,64 @@ function registerAppHandlers() {
   ipcMain.handle("app:getBackendToken", (event) => {
     const denied = rejectUntrustedSender(event);
     if (denied) return "";
-    return state.appToken ?? "";
+    // M2.3: never return the durable app token to the renderer.
+    // HTTP goes through backend:http; voice uses voice:mintWsAuthTicket.
+    return "";
+  });
+
+  /**
+   * Authenticated local-backend proxy (M2.3). Injects X-App-Token in main only.
+   * @param {Electron.IpcMainInvokeEvent} event
+   * @param {{ path: string; method?: string; headers?: Record<string, string>; body?: string; contentType?: string; bodyBase64?: string }} payload
+   */
+  ipcMain.handle("backend:http", async (event, payload) => {
+    const denied = rejectUntrustedSender(event);
+    if (denied) {
+      return { ok: false, status: 403, text: JSON.stringify({ detail: "untrusted_sender" }), contentType: "application/json" };
+    }
+    const pathPath = typeof payload?.path === "string" ? payload.path : "";
+    if (!pathPath.startsWith("/")) {
+      return { ok: false, status: 400, text: JSON.stringify({ detail: "invalid_path" }), contentType: "application/json" };
+    }
+    try {
+      let rawBody;
+      let contentType = typeof payload?.contentType === "string" ? payload.contentType : undefined;
+      if (typeof payload?.bodyBase64 === "string" && payload.bodyBase64) {
+        rawBody = Buffer.from(payload.bodyBase64, "base64");
+      } else if (typeof payload?.body === "string") {
+        rawBody = payload.body;
+      }
+      const res = await backendFetch(pathPath, {
+        method: typeof payload?.method === "string" ? payload.method : "GET",
+        headers: payload?.headers && typeof payload.headers === "object" ? payload.headers : undefined,
+        rawBody,
+        contentType,
+      });
+      return {
+        ok: res.ok,
+        status: res.status,
+        text: res.text,
+        contentType: res.contentType,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        status: 0,
+        text: JSON.stringify({ detail: e instanceof Error ? e.message : String(e) }),
+        contentType: "application/json",
+      };
+    }
+  });
+
+  ipcMain.handle("integration:relayAllTokens", async (event) => {
+    const denied = rejectUntrustedSender(event);
+    if (denied) return denied;
+    try {
+      const { relayAllConnectedIntegrationTokens } = require("../integrationTokenRelayMain");
+      return await relayAllConnectedIntegrationTokens();
+    } catch (e) {
+      return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+    }
   });
 
   ipcMain.handle("sync:getStatus", () => syncWorker.getSyncStatus());

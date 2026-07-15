@@ -125,6 +125,7 @@ async def run_gemini_live_session(
     meeting_id: str | None = None,
     provider_holder: ProviderContextHolder | None = None,
     pending_delete_holder: PendingDeleteSyncHolder | None = None,
+    allow_sensitive: bool = False,
 ) -> AsyncGenerator[str, None]:
     """
     Drive a persistent Gemini Live voice session with automatic reconnect.
@@ -482,6 +483,7 @@ async def run_gemini_live_session(
                                     approval_waiter=approval_waiter,
                                     deferred_tool_reason=deferred_reason,
                                     provider_holder=provider_holder,
+                                    allow_sensitive=allow_sensitive,
                                 ):
                                     yield tool_frame
                                 tool_ok_this_turn = tool_dispatch_state.last_tool_ok

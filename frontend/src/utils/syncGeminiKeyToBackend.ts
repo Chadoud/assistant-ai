@@ -30,9 +30,12 @@ export async function pushProviderKeyToBackend(
   apiKey: string,
   baseUrl: string,
 ): Promise<void> {
+  const { apiKeyForBackendRequest } = await import("./geminiConnection");
+  const key = apiKeyForBackendRequest(apiKey);
+  if (!key && providerId !== "ollama") return;
   await desktopClient.postAiSetKey({
     provider: providerId,
-    api_key: apiKey,
+    api_key: key,
     base_url: baseUrl,
   });
 }

@@ -1569,6 +1569,8 @@ export default {
     assistantMasterHint: "When off, chat stays conversational only—no lookups or commands run.",
     assistantAgentLabel: "Autonomous agent mode",
     assistantAgentHint: "Let the assistant plan and run multi-step tasks (open apps, sort files, browse) instead of only answering. You stay in control of write actions.",
+    autonomousModeLabel: "Autonomous mode",
+    autonomousModeHint: "When on, chat and voice can run sensitive tools (send messages, file changes, connectors) without blocking on policy. Voice still asks before high-risk tools.",
     voiceAutoStartLabel: "Auto-start microphone on launch",
     voiceAutoStartHint: "When on, the mic activates automatically when the app opens. Turn off to start the mic manually each time.",
     voiceInteractionLegend: "How you talk to the assistant",

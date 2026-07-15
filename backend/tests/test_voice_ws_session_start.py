@@ -28,7 +28,8 @@ def test_voice_ws_emits_session_start_with_valid_token(
     monkeypatch.setattr("routes.voice_routes.run_voice_session", fake_run_voice_session)
 
     with client.websocket_connect(
-        "/ws/voice?token=voice-ws-test-token&startup=false&memory=false"
+        "/ws/voice?startup=false&memory=false",
+        headers={"X-App-Token": "voice-ws-test-token"},
     ) as ws:
         first = ws.receive_text()
         payload = json.loads(first)

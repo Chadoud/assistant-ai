@@ -9,23 +9,23 @@ const SESSION_REQUEST_ID =
     ? crypto.randomUUID()
     : `req-${Date.now()}`;
 
-/** Stable correlation id for this renderer session (sent as X-Request-Id on API calls). */
+type BackendHttpResult = {
+  ok: boolean;
+  status: number;
+  text: string;
+  contentType: string;
+};
 
-// Resolve the per-run shared secret from Electron main (fresh each call — survives backend restarts).
-export async function getAppToken(): Promise<string | null> {
-  return resolveAppToken();
+function hasBackendHttpProxy(): boolean {
+  return typeof window !== "undefined" && typeof window.electronAPI?.backendHttp === "function";
 }
 
-async function resolveAppToken(): Promise<string | null> {
-  const getter = (window as { electronAPI?: { getBackendToken?: () => Promise<string> } }).electronAPI
-    ?.getBackendToken;
-  if (typeof getter !== "function") return null;
-  try {
-    const token = await getter();
-    return token ? String(token) : null;
-  } catch {
-    return null;
-  }
+/**
+ * @deprecated M2.3 — durable app token is never exposed to the renderer.
+ * Voice auth uses mintVoiceWsAuthTicket(); HTTP uses backendHttp proxy.
+ */
+export async function getAppToken(): Promise<string | null> {
+  return null;
 }
 
 /** Raised when the server rejects a request with HTTP 402 (quota / license). */
@@ -104,6 +104,18 @@ export async function extractApiError(res: Response): Promise<string> {
   return body;
 }
 
+function extractApiErrorFromText(body: string): string {
+  try {
+    const j = JSON.parse(body) as { detail?: unknown };
+    if (typeof j.detail === "string") return j.detail;
+    const s = detailPartToString(j.detail);
+    if (s) return s;
+  } catch {
+    /* fall through */
+  }
+  return body;
+}
+
 /** Consistent message when fetch fails before an HTTP response (offline, wrong port, etc.). */
 export function mapFetchFailureToError(e: unknown): Error {
   const msg = formatError(e);
@@ -115,33 +127,81 @@ export function mapFetchFailureToError(e: unknown): Error {
   return new Error(msg);
 }
 
+function proxyResultToResponse(result: BackendHttpResult): Response {
+  return new Response(result.text, {
+    status: result.status || 502,
+    headers: { "Content-Type": result.contentType || "application/json" },
+  });
+}
+
+async function proxyBackendHttp(
+  path: string,
+  options?: RequestInit & { bodyBase64?: string; contentType?: string }
+): Promise<Response> {
+  const api = window.electronAPI?.backendHttp;
+  if (!api) throw new Error("backendHttp unavailable");
+  const method = (options?.method || "GET").toUpperCase();
+  const headers: Record<string, string> = {
+    "X-Request-Id": SESSION_REQUEST_ID,
+  };
+  const extra = options?.headers as Record<string, string> | undefined;
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      if (k.toLowerCase() === "x-app-token") continue;
+      headers[k] = v;
+    }
+  }
+  let body: string | undefined;
+  let bodyBase64 = options?.bodyBase64;
+  let contentType = options?.contentType;
+  if (!bodyBase64 && options?.body != null && typeof options.body === "string") {
+    body = options.body;
+  }
+  const result = await api({
+    path,
+    method,
+    headers,
+    body,
+    bodyBase64,
+    contentType,
+  });
+  return proxyResultToResponse(result);
+}
+
 /**
- * Returns request headers that always include X-App-Token when running in Electron.
- * Use this in any raw `fetch()` call that can't go through `request()`.
+ * Returns request headers for raw fetch when not using the Electron backend proxy.
+ * In Electron, prefer `request()` / `desktopClient` (token stays in main).
  */
 export async function getApiHeaders(
   extra?: Record<string, string>
 ): Promise<Record<string, string>> {
-  const appToken = await resolveAppToken();
   const headers: Record<string, string> = { "X-Request-Id": SESSION_REQUEST_ID };
-  if (appToken) headers["X-App-Token"] = appToken;
   return { ...headers, ...(extra ?? {}) };
 }
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const appToken = await resolveAppToken();
-  const baseHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-    "X-Request-Id": SESSION_REQUEST_ID,
-  };
-  if (appToken) baseHeaders["X-App-Token"] = appToken;
-
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers: { ...baseHeaders, ...((options?.headers as Record<string, string> | undefined) ?? {}) },
-    });
+    if (hasBackendHttpProxy()) {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...((options?.headers as Record<string, string> | undefined) ?? {}),
+      };
+      res = await proxyBackendHttp(path, {
+        ...options,
+        headers,
+        body: typeof options?.body === "string" ? options.body : options?.body != null ? String(options.body) : undefined,
+      });
+    } else {
+      const baseHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "X-Request-Id": SESSION_REQUEST_ID,
+      };
+      res = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers: { ...baseHeaders, ...((options?.headers as Record<string, string> | undefined) ?? {}) },
+      });
+    }
   } catch (e: unknown) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
     throw mapFetchFailureToError(e);
@@ -155,23 +215,76 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
   return res.json();
 }
 
+async function formDataToMultipartBase64(formData: FormData): Promise<{ bodyBase64: string; contentType: string }> {
+  const boundary = `----ExoForm${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
+  const chunks: Uint8Array[] = [];
+  const enc = new TextEncoder();
+  const push = (s: string) => chunks.push(enc.encode(s));
+
+  for (const [name, value] of formData.entries()) {
+    push(`--${boundary}\r\n`);
+    if (typeof value === "string") {
+      push(`Content-Disposition: form-data; name="${name}"\r\n\r\n`);
+      push(value);
+      push(`\r\n`);
+    } else {
+      const file = value as File;
+      const filename = file.name || "upload.bin";
+      const type = file.type || "application/octet-stream";
+      push(
+        `Content-Disposition: form-data; name="${name}"; filename="${filename.replace(/"/g, "")}"\r\n`
+      );
+      push(`Content-Type: ${type}\r\n\r\n`);
+      chunks.push(new Uint8Array(await file.arrayBuffer()));
+      push(`\r\n`);
+    }
+  }
+  push(`--${boundary}--\r\n`);
+
+  let total = 0;
+  for (const c of chunks) total += c.length;
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    merged.set(c, offset);
+    offset += c.length;
+  }
+  let binary = "";
+  const slice = 0x8000;
+  for (let i = 0; i < merged.length; i += slice) {
+    binary += String.fromCharCode(...merged.subarray(i, i + slice));
+  }
+  return {
+    bodyBase64: btoa(binary),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
 /**
  * POST multipart form data (e.g. browser file uploads). Do not set `Content-Type`; the runtime adds the boundary.
  */
 export async function requestMultipart<T>(path: string, formData: FormData, init?: RequestInit): Promise<T> {
-  const appToken = await resolveAppToken();
-  // Omit Content-Type so the browser sets the multipart boundary automatically.
-  const baseHeaders: Record<string, string> = {};
-  if (appToken) baseHeaders["X-App-Token"] = appToken;
-
   let res: Response;
   try {
-    res = await fetch(`${API_BASE}${path}`, {
-      method: "POST",
-      body: formData,
-      ...init,
-      headers: { ...baseHeaders, ...((init?.headers as Record<string, string> | undefined) ?? {}) },
-    });
+    if (hasBackendHttpProxy()) {
+      const { bodyBase64, contentType } = await formDataToMultipartBase64(formData);
+      res = await proxyBackendHttp(path, {
+        method: "POST",
+        bodyBase64,
+        contentType,
+        ...init,
+      });
+    } else {
+      res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        body: formData,
+        ...init,
+        headers: {
+          "X-Request-Id": SESSION_REQUEST_ID,
+          ...((init?.headers as Record<string, string> | undefined) ?? {}),
+        },
+      });
+    }
   } catch (e: unknown) {
     if (e instanceof DOMException && e.name === "AbortError") throw e;
     throw mapFetchFailureToError(e);
@@ -195,7 +308,6 @@ export async function requestValidated<T>(
   const result = schema.safeParse(raw);
   if (!result.success) {
     console.error("[api] schema mismatch on", path, result.error.flatten());
-    // Fail closed: casting an unvalidated payload to T risks logic bugs and unsafe assumptions.
     throw new Error(`[api] Unexpected response shape from ${path}`);
   }
   return result.data;
@@ -230,3 +342,5 @@ export type VideoIngestMeta = z.infer<typeof VideoIngestMetaSchema>;
 export function videoIngestMeta() {
   return requestValidated("/meta/video", VideoIngestMetaSchema);
 }
+
+export { extractApiErrorFromText, hasBackendHttpProxy, proxyBackendHttp };

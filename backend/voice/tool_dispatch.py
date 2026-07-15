@@ -13,6 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable
 
+from orchestrator.policy import AutonomyPolicy
 from provider_context import ProviderContextHolder, inject_provider_tool_args
 from services.calendar import (
     CalendarConfirmActionKind,
@@ -49,6 +50,22 @@ from voice_tool_approval import VoiceToolApprovalWaiter
 logger = logging.getLogger(__name__)
 
 STARTUP_BRIEFING_CONSENT_KEY = "startup_briefing_consent"
+
+
+def _policy_block_result(
+    name: str,
+    args: dict[str, Any],
+    *,
+    allow_sensitive: bool,
+    approved_tool: bool,
+) -> dict[str, Any] | None:
+    """Block sensitive tools unless autonomous mode is on or the user approved this call."""
+    if name in TOOLS_NEEDING_APPROVAL and approved_tool:
+        return None
+    decision = AutonomyPolicy(allow_sensitive=allow_sensitive).check(name, args)
+    if decision.allowed:
+        return None
+    return {"ok": False, "error": decision.reason}
 
 
 def _briefing_tool_block_result(
@@ -600,6 +617,7 @@ async def handle_voice_tool_calls(
     approval_waiter: VoiceToolApprovalWaiter | None = None,
     deferred_tool_reason: str | None = None,
     provider_holder: ProviderContextHolder | None = None,
+    allow_sensitive: bool = False,
 ) -> AsyncGenerator[str, None]:
     """Run tools, notify the UI, then send one Live ``tool_response`` per server batch."""
     function_responses: list[Any] = []
@@ -708,6 +726,10 @@ async def handle_voice_tool_calls(
 
         if not approved_tool:
             result = {"ok": False, "error": "User denied or approval unavailable"}
+        elif policy_block := _policy_block_result(
+            name, args, allow_sensitive=allow_sensitive, approved_tool=approved_tool
+        ):
+            result = policy_block
         elif blocked := _briefing_tool_block_result(dispatch_state, name, args):
             result = blocked
         elif routed.bulk_delete_event_ids:

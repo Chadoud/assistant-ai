@@ -200,7 +200,7 @@ def _candidate(provider_id: str) -> Candidate:
 
 
 def test_relay_fails_over_on_transient_error(monkeypatch):
-    def fake_stream(provider, messages, model, *, tools=None, api_key=None, base_url=None):
+    def fake_stream(provider, messages, model, *, tools=None, api_key=None, base_url=None, allow_sensitive=False):
         if provider.id == "gemini":
             yield json.dumps({"error": "429 RESOURCE_EXHAUSTED, retry in 5s"})
         else:
@@ -222,7 +222,7 @@ def test_relay_fails_over_on_transient_error(monkeypatch):
 def test_relay_surfaces_nontransient_error_without_failover(monkeypatch):
     calls: list[str] = []
 
-    def fake_stream(provider, messages, model, *, tools=None, api_key=None, base_url=None):
+    def fake_stream(provider, messages, model, *, tools=None, api_key=None, base_url=None, allow_sensitive=False):
         calls.append(provider.id)
         yield json.dumps({"error": "401 invalid api key"})
 
@@ -834,6 +834,7 @@ def test_chat_loop_streams_vision_relay_during_tool(monkeypatch):
         for p in stream_chat_completion(
             _ToolThenDone(), [{"role": "user", "content": "hi"}], "m",
             tools=[{"name": "control_computer"}],
+            allow_sensitive=True,
         )
     ]
     relay = next(p["relay"] for p in payloads if "relay" in p)
@@ -884,6 +885,7 @@ def test_chat_loop_emits_client_action_for_manage_connection(monkeypatch):
         for p in stream_chat_completion(
             _ToolThenDone(), [{"role": "user", "content": "connect whatsapp"}], "m",
             tools=[{"name": "manage_connection"}],
+            allow_sensitive=True,
         )
     ]
     client_action = next(p["client_action"] for p in payloads if "client_action" in p)

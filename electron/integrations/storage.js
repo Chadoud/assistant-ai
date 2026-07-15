@@ -68,16 +68,15 @@ function loadProviderSecretsWithDeps(deps, userData, providerId) {
   const all = readRawWithDeps(deps, userData);
   const rec = all[providerId];
   if (!rec?.enc) return null;
+  // M2.7: refuse legacy plaintext records; drop them so they cannot be re-read.
+  if (rec.plain) {
+    clearProviderWithDeps(deps, userData, providerId);
+    return null;
+  }
+  if (!deps.safeStorageApi.isEncryptionAvailable()) return null;
   const buf = Buffer.from(rec.enc, "base64");
   try {
-    let json;
-    if (rec.plain) {
-      json = buf.toString("utf8");
-    } else {
-      if (!deps.safeStorageApi.isEncryptionAvailable()) return null;
-      json = deps.safeStorageApi.decryptString(buf);
-    }
-    return JSON.parse(json);
+    return JSON.parse(deps.safeStorageApi.decryptString(buf));
   } catch {
     return null;
   }

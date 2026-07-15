@@ -1,6 +1,6 @@
 /** IPC handlers for main-process safeStorage secrets (P5-5.2.2). */
 
-const { app, ipcMain } = require("electron");
+const { ipcMain } = require("electron");
 const { getSecret, setSecret, hasSecret } = require("../secretsStore");
 const { isTrustedSender } = require("./senderGuard");
 
@@ -16,13 +16,9 @@ function registerSecretsHandlers() {
 
   ipcMain.handle("secrets:get", async (event, key) => {
     if (!isTrustedSender(event)) return null;
-    // Packaged: never return raw secret material to the renderer (XSS blast radius).
-    // Settings UI uses secrets:has + mask; new values still go through secrets:set.
-    if (app.isPackaged) {
-      const v = getSecret(key);
-      return typeof v === "string" && v.length > 0 ? SECRET_MASK : null;
-    }
-    return getSecret(key);
+    // Never return raw secret material to the renderer (M2.3 / XSS blast radius).
+    const v = getSecret(key);
+    return typeof v === "string" && v.length > 0 ? SECRET_MASK : null;
   });
 
   ipcMain.handle("secrets:set", async (event, key, value) => {

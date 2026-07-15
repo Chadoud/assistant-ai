@@ -63,7 +63,21 @@ export interface ElectronAPI {
     buttonLabel?: string;
   }) => Promise<string | null>;
   getDefaultOutputDir: () => Promise<string | null>;
+  /** @deprecated M2.3 — always returns empty string; use backendHttp / voiceMintWsAuthTicket. */
   getBackendToken: () => Promise<string>;
+  /** Authenticated local-backend proxy (app token injected in main). */
+  backendHttp?: (payload: {
+    path: string;
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    bodyBase64?: string;
+    contentType?: string;
+  }) => Promise<{ ok: boolean; status: number; text: string; contentType: string }>;
+  /** Short-lived one-shot ticket for voice WebSocket app_auth. */
+  voiceMintWsAuthTicket?: () => Promise<{ ok: true; ticket: string } | { ok: false; reason?: string }>;
+  /** Relay all connected integration tokens from main (no raw tokens in renderer). */
+  integrationRelayAllTokens?: () => Promise<{ ok: true; relayed: string[] } | { ok: false; reason?: string }>;
   /** Text log path (JSON lines) for renderer crashes and forwarded JS errors. */
   getRendererDiagnosticsLogPath: () => Promise<string | null>;
   /** Append one diagnostic object as a JSON line (main process). */
@@ -256,15 +270,11 @@ export interface ElectronAPI {
     }>;
   }>;
   /**
-   * Retrieve the current OAuth access token for a connected provider.
-   * Used by the frontend to relay tokens to the backend before dispatching
-   * an external_source_task so connector tools have credentials without
-   * requiring per-step IPC round-trips.
+   * @deprecated M2.3 — removed from preload; use integrationRelayAllTokens.
    */
-  integrationGetToken: (payload: { providerId: string }) => Promise<{
+  integrationGetToken?: (payload: { providerId: string }) => Promise<{
     ok: boolean;
     token?: string;
-    /** Remaining lifetime in seconds. 0 or absent means expiry not tracked. */
     expiresIn?: number;
     reason?: string;
   }>;

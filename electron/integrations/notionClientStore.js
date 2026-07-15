@@ -3,7 +3,7 @@
  *
  * Lets users paste their Notion integration's OAuth Client ID and Secret in the
  * app instead of editing `.env`. Uses Electron safeStorage (OS keychain / DPAPI /
- * libsecret) when available, with a base64 fallback when encryption is absent.
+ * libsecret). Fail-closed when encryption is unavailable (no plaintext fallback).
  *
  * The secret is never logged and never sent anywhere except Notion's own token
  * endpoint during the OAuth code exchange (handled in `notion.js`, main process).
@@ -56,16 +56,16 @@ function saveNotionOAuthClient(creds) {
  */
 function loadNotionOAuthClient() {
   try {
-    let raw = null;
-    if (safeStorage.isEncryptionAvailable()) {
-      const encPath = clientFilePath(ENC_FILE);
-      if (fs.existsSync(encPath)) raw = safeStorage.decryptString(fs.readFileSync(encPath));
+    // M2.7: wipe legacy plaintext leftover; never read it.
+    try {
+      fs.unlinkSync(clientFilePath(PLAIN_FALLBACK_FILE));
+    } catch {
+      /* ignore */
     }
-    if (raw === null) {
-      const fallbackPath = clientFilePath(PLAIN_FALLBACK_FILE);
-      if (!fs.existsSync(fallbackPath)) return null;
-      raw = Buffer.from(fs.readFileSync(fallbackPath, "utf8").trim(), "base64").toString("utf8");
-    }
+    if (!safeStorage.isEncryptionAvailable()) return null;
+    const encPath = clientFilePath(ENC_FILE);
+    if (!fs.existsSync(encPath)) return null;
+    const raw = safeStorage.decryptString(fs.readFileSync(encPath));
     const parsed = JSON.parse(raw);
     const clientId = typeof parsed?.client_id === "string" ? parsed.client_id.trim() : "";
     const clientSecret = typeof parsed?.client_secret === "string" ? parsed.client_secret.trim() : "";

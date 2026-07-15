@@ -11,6 +11,7 @@ import {
 import type { ConversationMessage } from "../../../hooks/useConversations";
 import { makeId } from "../../../hooks/useConversations";
 import { resolveChatProviderCredentials } from "../../../utils/resolveChatProviderCredentials";
+import { apiKeyForBackendRequest } from "../../../utils/geminiConnection";
 import { buildDefaultSystemPrompt } from "../../../systemCommands/assistantPrompts";
 import { pendingCalendarDraft, pendingCalendarDeleteDraft } from "./assistantSendHelpers";
 import type { RunAssistantSendMessageParams } from "./assistantSendTypes";
@@ -89,10 +90,11 @@ export async function runAssistantSendMessage(
         messages_for_stream: historyForStream,
         model: routing.model,
         provider: routing.provider,
-        api_key: routing.apiKey,
+        api_key: apiKeyForBackendRequest(routing.apiKey),
         base_url: routing.baseUrl,
         use_web_search: routing.provider === "gemini" && (settings.chatWebSearchEnabled ?? false),
         enable_tools: settings.assistantToolsEnabled,
+        autonomous_mode: settings.autonomousMode,
       },
       signal,
     );

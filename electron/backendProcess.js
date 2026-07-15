@@ -575,6 +575,8 @@ function startBackend() {
   const backendDir = path.join(__dirname, "..", "backend");
   const resourceDir = IS_DEV ? backendDir : process.resourcesPath;
   if (ud) {
+    // Wipe any leftover plaintext mirror from a prior crash, then rematerialize (M2.4).
+    deleteMaterializedGmailOAuthMirror(ud);
     materializeGmailOAuthMirrorForBackend(ud);
   }
   const extraEnv = {
@@ -762,6 +764,11 @@ function killBackend() {
   if (state.backendProcess) {
     forceKillTree(state.backendProcess);
     state.backendProcess = null;
+  }
+  try {
+    deleteMaterializedGmailOAuthMirror(exositesUserDataEnv());
+  } catch {
+    /* ignore */
   }
 }
 

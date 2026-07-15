@@ -6,6 +6,21 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.49] - 2026-07-15
+
+### Security
+
+- **M2.3:** Renderer never receives durable app token or raw secrets; HTTP via main `backend:http`; voice uses short-lived WS tickets; integration tokens relay from main only.
+- **M2.4–M2.8:** Gmail mirror wipe on crash/kill/startup leftover; voice rejects `?token=`; cloud session fail-closed without safeStorage; drop legacy plaintext/`*.b64` readers; path grants no longer blanket `$HOME`.
+- **M2.9–M2.10:** Drop CORS `"null"`; ignore CORS extras when packaged auth required; rate-limit failed voice WS auth.
+- **M3:** AutonomyPolicy + Settings Autonomous mode; centralized risk tiers; expanded approvals; uncertain sort rows default unapproved; code_runner/file_workspace/open_app hardened.
+- **M4:** Agent threat model doc, security posture verify script, regression gates.
+- **Deploy:** CI downloads publish is SSH-key-only (password/`sshpass` fallback removed).
+
+### Changed
+
+- Voice WebSocket auth and Settings Features toggle for Autonomous mode.
+
 ## [1.1.48] - 2026-07-15
 
 ### Security

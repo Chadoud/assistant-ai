@@ -98,8 +98,10 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
       return;
     }
 
+    const autonomousParam = settingsRef?.current?.autonomousMode ? "1" : "0";
+
     const ws = new WebSocket(
-      `${WS_URL}?memory=${memParam}&startup=${startupParam}${sessionParam}`,
+      `${WS_URL}?memory=${memParam}&startup=${startupParam}&autonomous_mode=${autonomousParam}${sessionParam}`,
     );
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;

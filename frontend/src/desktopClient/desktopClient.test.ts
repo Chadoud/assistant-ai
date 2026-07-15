@@ -8,6 +8,8 @@ vi.mock("../api/client", () => ({
     ...(extra ?? {}),
   })),
   mapFetchFailureToError: vi.fn((e: unknown) => (e instanceof Error ? e : new Error(String(e)))),
+  hasBackendHttpProxy: () => false,
+  proxyBackendHttp: vi.fn(),
 }));
 
 describe("DesktopClient", () => {

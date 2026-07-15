@@ -1,12 +1,15 @@
 /**
  * Persist sensitive settings keys via Electron safeStorage when available.
  * API keys are never written to localStorage (see settingsPersist.ts).
+ * Packaged builds return a mask from getSecret — treat mask as "configured, unchanged".
  */
 
 import type { AppSettings } from "../types/settings";
 
 const SECRET_KEY_GEMINI = "geminiApiKey";
 const PROVIDER_KEY_PREFIX = "chatProvider.";
+/** Must match electron/ipc/secretsHandlers.js SECRET_MASK */
+const SECRET_MASK = "••••••••";
 
 function providerSecretStorageKey(providerId: string): string {
   return `${PROVIDER_KEY_PREFIX}${providerId}.apiKey`;
@@ -26,6 +29,7 @@ async function readSecret(key: string): Promise<string | null> {
 async function writeSecret(key: string, value: string): Promise<boolean> {
   const api = window.electronAPI;
   if (!api?.setSecret || !value.trim()) return false;
+  if (value.trim() === SECRET_MASK) return true;
   try {
     const result = await api.setSecret(key, value.trim());
     return Boolean(result && typeof result === "object" && "ok" in result && result.ok);
@@ -55,13 +59,15 @@ export async function hydrateSecretsFromSafeStorage(): Promise<Partial<AppSettin
 /** Mirror all provider keys to safeStorage when settings change (Electron only). */
 export async function persistProviderSecretsToSafeStorage(settings: AppSettings): Promise<void> {
   const geminiKey = settings.geminiApiKey?.trim() || settings.chatProviders?.gemini?.apiKey?.trim() || "";
-  if (geminiKey) {
+  if (geminiKey && geminiKey !== SECRET_MASK) {
     await writeSecret(SECRET_KEY_GEMINI, geminiKey);
   }
   for (const [providerId, cfg] of Object.entries(settings.chatProviders ?? {})) {
     const apiKey = cfg?.apiKey?.trim();
-    if (apiKey) {
+    if (apiKey && apiKey !== SECRET_MASK) {
       await writeSecret(providerSecretStorageKey(providerId), apiKey);
     }
   }
 }
+
+export { SECRET_MASK };

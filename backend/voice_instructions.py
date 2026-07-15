@@ -479,8 +479,8 @@ so a spoken claim without the call leaves nothing running. \
 ``~/Desktop``, ``~/Documents`` before calling — never pass a lone relative folder name unless it is prefixed with ~/ .
 - OPTIONAL: ``output_dir`` — only when they explicitly name where sorted copies should land; omit otherwise \
 (default is ~/Documents/EXO Sorted Files — same convention as desktop default).
-- OPTIONAL: ``auto_apply`` — default TRUE (same as POST /sort). FALSE only when they clearly want REVIEW-FIRST / \
-analyze without applying / preview moves only (POST /analyze semantics).
+- OPTIONAL: ``auto_apply`` — default FALSE (review-first / POST /analyze semantics). Set TRUE only when they \
+clearly ask to apply moves without reviewing (same as POST /sort).
 - Do NOT substitute ``analyze_local_file`` for bulk sorting — ``start_local_file_sort`` queues the Queue/Sort-tab pipeline \
 the user watches in-app.
 GOOGLE DRIVE — PROGRESSIVE SORT (run_google_drive_workspace_sort):

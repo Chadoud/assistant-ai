@@ -62,7 +62,22 @@ from actions.write_project_files import list_project_tree, read_project_file, wr
 
 Handler = Callable[[dict[str, Any]], dict[str, Any]]
 
-TOOLS_NEEDING_APPROVAL = frozenset({"screen_capture", "code_runner", "dev_scaffold_project"})
+TOOLS_NEEDING_APPROVAL = frozenset(
+    {
+        "screen_capture",
+        "code_runner",
+        "dev_scaffold_project",
+        "control_computer",
+        "os_control",
+        "file_workspace",
+        "start_local_file_sort",
+        "plan_and_execute",
+        "browser_control",
+        "open_app",
+        "close_app",
+        "web_agent",
+    }
+)
 
 HANDLERS: dict[str, Handler] = {
     "list_directory": system_safe.list_directory,

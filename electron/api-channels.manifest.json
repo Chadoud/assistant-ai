@@ -94,6 +94,7 @@
     "integration:saveSlackOAuthClient",
     "preview:imageDataUrl",
     "secrets:get",
+    "secrets:has",
     "secrets:set",
     "ptt:setConfig",
     "shell:openExternal",

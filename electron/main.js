@@ -309,6 +309,12 @@ app.on("before-quit", () => {
   } catch (_) {
     /* ignore */
   }
+  try {
+    const { deleteMaterializedGmailOAuthMirror } = require("./gmailOAuthMirrorStore");
+    deleteMaterializedGmailOAuthMirror(app.getPath("userData"));
+  } catch (_) {
+    /* ignore */
+  }
   killBackend();
   try {
     const userData = app.getPath("userData");

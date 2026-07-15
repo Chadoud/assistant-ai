@@ -3,22 +3,24 @@
 ## Current state
 
 - Installers are produced in CI ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
-  - **Windows** — Inno Setup `.exe`
-  - **macOS** — universal `.dmg` + `.zip` (Intel + Apple Silicon)
-- Tag pushes (`v*`) attach both installers to a GitHub **pre-release**
-  automatically, with notes taken from [`CHANGELOG.md`](../CHANGELOG.md).
-- **Auto-updates are wired** (`electron/autoUpdater.js`, `electron-updater`):
-  packaged builds check the GitHub Releases feed configured in `package.json`
-  `build.publish`, download in the background, and install on quit. CI uploads
-  the updater metadata (`latest.yml` / `latest-mac.yml`, `.blockmap`, mac `.zip`)
-  alongside the installers. Dev builds and builds without a reachable feed
-  no-op safely.
+  - **Windows** — Inno Setup `.exe` (manual packager + Inno; **Authenticode not wired yet**)
+  - **macOS** — universal `.dmg` + `.zip` (Intel + Apple Silicon) via electron-builder
+- Tag pushes (`v*`) attach installers to a GitHub **release** and rsync the update
+  feed to **`https://exosites.ch/downloads/exo-assistant/`** (`latest.json`,
+  `latest-mac.yml`, DMG/EXE).
+- **Auto-updates** (`electron/autoUpdater.js`):
+  - **macOS (packaged):** electron-updater **generic** provider against
+    `EXOSITES_UPDATE_FEED_URL` (default `https://exosites.ch/downloads/exo-assistant`),
+    using `latest-mac.yml` + zip sha512. Discovery/notes also use `latest.json`.
+  - **Windows:** no electron-updater self-update — opens the download page /
+    `latest.json` URL in the browser.
+  - Dev builds and unreachable feeds no-op safely.
 - **Builds are currently unsigned** — SmartScreen (Windows) and Gatekeeper
-  (macOS) warn on first launch. End users get per-OS steps in
-  [INSTALL.md](INSTALL.md); certificate acquisition is an owner action item
-  (see below).
+  (macOS) warn on first launch. End users: [INSTALL.md](INSTALL.md). Certificate
+  status: [runbooks/signing-secrets-inventory.md](runbooks/signing-secrets-inventory.md).
 
-End-user Mac guide: [MACOS.md](MACOS.md).
+End-user Mac guide: [MACOS.md](MACOS.md).  
+Hardening roadmap: [SECURITY_HARDENING_PLAN.md](SECURITY_HARDENING_PLAN.md).
 
 ## One-command Mac build (local)
 
@@ -34,57 +36,56 @@ Produces `dist-installer/Exo.dmg` (and `Exo-*.zip` + `latest-mac.yml` when using
 
 ## Code signing (owner checklist for public release)
 
-CI already supports signing **conditionally** — when the secrets below are
-absent, builds stay unsigned and everything else still works. To turn signing
-on, the repository owner needs to:
+CI supports Mac signing **conditionally** when secrets exist; otherwise builds stay
+unsigned. Windows Authenticode secrets are **documented only** — SignTool is **not**
+wired into `scripts/package-app.js` / Inno / `build.yml` yet (M1b).
 
-### Windows (Authenticode)
+### Windows (Authenticode) — not CI-ready
 
-1. **Purchase a code-signing certificate.** Options:
-   - *OV certificate* (~$100–400/yr, e.g. Sectigo/Certum): SmartScreen warnings
-     fade only after the certificate builds download reputation.
-   - *EV certificate* (~$250–700/yr, hardware token or cloud HSM): immediate
-     SmartScreen reputation — recommended for a public launch.
-2. Export/obtain the certificate as a base64-encoded `.pfx`.
-3. Add GitHub Actions secrets:
-   - `WIN_CSC_LINK` — the base64 `.pfx`
-   - `WIN_CSC_KEY_PASSWORD` — its password
-4. Re-run the pipeline — the Windows job picks the secrets up automatically.
+1. **Purchase a code-signing certificate** (OV ~$200–400/yr, or EV for faster SmartScreen).
+2. Export base64 `.pfx`.
+3. Add GitHub Actions secrets when ready to wire CI:
+   - `WIN_CSC_LINK` — base64 `.pfx`
+   - `WIN_CSC_KEY_PASSWORD` — password
+4. **Then** implement SignTool on packed `Exo.exe` + `Exo Setup.exe` (see hardening plan M1b).
+   Until that lands, adding secrets alone does **nothing**.
 
 ### macOS (Developer ID + notarization)
 
 1. **Enroll in the Apple Developer Program** ($99/yr).
-2. In the developer portal, create a **Developer ID Application** certificate
-   and export it as a base64 `.p12`.
-3. Create an **app-specific password** for your Apple ID (appleid.apple.com).
+2. Create a **Developer ID Application** certificate; export base64 `.p12`.
+3. Create an **app-specific password** (appleid.apple.com).
 4. Add GitHub Actions secrets:
 
 | Secret | Purpose |
 |--------|---------|
 | `MAC_CSC_LINK` | Base64 `.p12` |
 | `MAC_CSC_KEY_PASSWORD` | Certificate password |
+| `MAC_SIGN_IDENTITY` | Full identity string (also signs PyInstaller backend) |
 | `APPLE_ID` | Apple ID for notarization |
 | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password |
 | `APPLE_TEAM_ID` | Team ID |
 
-5. Re-run the pipeline — `afterSign` notarization (`scripts/notarize.cjs`) and
-   hardened-runtime entitlements (`electron/entitlements.mac.plist`) are already
-   configured. For local signed builds, also set `MAC_SIGN_IDENTITY` so
-   `scripts/build-mac-release.sh` codesigns the PyInstaller backend child.
+5. Re-run a `v*` tag — `afterSign` notarization (`scripts/notarize.cjs`) and
+   hardened-runtime entitlements (`electron/entitlements.mac.plist`) are configured.
+   Local signed builds: set `MAC_SIGN_IDENTITY` so `scripts/build-mac-release.sh`
+   codesigns the backend child.
 
-Until certificates exist, keep the **unsigned-build warnings** in the README,
-[INSTALL.md](INSTALL.md), and the release notes template.
+Until certificates exist, keep **unsigned-build warnings** in the README,
+[INSTALL.md](INSTALL.md), and release notes.
 
 ## Auto-update operational notes
 
-- The feed is GitHub Releases (`package.json` → `build.publish`); **renaming the
-  repo breaks the update feed** for existing installs — coordinate any rename
-  with a coordinated `build.publish` change and a final release on the old name
-  pointing users at the new one.
-- Updates are served over HTTPS by GitHub; no separate update server exists.
-- Unsigned macOS builds cannot auto-update (Squirrel.Mac requires a signed app);
-  Windows unsigned updates work but re-trigger SmartScreen.
+- **Feed host:** `https://exosites.ch/downloads/exo-assistant/` (not GitHub Releases).
+  `package.json` `build.publish` / GitHub provider is unused by the runtime updater
+  (`--publish never` in CI).
+- Legacy path `/downloads/ai-file-manager/` **301-redirects** to `exo-assistant`.
+- Compromise of Infomaniak deploy credentials or the downloads directory can
+  replace feed files — mitigate with signing (M1a), signed `latest.json` (M1c),
+  and SSH key deploy (M1c.3).
+- Unsigned macOS builds cannot auto-update (Squirrel.Mac requires a signed app).
+- Windows does not self-update via electron-updater today.
 
 Keep [`package.json`](../package.json), [`frontend/package.json`](../frontend/package.json),
-`frontend/src/appVersion.ts`, and `installer.iss` versions aligned (see the
-release checklist in [BETA_RELEASE.md](BETA_RELEASE.md)).
+`frontend/src/appVersion.ts`, and `installer.iss` versions aligned (see
+[BETA_RELEASE.md](BETA_RELEASE.md)).

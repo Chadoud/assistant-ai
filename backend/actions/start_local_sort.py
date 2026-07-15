@@ -141,7 +141,8 @@ def start_local_file_sort(parameters: dict[str, Any]) -> dict[str, Any]:
     Parameters:
         file_paths: list of absolute paths (files or directories) under the user's home folder.
         output_dir: optional destination root (same guard as HTTP). Defaults to ~/Documents/EXO Sorted Files.
-        auto_apply: when true (default), same as ``POST /sort``; when false, review-first like ``POST /analyze``.
+        auto_apply: when true, same as ``POST /sort``; when false (default), review-first like ``POST /analyze``.
+        Voice/agent must opt in to auto-apply; the Sort tab still uses HTTP ``/sort`` with auto-apply.
     """
     raw_paths = parameters.get("file_paths")
     if raw_paths is None or not isinstance(raw_paths, list):
@@ -155,7 +156,7 @@ def start_local_file_sort(parameters: dict[str, Any]) -> dict[str, Any]:
     out_raw = parameters.get("output_dir")
     output_dir = str(out_raw).strip() if isinstance(out_raw, str) else ""
 
-    auto_apply = True
+    auto_apply = False
     if "auto_apply" in parameters and parameters["auto_apply"] is not None:
         auto_apply = bool(parameters["auto_apply"])
 

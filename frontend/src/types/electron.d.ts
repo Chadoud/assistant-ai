@@ -87,8 +87,10 @@ export interface ElectronAPI {
   setBackendEnvOverrides: (
     overrides: Record<string, string | boolean | number>
   ) => Promise<{ ok: boolean; reason?: string }>;
-  /** Read a main-process secret encrypted with OS safeStorage. Returns null when unavailable or missing. */
+  /** Read a main-process secret encrypted with OS safeStorage. Packaged builds return a mask when configured. */
   getSecret: (key: string) => Promise<string | null>;
+  /** True when a secret exists in safeStorage (no raw value). */
+  hasSecret?: (key: string) => Promise<boolean>;
   /** Persist a secret in main-process safeStorage. */
   setSecret: (key: string, value: string) => Promise<{ ok: boolean; reason?: string }>;
   openPath: (path: string) => Promise<string>;

@@ -128,9 +128,12 @@ def _path_exempt_from_app_token(path: str) -> bool:
 
 class AppTokenMiddleware(BaseHTTPMiddleware):
     """
-    Validates the X-App-Token header against EXOSITES_APP_TOKEN (set by the Electron main process).
-    Disabled only when EXOSITES_INSECURE_LOCAL=1 (explicit pytest / debug escape hatch).
-    Uses hmac.compare_digest to prevent timing-based token guessing.
+    Validates the X-App-Token header against EXOSITES_APP_TOKEN (set by Electron).
+
+    Auth is enabled when EXOSITES_APP_TOKEN is set, or when EXOSITES_REQUIRE_APP_TOKEN=1
+    (packaged builds). It is disabled when EXOSITES_INSECURE_LOCAL=1 *and*
+    EXOSITES_REQUIRE_APP_TOKEN is unset (pytest / break-glass only). Missing token with
+    REQUIRE unset also disables auth — do not run packaged backends that way.
     """
 
     async def dispatch(self, request, call_next):  # type: ignore[override]

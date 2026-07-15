@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   setBackendEnvOverrides: (overrides) =>
     ipcRenderer.invoke("backendEnv:setOverrides", overrides),
   getSecret: (key) => ipcRenderer.invoke("secrets:get", key),
+  hasSecret: (key) => ipcRenderer.invoke("secrets:has", key),
   setSecret: (key, value) => ipcRenderer.invoke("secrets:set", key, value),
   openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
   openExternal: (url) => ipcRenderer.invoke("shell:openExternal", url),

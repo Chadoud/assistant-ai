@@ -42,7 +42,12 @@ def browser_control(parameters: dict) -> dict:
             url = str(parameters.get("url", "")).strip()
             if not url:
                 return {"ok": False, "error": "url required"}
-            page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+            from safe_web_url import normalize_public_web_url
+
+            safe = normalize_public_web_url(url)
+            if not safe:
+                return {"ok": False, "error": "url not allowed (public http(s) only)"}
+            page.goto(safe, wait_until="domcontentloaded", timeout=60_000)
             return {"ok": True, "data": {"url": page.url}}
 
         if action == "search":

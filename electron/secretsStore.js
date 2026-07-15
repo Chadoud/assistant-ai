@@ -108,6 +108,15 @@ function getSecret(key) {
 
 /**
  * @param {unknown} key
+ * @returns {boolean}
+ */
+function hasSecret(key) {
+  const v = getSecret(key);
+  return typeof v === "string" && v.length > 0;
+}
+
+/**
+ * @param {unknown} key
  * @param {unknown} value
  * @returns {{ ok: true } | { ok: false; reason: string }}
  */
@@ -147,5 +156,6 @@ module.exports = {
   writeSecretWithDeps,
   getSecret,
   setSecret,
+  hasSecret,
   clearSecret,
 };

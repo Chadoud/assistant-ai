@@ -559,6 +559,14 @@ function startBackend() {
     state.appToken = require("crypto").randomBytes(32).toString("hex");
   }
 
+  // Packaged builds: never allow open localhost API (ignore insecure-local env).
+  if (!IS_DEV && process.env.EXOSITES_INSECURE_LOCAL) {
+    console.warn(
+      "[main] Ignoring EXOSITES_INSECURE_LOCAL in packaged build (app token required)"
+    );
+    delete process.env.EXOSITES_INSECURE_LOCAL;
+  }
+
   const tesseractCmd = findTesseractCmd();
   const ud = exositesUserDataEnv();
   const backendDir = path.join(__dirname, "..", "backend");
@@ -575,6 +583,8 @@ function startBackend() {
       : {}),
     EXOSITES_APP_TOKEN: state.appToken,
     EXOSITES_BACKEND_SECRETS_MANAGED: "1",
+    // Fail closed if token somehow missing; packaged always requires auth.
+    ...(!IS_DEV ? { EXOSITES_REQUIRE_APP_TOKEN: "1" } : {}),
     ...(IS_MAC
       ? {
           EXOSITES_ELECTRON_CAPTURE_URL: `http://127.0.0.1:${ELECTRON_CAPTURE_PORT}/v1/capture/screen`,
@@ -591,6 +601,16 @@ function startBackend() {
     /** After overrides: fixed path so Python can load resources/.env (packaged) or dev backend/.env. */
     EXOSITES_BACKEND_RESOURCE_DIR: resourceDir,
   };
+
+  // Never leave the app token on disk (even in dev). Use IPC getBackendToken only.
+  if (ud) {
+    try {
+      const legacyTok = path.join(ud, ".dev-app-token");
+      if (fs.existsSync(legacyTok)) fs.unlinkSync(legacyTok);
+    } catch {
+      /* ignore */
+    }
+  }
 
   /** Prefer explicit env / overrides; otherwise use bundled Desktop OAuth JSON next to backend (packaged) or under electron/resources (dev). */
   const bundledGmailJson = IS_DEV
@@ -624,13 +644,6 @@ function startBackend() {
     console.log("[main] Spawning backend:", cmd, args.join(" "));
     state.backendProcess = spawn(cmd, args, opts);
     attachBackendProcess(state.backendProcess);
-    if (ud && state.appToken) {
-      try {
-        fs.writeFileSync(path.join(ud, ".dev-app-token"), state.appToken, { mode: 0o600 });
-      } catch (err) {
-        console.warn("[main] Could not write .dev-app-token:", err && err.message);
-      }
-    }
   } else {
     preparePackagedMacBackendSlices(process.resourcesPath);
     const backendBin = resolvePackagedBackendBin(process.resourcesPath);

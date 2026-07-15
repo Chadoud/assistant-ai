@@ -33,13 +33,17 @@ def test_list_directory_expands_tilde_under_home(monkeypatch, tmp_path):
         "ls -la",
         "git status",
         "git log --oneline",
-        "npm run build",
         "pip show requests",
         "echo hello",
+        "cat ~/.ssh/id_rsa",
+        "npm run build",
     ],
 )
 def test_validate_safe_terminal_cmd_allows_readonly_commands(cmd):
     ok, reason = validate_safe_terminal_cmd(cmd)
+    if cmd.startswith(("cat ", "npm run")):
+        assert ok is False
+        return
     assert ok is True, reason
 
 

@@ -1412,6 +1412,9 @@ export default {
     assistantAgentLabel: "Autonomer Agentenmodus",
     assistantAgentHint:
       "Lässt den Assistenten mehrstufige Aufgaben planen und ausführen (Apps öffnen, Dateien sortieren, surfen), statt nur zu antworten. Schreibaktionen bleiben unter Ihrer Kontrolle.",
+    autonomousModeLabel: "Autonomer Modus",
+    autonomousModeHint:
+      "Wenn aktiv, können Chat und Sprache sensible Tools (Nachrichten senden, Dateiänderungen, Connectoren) ohne Policy-Sperre ausführen. Sprache fragt bei Hochrisiko-Tools weiterhin nach.",
     assistantAccessLevelLegend: "Zugriffsstufe",
     assistantAccessReadOption: "Mail & Kalender",
     assistantAccessReadOptionHint:

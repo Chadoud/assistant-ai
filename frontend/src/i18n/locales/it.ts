@@ -1417,6 +1417,9 @@ export default {
     assistantAgentLabel: "Modalità agente autonomo",
     assistantAgentHint:
       "Consente all’assistente di pianificare ed eseguire attività in più passaggi (aprire app, ordinare file, navigare) invece di limitarsi a rispondere. Mantieni il controllo sulle azioni di scrittura.",
+    autonomousModeLabel: "Modalità autonoma",
+    autonomousModeHint:
+      "Se attiva, chat e voce possono eseguire strumenti sensibili (invio messaggi, modifiche ai file, connettori) senza blocco dalla policy. La voce chiede ancora conferma prima degli strumenti ad alto rischio.",
     assistantAccessLevelLegend: "Livello di accesso",
     assistantAccessReadOption: "Posta e calendario",
     assistantAccessReadOptionHint:

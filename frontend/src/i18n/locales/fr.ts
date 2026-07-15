@@ -1416,6 +1416,9 @@ export default {
     assistantAgentLabel: "Mode agent autonome",
     assistantAgentHint:
       "Laisse l’assistant planifier et exécuter des tâches en plusieurs étapes (ouvrir des apps, trier des fichiers, naviguer) au lieu de seulement répondre. Vous gardez le contrôle des actions d’écriture.",
+    autonomousModeLabel: "Mode autonome",
+    autonomousModeHint:
+      "Lorsqu’il est activé, le chat et la voix peuvent exécuter des outils sensibles (envoi de messages, modifications de fichiers, connecteurs) sans blocage de politique. La voix demande toujours avant les outils à haut risque.",
     assistantAccessLevelLegend: "Niveau d’accès",
     assistantAccessReadOption: "Mail et calendrier",
     assistantAccessReadOptionHint:

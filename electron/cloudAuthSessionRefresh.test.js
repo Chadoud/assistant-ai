@@ -2,9 +2,34 @@
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const Module = require("node:module");
 const os = require("node:os");
 const path = require("node:path");
-const { describe, it, before, after, beforeEach } = require("node:test");
+const { describe, it, after, beforeEach } = require("node:test");
+
+const safeStorageMock = {
+  isEncryptionAvailable: () => true,
+  encryptString: (value) => Buffer.from(`enc:${value}`, "utf8"),
+  decryptString: (buf) => buf.toString("utf8").replace(/^enc:/, ""),
+};
+
+const electronStub = {
+  safeStorage: safeStorageMock,
+  app: {
+    isPackaged: false,
+    getPath: (name) => {
+      if (name === "userData") return os.tmpdir();
+      if (name === "home") return os.homedir();
+      throw new Error(`unexpected getPath(${name})`);
+    },
+  },
+};
+
+const originalLoad = Module._load;
+Module._load = function mockElectron(request, parent, isMain) {
+  if (request === "electron") return electronStub;
+  return originalLoad(request, parent, isMain);
+};
 
 function makeJwt(expSecondsFromNow) {
   const exp = Math.floor(Date.now() / 1000) + expSecondsFromNow;
@@ -12,13 +37,24 @@ function makeJwt(expSecondsFromNow) {
   return `hdr.${payload}.sig`;
 }
 
-function writePlainSession(userData, session) {
+/** Write session in the encrypted on-disk format (M2.6 — plaintext is refused). */
+function writeEncSession(userData, session) {
   fs.mkdirSync(userData, { recursive: true });
+  const payload = { v: 1, ...session };
+  const enc = safeStorageMock.encryptString(JSON.stringify(payload));
   fs.writeFileSync(
     path.join(userData, "cloud_session.json"),
-    JSON.stringify({ v: 1, ...session }, null, 2),
+    JSON.stringify({ __enc: true, data: enc.toString("base64") }),
     "utf8",
   );
+}
+
+function readStoredSession(userData) {
+  const raw = JSON.parse(fs.readFileSync(path.join(userData, "cloud_session.json"), "utf8"));
+  if (raw && raw.__enc === true) {
+    return JSON.parse(safeStorageMock.decryptString(Buffer.from(raw.data, "base64")));
+  }
+  return raw;
 }
 
 function loadCloudAuth() {
@@ -40,12 +76,13 @@ describe("ensureFreshSession refresh single-flight", () => {
 
   after(() => {
     global.fetch = originalFetch;
+    Module._load = originalLoad;
     if (prevCloudUrl === undefined) delete process.env.EXOSITES_CLOUD_URL;
     else process.env.EXOSITES_CLOUD_URL = prevCloudUrl;
   });
 
   it("returns cached session when access token is still valid", async () => {
-    writePlainSession(userData, {
+    writeEncSession(userData, {
       access_token: makeJwt(3600),
       refresh_token: "rt-valid",
       email: "user@test.com",
@@ -61,7 +98,7 @@ describe("ensureFreshSession refresh single-flight", () => {
   });
 
   it("dedupes concurrent refresh calls into one POST", async () => {
-    writePlainSession(userData, {
+    writeEncSession(userData, {
       access_token: makeJwt(30),
       refresh_token: "rt-old",
       email: "user@test.com",
@@ -93,14 +130,12 @@ describe("ensureFreshSession refresh single-flight", () => {
     assert.equal(refreshCalls, 1);
     assert.equal(a?.access_token, b?.access_token);
     assert.equal(b?.access_token, c?.access_token);
-    const stored = JSON.parse(
-      fs.readFileSync(path.join(userData, "cloud_session.json"), "utf8"),
-    );
+    const stored = readStoredSession(userData);
     assert.equal(stored.refresh_token, "rt-new");
   });
 
   it("keeps session on transient refresh failure", async () => {
-    writePlainSession(userData, {
+    writeEncSession(userData, {
       access_token: makeJwt(30),
       refresh_token: "rt-old",
       email: "user@test.com",
@@ -121,7 +156,7 @@ describe("ensureFreshSession refresh single-flight", () => {
   });
 
   it("uses session written by concurrent refresh instead of clearing on 401", async () => {
-    writePlainSession(userData, {
+    writeEncSession(userData, {
       access_token: makeJwt(30),
       refresh_token: "rt-old",
       email: "user@test.com",
@@ -129,7 +164,7 @@ describe("ensureFreshSession refresh single-flight", () => {
     global.fetch = async (url) => {
       if (String(url).endsWith("/auth/refresh")) {
         refreshCalls += 1;
-        writePlainSession(userData, {
+        writeEncSession(userData, {
           access_token: makeJwt(3600),
           refresh_token: "rt-new",
           email: "user@test.com",

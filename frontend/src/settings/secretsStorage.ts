@@ -70,4 +70,3 @@ export async function persistProviderSecretsToSafeStorage(settings: AppSettings)
   }
 }
 
-export { SECRET_MASK };

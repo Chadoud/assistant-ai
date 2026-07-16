@@ -6,6 +6,12 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.50] - 2026-07-16
+
+### Added
+
+- **Desktop update pipeline:** `v*` tags publish installers to the **staging** feed only (`exo-assistant-staging`). Production `latest.json` updates via the **Promote desktop feed** workflow (Environment approval + LKG snapshot/rollback). Version alignment gate: `npm run verify:release-version`.
+
 ### Fixed
 
 - **Updater:** Missing Ed25519 (`@noble/ed25519`) in a packaged app no longer surfaces a background-error dialog; update checks soft-fail and retry with backoff. Packaged builds require `@noble/ed25519` in `app.asar` (verified by `package:mac`).

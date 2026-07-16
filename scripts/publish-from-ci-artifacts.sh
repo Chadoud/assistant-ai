@@ -60,11 +60,12 @@ if (hit) process.stdout.write(String(hit.databaseId));
 rerun_publish_jobs() {
   local run_id="$1"
   echo -e "${GREEN}==> Re-running ONLY failed jobs on run ${run_id}${NC}"
-  echo "    (publish-release + publish-website — reuses EXO-macOS / EXO-Windows artifacts)"
+  echo "    (publish-release + publish-staging — reuses EXO-macOS / EXO-Windows artifacts)"
   gh run rerun "$run_id" --failed
   echo -e "${GREEN}==> Watching run…${NC}"
   gh run watch "$run_id" --exit-status
-  echo -e "${GREEN}Done.${NC} Check https://exosites.ch/downloads/exo-assistant/latest.json"
+  echo -e "${GREEN}Done.${NC} Staging: https://exosites.ch/downloads/exo-assistant-staging/latest.json"
+  echo "    Promote to prod: GitHub Actions → Promote desktop feed (or ./scripts/promote-desktop-feed.sh)"
 }
 
 stage_from_dir() {
@@ -113,8 +114,8 @@ upload_to_exosites() {
     echo "Copy cloud-node/.env.deploy.example and set DOWNLOADS_SSH_* (exosites.ch Web account)."
     exit 1
   fi
-  echo -e "${GREEN}==> Uploading to exosites.ch (SKIP_BUILD=1)${NC}"
-  SKIP_BUILD=1 RELEASE_VERSION="$VERSION" bash "${ROOT}/scripts/publish-downloads-local.sh"
+  echo -e "${GREEN}==> Uploading to staging (SKIP_BUILD=1 CHANNEL=staging)${NC}"
+  SKIP_BUILD=1 CHANNEL=staging RELEASE_VERSION="$VERSION" bash "${ROOT}/scripts/publish-downloads-local.sh"
 }
 
 upload_github_release() {

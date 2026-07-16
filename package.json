@@ -21,7 +21,7 @@
     "build:frontend": "cd frontend && npm run build",
     "report:app-weight": "bash scripts/report-app-weight.sh",
     "test": "cd frontend && npm run test && cd .. && npm run test:electron",
-    "test:electron": "node scripts/validate-electron-ipc-manifest.cjs && node scripts/verify-main-register-handlers.cjs && node --test electron/oauthNavigation.test.js electron/socialAuthCallback.test.js electron/cloudAuthProviders.test.js electron/cloudAuthSortCredentials.test.js electron/cloudAuthSessionRefresh.test.js electron/integrations/providersCatalog.test.js electron/integrations/microsoft.test.js electron/integrations/googleDriveExportMap.test.js electron/integrations/storage.test.js electron/systemCommandsV1.cloud.test.js electron/controlChars.test.js electron/readGmailDotenvForBackend.test.js electron/googleCredentialsJson.test.js electron/codegen/commandPolicy.test.js electron/codegen/buildErrorCapture.test.js electron/ipc/senderGuard.test.js electron/pushToTalk.test.js electron/secretsStore.test.js electron/backendAiSecrets.test.js electron/gmailOAuthMirrorStore.test.js electron/pathRegistry.test.js electron/syncWorker.test.js electron/localDataWipe.test.js electron/rendererDiagnostics.test.js electron/mainProcessDiagnostics.test.js electron/sortCredentials.test.js electron/telemetryCloudSync.test.js electron/telemetryQueue.test.js electron/installLocation.test.js electron/packagedBackendPath.test.js electron/integrations/whatsappEmbeddedSignupOAuth.test.js electron/crypto/ed25519.test.js electron/autoUpdater/helpers.test.js electron/autoUpdater/fetchFeed.test.js electron/autoUpdater/checkDedupe.test.js electron/updateFeed/verify.test.js scripts/lib/mac-packaging.test.cjs scripts/lib/updater-packaging.test.cjs",
+    "test:electron": "node scripts/validate-electron-ipc-manifest.cjs && node scripts/verify-main-register-handlers.cjs && node --test electron/oauthNavigation.test.js electron/socialAuthCallback.test.js electron/cloudAuthProviders.test.js electron/cloudAuthSortCredentials.test.js electron/cloudAuthSessionRefresh.test.js electron/integrations/providersCatalog.test.js electron/integrations/microsoft.test.js electron/integrations/googleDriveExportMap.test.js electron/integrations/storage.test.js electron/systemCommandsV1.cloud.test.js electron/controlChars.test.js electron/readGmailDotenvForBackend.test.js electron/googleCredentialsJson.test.js electron/codegen/commandPolicy.test.js electron/codegen/buildErrorCapture.test.js electron/ipc/senderGuard.test.js electron/pushToTalk.test.js electron/secretsStore.test.js electron/backendAiSecrets.test.js electron/gmailOAuthMirrorStore.test.js electron/pathRegistry.test.js electron/authorizedPaths.test.js electron/composer/attachmentClassify.test.js electron/syncWorker.test.js electron/localDataWipe.test.js electron/rendererDiagnostics.test.js electron/mainProcessDiagnostics.test.js electron/sortCredentials.test.js electron/telemetryCloudSync.test.js electron/telemetryQueue.test.js electron/installLocation.test.js electron/packagedBackendPath.test.js electron/integrations/whatsappEmbeddedSignupOAuth.test.js electron/crypto/ed25519.test.js electron/autoUpdater/helpers.test.js electron/autoUpdater/fetchFeed.test.js electron/autoUpdater/checkDedupe.test.js electron/updateFeed/verify.test.js scripts/lib/mac-packaging.test.cjs scripts/lib/updater-packaging.test.cjs scripts/validate-release-version.test.mjs scripts/lib/desktop-feed-channels.test.cjs",
     "verify:cloud-auth": "bash scripts/verify-cloud-auth-api.sh",
     "verify:product-analytics": "bash scripts/verify-product-analytics.sh",
     "verify:datasuite": "bash scripts/verify-datasuite.sh",
@@ -53,6 +53,9 @@
     "wait:cloud-api-virtual-keys": "bash scripts/wait-for-cloud-api-virtual-keys.sh",
     "verify:legal-urls": "bash scripts/verify-legal-urls.sh",
     "verify:security-posture": "node scripts/verify-security-posture.mjs",
+    "verify:release-version": "node scripts/validate-release-version.mjs",
+    "promote:desktop-feed": "bash scripts/promote-desktop-feed.sh",
+    "ensure:downloads-dirs": "bash scripts/ensure-downloads-dirs-remote.sh",
     "verify:packaged-preload": "node scripts/verify-packaged-preload.cjs",
     "verify:packaged-app": "node scripts/verify-packaged-app.cjs",
     "verify:production": "node scripts/verify-main-register-handlers.cjs && node scripts/validate-electron-ipc-manifest.cjs && npm run verify:legal-urls && VERIFY_GO_SYNC=1 bash scripts/verify-cloud-auth-api.sh",
@@ -281,6 +284,7 @@
     "@noble/hashes": "^2.0.1",
     "dmg-builder": "^25.1.8",
     "electron-updater": "^6.3.9",
-    "puppeteer-core": "^23.11.1"
+    "puppeteer-core": "^23.11.1",
+    "qrcode": "^1.5.4"
   }
 }

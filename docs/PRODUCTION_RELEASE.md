@@ -2,6 +2,8 @@
 
 Use this before tagging `v*` and shipping installers to users.
 
+**CI note:** Pull requests run quality gates only (path-filtered). **Full Windows/Mac installers build on `v*` tags** (or manual `workflow_dispatch`), not on every PR. Packaging-path PRs may run a thin Mac `package-smoke-mac` + `verify:packaged-app`. See [`QUALITY_GATES.md`](./QUALITY_GATES.md).
+
 **Readiness program:** For tests, observability, and PII/compliance tasks beyond installer smoke, see [`PRODUCTION_READINESS.md`](./PRODUCTION_READINESS.md). Full ship checklist: [`SHIP_PROGRAM.md`](./SHIP_PROGRAM.md).
 
 ## 0. Legal URLs
@@ -68,12 +70,14 @@ node scripts/verify-packaged-app.cjs
 | `MAC_CSC_LINK`, `MAC_CSC_KEY_PASSWORD` | Sign macOS app |
 | `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID` | Notarize |
 | `WIN_CSC_LINK`, `WIN_CSC_KEY_PASSWORD` | Sign Windows (when wired in CI) |
-| `EXOSITES_DEPLOY_SSH_USER`, `EXOSITES_DEPLOY_SSH_PASSWORD`, `EXOSITES_DEPLOY_SSH_HOST` | **exosites.ch Web** SSH (same as `exosites-agency` `.env`) — not `api.exosites.ch` |
-| `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/exo-assistant` |
+| `EXOSITES_DEPLOY_SSH_USER`, `EXOSITES_DEPLOY_SSH_HOST`, `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` | **exosites.ch Web** SSH (same as `exosites-agency`) — not `api.exosites.ch` |
+| `EXOSITES_DOWNLOADS_STAGING_PATH` | `./sites/exosites.ch/downloads/exo-assistant-staging` (tag CI uploads here) |
+| `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/exo-assistant` (production — promote only; not written by tag CI) |
 | `VITE_SENTRY_DSN` | Crash reporting in renderer |
 | `GMAIL_OAUTH_CLIENT_JSON_B64` | Optional bundled Gmail OAuth client |
 
-Tag push `v*` → CI builds, GitHub pre-release, optional website upload.
+Tag push `v*` → CI builds, `verify:release-version`, GitHub prerelease, **staging** feed upload.
+Production: Actions → **Promote desktop feed** (see [desktop-update-promote.md](./runbooks/desktop-update-promote.md)).
 
 ## 6. Manual smoke test (packaged app)
 
@@ -90,8 +94,9 @@ Sync before tag:
 - `package.json` → `version`
 - `frontend/package.json` → `version`
 - `frontend/src/appVersion.ts`
-- `installer.iss` → `#define MyAppVersion`
+- `installer.iss` → `#define AppVersion`
 - `CHANGELOG.md` → `## [x.y.z]`
+- Then: `npm run verify:release-version -- --version x.y.z`
 
 ## Known unsigned-build limits
 

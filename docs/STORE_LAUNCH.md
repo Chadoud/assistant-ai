@@ -29,8 +29,9 @@ Use after **Track D** (internal beta) is clean and **Track B** (legal URLs) is l
 
 ## Desktop (direct download)
 
-- [ ] Tag `v*` → GitHub Release + optional [`publish-website`](../.github/workflows/build.yml) job
-- [ ] `latest.json` on exosites.ch matches version
+- [ ] Tag `v*` → GitHub prerelease + [`publish-staging`](../.github/workflows/build.yml) (staging feed only)
+- [ ] Smoke staging feed, then promote to production (Phase 2) — see [desktop-update-pipeline-checklist.md](./runbooks/desktop-update-pipeline-checklist.md)
+- [ ] Production `latest.json` on exosites.ch matches version after promote
 - [ ] Packaged smoke per [`PRODUCTION_RELEASE.md`](./PRODUCTION_RELEASE.md) §6
 
 ## GTM

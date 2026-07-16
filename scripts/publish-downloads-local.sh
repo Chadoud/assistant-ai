@@ -23,7 +23,19 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT}/cloud-node/.env.deploy"
 DIST="${ROOT}/dist-installer"
-FEED_BASE="${EXOSITES_UPDATE_FEED_URL:-https://exosites.ch/downloads/exo-assistant}"
+# CHANNEL=staging|stable (default staging for local safety — prod via promote script)
+CHANNEL="${CHANNEL:-staging}"
+case "$CHANNEL" in
+  staging|stable) ;;
+  *)
+    echo "CHANNEL must be staging or stable (got: $CHANNEL)" >&2
+    exit 1
+    ;;
+esac
+FEED_BASE="${EXOSITES_UPDATE_FEED_URL:-}"
+if [[ -z "$FEED_BASE" ]]; then
+  FEED_BASE="$(node -p "require('${ROOT}/scripts/lib/desktop-feed-channels.cjs').getChannel('${CHANNEL}').publicBase")"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,6 +56,10 @@ set +a
 : "${DOWNLOADS_SSH_USER:?Set DOWNLOADS_SSH_USER in cloud-node/.env.deploy (exosites.ch Web — see exosites-agency .env)}"
 : "${DOWNLOADS_SSH_HOST:?Set DOWNLOADS_SSH_HOST in cloud-node/.env.deploy}"
 : "${DOWNLOADS_REMOTE_PATH:?Set DOWNLOADS_REMOTE_PATH (e.g. ./sites/exosites.ch/downloads/exo-assistant)}"
+
+if [[ "$CHANNEL" == "staging" ]]; then
+  DOWNLOADS_REMOTE_PATH="${DOWNLOADS_REMOTE_PATH_STAGING:-./sites/exosites.ch/downloads/exo-assistant-staging}"
+fi
 
 VERSION="${RELEASE_VERSION:-$(node -p "require('${ROOT}/package.json').version")}"
 if [[ "${SKIP_BUILD:-0}" == "1" && -z "${RELEASE_VERSION:-}" && -f "${DIST}/latest-mac.yml" ]]; then
@@ -207,7 +223,10 @@ upload_bundle() {
   echo -e "${GREEN}==> Verifying latest.json on server${NC}"
   run_downloads_ssh "test -f ${remote_path%/}/latest.json && head -c 400 ${remote_path%/}/latest.json"
   echo ""
-  echo -e "${GREEN}Done.${NC} Feed: ${FEED_BASE%/}/latest.json"
+  echo -e "${GREEN}Done.${NC} Channel=${CHANNEL} Feed: ${FEED_BASE%/}/latest.json"
+  if [[ "$CHANNEL" == "stable" ]]; then
+    echo -e "${YELLOW}You published directly to production. Prefer tag→staging then scripts/promote-desktop-feed.sh.${NC}"
+  fi
 }
 
 maybe_build

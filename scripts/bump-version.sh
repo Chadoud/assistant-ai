@@ -40,5 +40,7 @@ issText = issText.replace(/#define AppVersion "[^"]+"/, `#define AppVersion "${v
 fs.writeFileSync(iss, issText);
 
 console.log(`Bumped desktop version → ${version}`);
-console.log(`Next: add ## [${version}] section to CHANGELOG.md, then tag v${version}`);
+console.log(`Next: add ## [${version}] to CHANGELOG.md`);
+console.log(`Then: npm run verify:release-version -- --version ${version}`);
+console.log(`Then: tag v${version} (stages feed; promote separately)`);
 EOF

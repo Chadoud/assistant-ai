@@ -1,0 +1,117 @@
+name: Promote desktop feed
+
+# Production update feed is NEVER written by tag CI.
+# After staging smoke: run this workflow (Environment approval required).
+#
+# Inputs:
+#   version — semver without v (e.g. 1.1.50)
+#   action  — promote | rollback
+#   source  — github-release (default) | staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: promote candidate to production, or rollback from LKG
+        type: choice
+        options: [promote, rollback]
+        default: promote
+      version:
+        description: Semver to promote (required for promote; ignored for rollback)
+        required: false
+        type: string
+      source:
+        description: Where to load installers from
+        type: choice
+        options: [github-release, staging]
+        default: github-release
+
+concurrency:
+  group: desktop-feed-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.event.inputs.action == 'promote'
+    runs-on: ubuntu-latest
+    environment: desktop-updates-production
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
+
+      - name: Promote ${{ github.event.inputs.version }} → production
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROMOTE_SOURCE: ${{ github.event.inputs.source }}
+          UPDATE_FEED_PRIVATE_KEY_HEX: ${{ secrets.UPDATE_FEED_PRIVATE_KEY_HEX }}
+          EXOSITES_DEPLOY_SSH_HOST: ${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}
+          EXOSITES_DEPLOY_SSH_USER: ${{ secrets.EXOSITES_DEPLOY_SSH_USER }}
+          EXOSITES_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.EXOSITES_DEPLOY_SSH_PRIVATE_KEY }}
+          EXOSITES_DOWNLOADS_PATH: ${{ secrets.EXOSITES_DOWNLOADS_PATH }}
+          EXOSITES_DOWNLOADS_STAGING_PATH: ${{ secrets.EXOSITES_DOWNLOADS_STAGING_PATH }}
+          EXOSITES_DOWNLOADS_LKG_PATH: ${{ secrets.EXOSITES_DOWNLOADS_LKG_PATH }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ]; then
+            echo "::error::version input is required for promote"
+            exit 1
+          fi
+          if [ -z "${EXOSITES_DOWNLOADS_LKG_PATH:-}" ]; then
+            export EXOSITES_DOWNLOADS_LKG_PATH="./sites/exosites.ch/downloads/exo-assistant-lkg"
+          fi
+          chmod +x scripts/promote-desktop-feed.sh
+          ./scripts/promote-desktop-feed.sh promote "$VERSION"
+
+      - name: Summarize
+        if: success()
+        run: |
+          {
+            echo "## Desktop feed promote"
+            echo "- Version: \`${{ github.event.inputs.version }}\`"
+            echo "- Source: \`${{ github.event.inputs.source }}\`"
+            echo "- Prod: https://exosites.ch/downloads/exo-assistant/latest.json"
+            echo "- LKG snapshot taken before overwrite"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    if: github.event.inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    environment: desktop-updates-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y rsync openssh-client
+
+      - name: Rollback production from LKG
+        env:
+          EXOSITES_DEPLOY_SSH_HOST: ${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}
+          EXOSITES_DEPLOY_SSH_USER: ${{ secrets.EXOSITES_DEPLOY_SSH_USER }}
+          EXOSITES_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.EXOSITES_DEPLOY_SSH_PRIVATE_KEY }}
+          EXOSITES_DOWNLOADS_PATH: ${{ secrets.EXOSITES_DOWNLOADS_PATH }}
+          EXOSITES_DOWNLOADS_LKG_PATH: ${{ secrets.EXOSITES_DOWNLOADS_LKG_PATH }}
+        run: |
+          set -euo pipefail
+          if [ -z "${EXOSITES_DOWNLOADS_LKG_PATH:-}" ]; then
+            export EXOSITES_DOWNLOADS_LKG_PATH="./sites/exosites.ch/downloads/exo-assistant-lkg"
+          fi
+          chmod +x scripts/promote-desktop-feed.sh
+          ./scripts/promote-desktop-feed.sh rollback
+
+      - name: Summarize
+        if: success()
+        run: |
+          {
+            echo "## Desktop feed rollback"
+            echo "- Restored LKG → https://exosites.ch/downloads/exo-assistant/latest.json"
+          } >> "$GITHUB_STEP_SUMMARY"

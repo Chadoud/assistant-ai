@@ -4,6 +4,33 @@ Run from **repository root** unless noted. Fix failures or document a tracked ex
 
 **Production readiness backlog:** Phased tasks for tests, observability, and PII — [PRODUCTION_READINESS.md](PRODUCTION_READINESS.md).
 
+CI is tiered so expensive Mac/Windows packaging is **not** on every PR. See [`.github/workflows/build.yml`](../.github/workflows/build.yml).
+
+## CI tiers (right job at the right time)
+
+| Tier | When | What |
+|------|------|------|
+| **L0 Contract** | Every PR / tag | IPC manifest, `electron.d.ts` parity, secret audits |
+| **L1 Merge** | PR path filters | Frontend lint/build/unit; backend pytest + sync + classify KPI; `test:electron`; cloud-node; sort-queue |
+| **L2 Smoke** | PR if packaging paths / frontend | Playwright `e2e/smoke.spec.ts`; thin Mac `package:mac` + `verify:packaged-app` when packaging paths change |
+| **L3 Release** | `v*` tag or `workflow_dispatch` | Full Win + universal Mac installers, legal URLs, cloud-auth, `verify:security-posture` |
+| **L3.5 Stage** | `v*` tag | `verify:release-version` + GitHub prerelease + rsync **staging** feed only (`exo-assistant-staging`) |
+| **L3.6 Promote** | Workflow dispatch `Promote desktop feed` + Environment approval | Snapshot LKG → production `exo-assistant` feed |
+| **L4 Weekly** | Monday schedule | Full Playwright, `check:unused:strict`, audits, security posture; sort-staging live probes |
+
+**Required merge check:** job `quality` (aggregate). Full installers are **not** required to merge.
+
+### Path filters (PR)
+
+| Filter | Paths (summary) | Jobs |
+|--------|-----------------|------|
+| `frontend` | `frontend/**` | `quality-frontend` (+ e2e smoke) |
+| `backend` | `backend/**`, `sync/**` | `quality-backend` |
+| `electron` | `electron/**`, root `package.json` | `quality-electron` |
+| `cloud` | `cloud-node/**` | `quality-cloud` |
+| `packaging` | electron + package scripts + `verify-packaged-*` + `build.yml` | `package-smoke-mac` (+ electron tests) |
+| `sort_queue` | `infra/llm/sort-queue/**` | `quality-sort-queue` |
+
 ## Dependency updates (no Dependabot version PRs)
 
 This repo **does not** use Dependabot version-update PRs — they failed repeatedly on the Electron + PyInstaller monorepo and burned Actions minutes without mergeable results.
@@ -11,7 +38,7 @@ This repo **does not** use Dependabot version-update PRs — they failed repeate
 | What | Where |
 |------|--------|
 | CVE alerts | GitHub → **Security** → Dependabot alerts (enable in repo settings) |
-| High/critical audit in CI | `npm audit` in Build Installers (informational) |
+| High/critical audit in CI | Weekly deep workflow (informational) |
 | Manual bumps before release | `npm outdated` / `pip list --outdated` in each package root |
 
 Review security alerts when they appear; run full `npm run quality` before merging dependency bumps.
@@ -20,35 +47,50 @@ Review security alerts when they appear; run full `npm run quality` before mergi
 
 | Step | Command |
 |------|---------|
-| Full local gate (lint, unused, build, unit + e2e smoke, Python tests) | `npm run quality` (see `package.json` in the repo root) |
+| Full local gate | `npm run quality` |
+| Version alignment | `npm run verify:release-version` (tag must match package / appVersion / Inno / CHANGELOG) |
+| Or wait for tag CI | Push `v*` — L3 builds + L3.5 stages to staging feed (not prod) |
 
-If `npm run quality` is too slow for a small fix, at minimum run the **PR / pre-merge** table below for anything that touches the same area (e.g. frontend + backend tests for pipeline changes). CI may still run a subset; do not release without a green full gate for major or user-facing cutovers.
+PRs do **not** build Windows/Mac installers. Packaging confidence on PRs comes from path-gated `package-smoke-mac` + Linux electron/packaging unit tests.
 
-**Last release gate check:** run `npm run quality` and note the result in the PR or release thread.
-
-## PR / pre-merge (recommended)
+## PR / pre-merge (local mirror of L1)
 
 | Step | Command |
 |------|---------|
 | Frontend lint | `cd frontend && npm run lint` |
-| Frontend typecheck + build | `cd frontend && npm run build` |
+| Frontend build | `cd frontend && npm run build` |
 | Frontend unit tests | `cd frontend && npm test` |
+| Frontend e2e smoke | `cd frontend && npm run test:e2e:smoke` |
 | Locale key parity (if i18n touched) | `cd frontend && npm run check-locale-keys` |
 | Backend tests | `cd backend && python -m pytest -q` |
 | Electron IPC + unit tests | `npm run test:electron` |
-| Mobile analyze + unit tests (if `mobile/` touched) | `npm run mobile:quality` |
+| Sort-queue (if touched) | `cd infra/llm/sort-queue && npm test` |
+| Mobile (if `mobile/` touched) | `npm run mobile:quality` |
 | KPI guardrails (fixture) | `cd backend && python -m classify_eval.kpi_guardrails --sort-plan classify_eval/fixtures/baseline_sort_plan.csv --max-uncertain-rate 0.60 --max-error-rate 0.10 --max-p90-ms 5000` |
+| Packaging change | `npm run package:mac` then `npm run verify:packaged-app` |
 
-## Pre-release / weekly strict hygiene
+## Weekly / scheduled (L4)
 
-| Step | Command |
-|------|---------|
-| Strict unused (frontend + backend) | `npm run check:unused:strict` |
-| Baseline KPI snapshot (real run export) | `cd backend && python -m classify_eval.baseline_kpis --sort-plan "C:/path/sort-plan-*.csv" --json-out kpi-baseline.json` |
+| Step | Where |
+|------|--------|
+| Full Playwright e2e | `Weekly deep quality` workflow |
+| `check:unused:strict` | Weekly deep |
+| `verify:security-posture` | Weekly deep + `v*` tag |
+| Sort staging live (`verify:sort-ga`, classify/vision) | `Sort staging gate` (Monday) |
+
+## Manual / secrets (not PR merge blockers)
+
+| Script | Purpose |
+|--------|---------|
+| `npm run verify:cloud-auth` | Live api.exosites.ch (tag CI strict) |
+| `npm run verify:go-sync` | GO SYNC relay |
+| `npm run verify:datasuite*` / `verify:product-analytics` | Infra smoke |
+| `npm run ga:*` (desktop-smoke, live-sort, closed-beta, …) | Staging / beta ops |
+| `OLLAMA_EVAL=1` classify eval | Local GPU/model |
 
 ## Full release gate (root `package.json` script `quality`)
 
-Includes lint, strict unused, frontend build, Vitest, Electron tests, backend pytest, and Playwright e2e — use before major releases; CI may run a subset.
+Includes lint, strict unused, frontend build, Vitest, Electron tests, backend pytest, and Playwright e2e — use before major releases; CI may run a path-filtered subset on PRs.
 
 ## Performance budgets
 
@@ -60,4 +102,4 @@ Check these manually before a release; treat a breach as a release blocker unles
 | Time to interactive shell (fresh profile, packaged app) | ≤ 5 s on a mid-range machine (NVMe + 8 GB RAM) | Launch packaged build, stopwatch from process start to sidebar visible |
 | Backend `/health` first OK (packaged, cold start) | ≤ 10 s | Electron logs the backend-ready timestamp; compare with process start |
 
-**Last updated:** 2026-06-10
+**Last updated:** 2026-07-16

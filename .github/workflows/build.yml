@@ -1,5 +1,8 @@
 name: Build Installers
 
+# Desktop CI tiers:
+#   PR  → L0/L1 quality (path-filtered) + optional packaging smoke
+#   v* / workflow_dispatch → full Win + Mac installers + publish
 on:
   push:
     tags: ["v*"]
@@ -7,14 +10,80 @@ on:
     branches: [main, master]
   workflow_dispatch: # allow manual trigger from GitHub UI
 
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.set.outputs.frontend }}
+      backend: ${{ steps.set.outputs.backend }}
+      electron: ${{ steps.set.outputs.electron }}
+      cloud: ${{ steps.set.outputs.cloud }}
+      packaging: ${{ steps.set.outputs.packaging }}
+      sort_queue: ${{ steps.set.outputs.sort_queue }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            frontend:
+              - 'frontend/**'
+            backend:
+              - 'backend/**'
+              - 'sync/**'
+            electron:
+              - 'electron/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'scripts/validate-electron*.cjs'
+              - 'scripts/verify-main-register-handlers.cjs'
+            cloud:
+              - 'cloud-node/**'
+            packaging:
+              - 'electron/**'
+              - 'scripts/package-*.js'
+              - 'scripts/package-*.cjs'
+              - 'scripts/lib/updater-packaging.cjs'
+              - 'scripts/lib/mac-packaging.cjs'
+              - 'scripts/verify-packaged-*.cjs'
+              - 'scripts/prepare-release-resources.sh'
+              - 'package.json'
+              - '.github/workflows/build.yml'
+            sort_queue:
+              - 'infra/llm/sort-queue/**'
+      - name: Resolve change flags
+        id: set
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "electron=true" >> "$GITHUB_OUTPUT"
+            echo "cloud=true" >> "$GITHUB_OUTPUT"
+            echo "packaging=true" >> "$GITHUB_OUTPUT"
+            echo "sort_queue=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+            echo "backend=${{ steps.filter.outputs.backend }}" >> "$GITHUB_OUTPUT"
+            echo "electron=${{ steps.filter.outputs.electron }}" >> "$GITHUB_OUTPUT"
+            echo "cloud=${{ steps.filter.outputs.cloud }}" >> "$GITHUB_OUTPUT"
+            echo "packaging=${{ steps.filter.outputs.packaging }}" >> "$GITHUB_OUTPUT"
+            echo "sort_queue=${{ steps.filter.outputs.sort_queue }}" >> "$GITHUB_OUTPUT"
+          fi
+
   quality-contract:
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
       - name: Validate Electron IPC manifest
         run: node scripts/validate-electron-ipc-manifest.cjs
@@ -26,85 +95,75 @@ jobs:
         run: bash scripts/audit-env-secrets-in-repo.sh
 
   quality-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - working-directory: frontend
         run: npm install
-      - name: npm audit (root, high+)
-        continue-on-error: true
-        run: npm audit --audit-level=high
-      - name: npm audit (frontend, high+)
-        continue-on-error: true
-        working-directory: frontend
-        run: npm audit --audit-level=high
       - name: Frontend lint
         working-directory: frontend
         run: npm run lint
       - name: Locale key parity
         working-directory: frontend
         run: npm run check-locale-keys
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Strict unused checks (frontend + backend)
-        run: pip install -r backend/requirements-dev.txt && npm run check:unused:strict
       - name: Frontend build
         working-directory: frontend
         run: npm run build
-      - name: Frontend unit tests (with coverage)
+      - name: Frontend unit tests
         working-directory: frontend
-        run: npm test -- --coverage
-      - name: Upload frontend coverage
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: |
-            frontend/coverage/coverage-summary.json
-            frontend/coverage/lcov.info
-          retention-days: 7
-          if-no-files-found: warn
+        run: npm test
       - name: Install Playwright browsers
+        if: github.event_name == 'pull_request'
         working-directory: frontend
         run: npx playwright install --with-deps chromium
-      - name: Frontend E2E (Playwright)
+      - name: Frontend E2E smoke (Playwright)
+        if: github.event_name == 'pull_request'
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npm run test:e2e:smoke
+      - name: Install Playwright browsers (full)
+        if: github.event_name != 'pull_request'
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Frontend E2E (full)
+        if: github.event_name != 'pull_request'
         working-directory: frontend
         env:
           CI: "true"
         run: npm run test:e2e
 
   quality-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
       - name: Install backend dependencies
         working-directory: backend
         run: pip install --prefer-binary -r requirements.txt -r requirements-dev.txt
-      - name: pip-audit (backend)
-        continue-on-error: true
-        working-directory: backend
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt --desc on -f markdown -o pip-audit-report.md
-          cat pip-audit-report.md
       - name: Backend pytest (voice + job_service coverage)
         working-directory: backend
-        run: python -m pytest -q --cov=voice --cov=job_service --cov=health_checks --cov-fail-under=25 --cov-report=term --cov-report=xml
-      - name: Upload backend coverage
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: backend/coverage.xml
-          retention-days: 7
+        run: python -m pytest -q --cov=voice --cov=job_service --cov=health_checks --cov-fail-under=25 --cov-report=term
       - name: Sync crypto tests
         run: python -m pytest sync/tests -q
       - name: Classification eval (no Ollama)
@@ -116,47 +175,137 @@ jobs:
         run: python -m classify_eval.kpi_guardrails --sort-plan classify_eval/fixtures/baseline_sort_plan.csv --max-uncertain-rate 0.60 --max-error-rate 0.10 --max-p90-ms 5000
 
   quality-electron:
+    needs: changes
+    if: needs.changes.outputs.electron == 'true' || needs.changes.outputs.packaging == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - run: npm install
       - name: Electron integration + main-process command tests
         run: npm run test:electron
-      - name: npm audit (cloud-node, high+)
-        continue-on-error: true
-        working-directory: cloud-node
-        run: npm audit --audit-level=high
 
   quality-cloud:
+    needs: changes
+    if: needs.changes.outputs.cloud == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+          cache: npm
+          cache-dependency-path: cloud-node/package-lock.json
       - name: Cloud-node unit tests
         working-directory: cloud-node
         run: npm install && npm test
-      - name: Cloud auth verify (live API smoke)
-        # Optional on PRs/forks — needs reachable api.exosites.ch, not repo secrets.
-        continue-on-error: true
-        run: npm run verify:cloud-auth
 
-  quality:
-    needs: [quality-contract, quality-frontend, quality-backend, quality-electron, quality-cloud]
+  quality-sort-queue:
+    needs: changes
+    if: needs.changes.outputs.sort_queue == 'true'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "All quality gates passed"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: infra/llm/sort-queue/package-lock.json
+      - name: Sort-queue unit tests
+        working-directory: infra/llm/sort-queue
+        run: npm install && npm test
 
-  # ── Quality gates (lint, typecheck+build, pytest) ───────────────────────────
-  # (split into parallel jobs above; kept `quality` as aggregation for installers)
-  # ── Windows installer (.exe) ──────────────────────────────────────────────
+  quality:
+    needs:
+      [
+        changes,
+        quality-contract,
+        quality-frontend,
+        quality-backend,
+        quality-electron,
+        quality-cloud,
+        quality-sort-queue,
+      ]
+    if: |
+      always() &&
+      !cancelled() &&
+      needs.quality-contract.result == 'success' &&
+      (needs.quality-frontend.result == 'success' || needs.quality-frontend.result == 'skipped') &&
+      (needs.quality-backend.result == 'success' || needs.quality-backend.result == 'skipped') &&
+      (needs.quality-electron.result == 'success' || needs.quality-electron.result == 'skipped') &&
+      (needs.quality-cloud.result == 'success' || needs.quality-cloud.result == 'skipped') &&
+      (needs.quality-sort-queue.result == 'success' || needs.quality-sort-queue.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "All required quality gates passed (skipped path-filtered jobs are OK)"
+
+  # Thin Mac package + asar verify — PRs that touch packaging paths only (not every PR).
+  package-smoke-mac:
+    needs: [changes, quality]
+    if: |
+      always() &&
+      !cancelled() &&
+      github.event_name == 'pull_request' &&
+      (needs.quality.result == 'success' || needs.quality.result == 'skipped')
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - name: Skip (no packaging path changes)
+        if: needs.changes.outputs.packaging != 'true'
+        run: echo "Packaging paths unchanged — smoke skipped"
+
+      - uses: actions/checkout@v4
+        if: needs.changes.outputs.packaging == 'true'
+
+      - name: Set up Node.js
+        if: needs.changes.outputs.packaging == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Python
+        if: needs.changes.outputs.packaging == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install deps + build frontend
+        if: needs.changes.outputs.packaging == 'true'
+        run: |
+          npm install
+          npm install --prefix frontend
+          npm run build:frontend
+
+      - name: Build native backend + package Mac (no notarize)
+        if: needs.changes.outputs.packaging == 'true'
+        env:
+          EXO_MAC_UNIVERSAL: "0"
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          pip install --prefer-binary -r backend/requirements.txt pyinstaller
+          (cd backend && python -m PyInstaller backend.spec)
+          mkdir -p electron/resources
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then
+            cp backend/dist/backend electron/resources/backend-arm64
+          else
+            cp backend/dist/backend electron/resources/backend-x64
+          fi
+          bash scripts/prepare-release-resources.sh
+          npm run package:mac
+          node scripts/verify-packaged-app.cjs
+          node scripts/verify-packaged-preload.cjs
+
+  # ── Full installers: v* tags + workflow_dispatch only (not every PR) ────────
   build-windows:
     needs: quality
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -238,13 +387,10 @@ jobs:
             dist-installer/*.blockmap
           if-no-files-found: warn
 
-      - name: Windows build OK (artifacts skipped on branch pushes)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' }}
-        run: echo "Packaging succeeded; artifact upload runs on v* tags and workflow_dispatch only (saves Actions storage quota)."
-
   # ── macOS backend (Intel) — paired with arm64 slice in universal .dmg ─────────
   build-macos-backend-x64:
     needs: quality
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v4
@@ -281,6 +427,7 @@ jobs:
   # ── macOS installer (.dmg) ───────────────────────────────────────────────
   build-macos:
     needs: [quality, build-macos-backend-x64]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     timeout-minutes: 75
     # GitHub forbids `secrets.*` in step `if:` — mirror signing secrets into env first.
@@ -492,9 +639,19 @@ jobs:
             dist-installer/*.blockmap
           if-no-files-found: warn
 
-      - name: macOS build OK (artifacts skipped on branch pushes)
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'workflow_dispatch' }}
-        run: echo "Packaging succeeded; artifact upload runs on v* tags and workflow_dispatch only (saves Actions storage quota)."
+  # ── Release version contract (tags only) ────────────────────────────────────
+  validate-release-version:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Assert tag matches package / appVersion / CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/validate-release-version.mjs --version "$VERSION"
 
   # ── Production cloud auth (tags only) ───────────────────────────────────────
   verify-cloud-auth:
@@ -502,6 +659,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
 
       - name: Verify api.exosites.ch auth + GO SYNC relay
         run: npm run verify:cloud-auth
@@ -509,9 +671,12 @@ jobs:
       - name: Verify legal URLs (store blocker)
         run: npm run verify:legal-urls
 
-  # ── GitHub Release (tags v* only) ─────────────────────────────────────────
+      - name: Security posture regression gate
+        run: npm run verify:security-posture
+
+  # ── GitHub Release (tags v* only) — candidate / prerelease ─────────────────
   publish-release:
-    needs: [build-windows, build-macos, verify-cloud-auth]
+    needs: [build-windows, build-macos, verify-cloud-auth, validate-release-version]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -556,16 +721,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # ── Publish update feed to exosites.ch (tags v* only) ─────────────────────
-  # Uploads installers to exosites.ch **Web** hosting (exosites-agency docroot),
-  # NOT api.exosites.ch. GitHub secrets EXOSITES_DEPLOY_SSH_* must match
-  # exosites-agency SSH (e.g. YOUR_IK_ID_*.ftp.infomaniak.com), not the Node host.
-  publish-website:
-    needs: [build-windows, build-macos, verify-cloud-auth]
+  # ── Publish STAGING update feed (tags v* only) ────────────────────────────
+  # Candidates go to exo-assistant-staging/. Production feed is NOT updated here.
+  # Promote to prod: Phase 2 workflow (promote-desktop-feed) — see
+  # docs/runbooks/desktop-update-pipeline-checklist.md
+  # Web SSH secrets match exosites-agency (NOT api.exosites.ch Node host).
+  publish-staging:
+    needs: [build-windows, build-macos, verify-cloud-auth, validate-release-version]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    env:
-      EXOSITES_DEPLOY_SSH_HOST: ${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}
     steps:
       - name: Checkout (CHANGELOG for release notes)
         uses: actions/checkout@v4
@@ -582,15 +746,25 @@ jobs:
           name: EXO-macOS
           path: site-assets
 
-      - name: Flatten artifacts + write + sign latest.json
+      - name: Re-check version + latest-mac.yml
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          YML=$(find site-assets -name 'latest-mac.yml' | head -n 1)
+          if [ -n "$YML" ]; then
+            node scripts/validate-release-version.mjs --version "$VERSION" --latest-mac-yml "$YML"
+          else
+            node scripts/validate-release-version.mjs --version "$VERSION"
+            echo "::warning::latest-mac.yml not in artifacts — skipped yml version bind"
+          fi
+
+      - name: Flatten artifacts + write + sign staging latest.json
         env:
           UPDATE_FEED_PRIVATE_KEY_HEX: ${{ secrets.UPDATE_FEED_PRIVATE_KEY_HEX }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          BASE="https://exosites.ch/downloads/exo-assistant"
+          BASE="https://exosites.ch/downloads/exo-assistant-staging"
           mkdir -p publish
           find site-assets -type f -exec cp -f {} publish/ \;
-          # Escape changelog section into a single JSON string (newlines + quotes).
           NOTES=$(awk -v ver="$VERSION" '
             $0 ~ "^## \\[" ver "\\]" { f = 1; next }
             f && /^## \[/ { exit }
@@ -609,22 +783,34 @@ jobs:
             exit 1
           fi
           node tools/update-feed-keygen/sign-latest.cjs publish/latest.json
-          echo "Publishing:" && ls -1 publish && echo "---" && cat publish/latest.json
+          echo "Staging publish:" && ls -1 publish && echo "---" && cat publish/latest.json
 
-      - name: Upload to exosites.ch over SSH
-        if: env.EXOSITES_DEPLOY_SSH_HOST != ''
+      - name: Upload to staging over SSH (fail closed)
         env:
+          EXOSITES_DEPLOY_SSH_HOST: ${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}
+          EXOSITES_DEPLOY_SSH_USER: ${{ secrets.EXOSITES_DEPLOY_SSH_USER }}
           EXOSITES_DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.EXOSITES_DEPLOY_SSH_PRIVATE_KEY }}
+          EXOSITES_DOWNLOADS_STAGING_PATH: ${{ secrets.EXOSITES_DOWNLOADS_STAGING_PATH }}
         run: |
-          sudo apt-get update && sudo apt-get install -y rsync openssh-client
-          DEST="${{ secrets.EXOSITES_DEPLOY_SSH_USER }}@${{ secrets.EXOSITES_DEPLOY_SSH_HOST }}:${{ secrets.EXOSITES_DOWNLOADS_PATH }}"
+          set -euo pipefail
+          if [ -z "${EXOSITES_DEPLOY_SSH_HOST:-}" ] || [ -z "${EXOSITES_DEPLOY_SSH_USER:-}" ]; then
+            echo "::error::EXOSITES_DEPLOY_SSH_HOST and EXOSITES_DEPLOY_SSH_USER are required"
+            exit 1
+          fi
+          if [ -z "${EXOSITES_DOWNLOADS_STAGING_PATH:-}" ]; then
+            echo "::error::EXOSITES_DOWNLOADS_STAGING_PATH is required (e.g. ./sites/exosites.ch/downloads/exo-assistant-staging)"
+            exit 1
+          fi
           if [ -z "${EXOSITES_DEPLOY_SSH_PRIVATE_KEY:-}" ]; then
             echo "::error::EXOSITES_DEPLOY_SSH_PRIVATE_KEY is required (password/sshpass fallback removed)"
             exit 1
           fi
+          sudo apt-get update && sudo apt-get install -y rsync openssh-client
+          DEST="${EXOSITES_DEPLOY_SSH_USER}@${EXOSITES_DEPLOY_SSH_HOST}:${EXOSITES_DOWNLOADS_STAGING_PATH}"
           install -m 700 -d ~/.ssh
           KEY_FILE="$HOME/.ssh/exosites_downloads_deploy"
           printf '%s\n' "$EXOSITES_DEPLOY_SSH_PRIVATE_KEY" > "$KEY_FILE"
           chmod 600 "$KEY_FILE"
+          echo "Rsync staging → ${DEST}/"
           rsync -avz -e "ssh -i $KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
             publish/ "$DEST/"

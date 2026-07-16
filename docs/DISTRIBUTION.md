@@ -5,9 +5,15 @@
 - Installers are produced in CI ([`.github/workflows/build.yml`](../.github/workflows/build.yml)):
   - **Windows** — Inno Setup `.exe` (manual packager + Inno; **Authenticode not wired yet**)
   - **macOS** — universal `.dmg` + `.zip` (Intel + Apple Silicon) via electron-builder; **Developer ID + notarized** when Apple secrets are present (from **1.1.47+**)
-- Tag pushes (`v*`) attach installers to a GitHub **release** and rsync the update
-  feed to **`https://exosites.ch/downloads/exo-assistant/`** (`latest.json`,
-  `latest-mac.yml`, DMG/EXE).
+- Tag pushes (`v*`) attach installers to a GitHub **prerelease** and rsync the
+  update feed to **staging only**:
+  **`https://exosites.ch/downloads/exo-assistant-staging/`** (`latest.json`,
+  `latest-mac.yml`, DMG/EXE). Production
+  **`https://exosites.ch/downloads/exo-assistant/`** is updated only via an
+  explicit promote via [Promote desktop feed](../.github/workflows/promote-desktop-feed.yml)
+  (see [desktop-update-promote.md](./runbooks/desktop-update-promote.md)).
+- Tag CI runs `npm run verify:release-version` so tag/`package.json`/
+  `appVersion`/`installer.iss`/CHANGELOG stay aligned before publish.
 - **Auto-updates** (`electron/autoUpdater.js`):
   - **macOS (packaged):** electron-updater **generic** provider against
     `EXOSITES_UPDATE_FEED_URL` (default `https://exosites.ch/downloads/exo-assistant`),
@@ -17,6 +23,8 @@
   - **Windows:** no electron-updater self-update — opens the download page /
     `latest.json` URL in the browser.
   - Dev builds and unreachable feeds no-op safely.
+  - QA / staging smoke: point `EXOSITES_UPDATE_FEED_URL` at
+    `https://exosites.ch/downloads/exo-assistant-staging`.
 - **Windows builds remain unsigned** (SmartScreen may warn). Mac public builds
   from 1.1.47+ are notarized. End users: [INSTALL.md](INSTALL.md). Certificate
   status: [runbooks/signing-secrets-inventory.md](runbooks/signing-secrets-inventory.md).
@@ -87,15 +95,17 @@ Tag `publish-website` **fails** if the private key secret is missing.
 
 ## Auto-update operational notes
 
-- **Feed host:** `https://exosites.ch/downloads/exo-assistant/` (not GitHub Releases).
-  `package.json` `build.publish` / GitHub provider is unused by the runtime updater
-  (`--publish never` in CI).
+- **Stable feed (users):** `https://exosites.ch/downloads/exo-assistant/`
+- **Staging feed (candidates):** `https://exosites.ch/downloads/exo-assistant-staging/`
+  — written by tag job `publish-staging` (`EXOSITES_DOWNLOADS_STAGING_PATH`).
+- Neither feed uses GitHub Releases at runtime.
+  `package.json` `build.publish` / GitHub provider is unused (`--publish never` in CI).
 - Legacy path `/downloads/ai-file-manager/` **301-redirects** to `exo-assistant`.
 - Compromise of Infomaniak deploy credentials or the downloads directory can
   replace feed files — mitigated by Mac notarization (M1a), signed `latest.json`
   (M1c.1), Developer ID gate on self-update (M1c.2), and SSH key deploy (M1c.3).
-- Prefer GitHub secret `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` (PEM). CI fails closed
-  if the key is missing (password/`sshpass` fallback removed).
+- Prefer GitHub secret `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` (PEM). Staging publish
+  fails closed if SSH host/user/key or `EXOSITES_DOWNLOADS_STAGING_PATH` is missing.
 - Unsigned macOS builds cannot auto-update (self-update requires Developer ID).
 - Windows does not self-update via electron-updater today.
 - **Packaging:** `package.json` excludes `node_modules/**` from the asar by default.

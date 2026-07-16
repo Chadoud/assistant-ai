@@ -9,7 +9,9 @@
 |--------|--------|
 | `EXOSITES_DEPLOY_SSH_HOST` / `_USER` | Infomaniak **Web** SSH (downloads rsync) |
 | `EXOSITES_DEPLOY_SSH_PRIVATE_KEY` | Ed25519 PEM for downloads rsync (M1c.3) — local `~/.ssh/exosites_downloads_deploy` |
-| `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/exo-assistant` |
+| `EXOSITES_DOWNLOADS_PATH` | `./sites/exosites.ch/downloads/exo-assistant` (prod — promote only) |
+| `EXOSITES_DOWNLOADS_STAGING_PATH` | `./sites/exosites.ch/downloads/exo-assistant-staging` (tag CI) |
+| `EXOSITES_DOWNLOADS_LKG_PATH` | `./sites/exosites.ch/downloads/exo-assistant-lkg` (optional; CI has default) |
 | `GMAIL_OAUTH_CLIENT_JSON_B64` | Bundled OAuth client |
 | `MAC_CSC_LINK` | Developer ID `.p12` (base64) — exported from local Keychain 2026-07-15 |
 | `MAC_CSC_KEY_PASSWORD` | PKCS12 password for above |

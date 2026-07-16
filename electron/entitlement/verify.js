@@ -1,3 +1,4 @@
+const { loadEd25519 } = require("../crypto/ed25519");
 const { LICENSE_PREFIX, PRODUCT_SLUG } = require("./constants");
 const { getMachineFingerprint } = require("./machineId");
 const { EMBEDDED_LICENSE_PUBLIC_KEY_HEX } = require("./embeddedPublicKey");
@@ -52,8 +53,11 @@ async function verifyLicenseKey(licenseKey) {
     return { ok: false, reason: "sig_len" };
   }
   const pub = Uint8Array.from(Buffer.from(EMBEDDED_LICENSE_PUBLIC_KEY_HEX, "hex"));
-  const ed = await import("@noble/ed25519");
-  const ok = await ed.verifyAsync(Uint8Array.from(sig), message, pub);
+  const loaded = await loadEd25519();
+  if (!loaded.ok) {
+    return { ok: false, reason: loaded.reason || "crypto_unavailable" };
+  }
+  const ok = await loaded.ed.verifyAsync(Uint8Array.from(sig), message, pub);
   if (!ok) {
     return { ok: false, reason: "sig_verify" };
   }

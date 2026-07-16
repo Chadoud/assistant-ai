@@ -98,6 +98,18 @@ Tag `publish-website` **fails** if the private key secret is missing.
   if the key is missing (password/`sshpass` fallback removed).
 - Unsigned macOS builds cannot auto-update (self-update requires Developer ID).
 - Windows does not self-update via electron-updater today.
+- **Packaging:** `package.json` excludes `node_modules/**` from the asar by default.
+  Runtime packages needed in the packaged app (today: `electron-updater`,
+  `@noble/ed25519`) are listed in `REQUIRED_ASAR_PACKAGES`
+  ([`scripts/lib/updater-packaging.cjs`](../scripts/lib/updater-packaging.cjs)).
+  **If you add a new `import("dependency")` in Electron main, add that package to
+  `REQUIRED_ASAR_PACKAGES` in the same PR.** CI / `npm run test:electron` runs
+  `assertDynamicImportsCovered()`; `npm run package:mac` runs
+  `verify-packaged-app` which fails if `@noble/ed25519` is missing from `app.asar`.
+- **Windows manual packager** (`scripts/package-app.js`) still packs asar without
+  `node_modules`. Redirect-only Windows updates do not need `electron-updater` at
+  runtime; if license / feed verify runs on Windows, stage the same
+  `REQUIRED_ASAR_PACKAGES` into the asar (or accept `crypto_unavailable` soft-fail).
 
 Keep [`package.json`](../package.json), [`frontend/package.json`](../frontend/package.json),
 `frontend/src/appVersion.ts`, and `installer.iss` versions aligned (see

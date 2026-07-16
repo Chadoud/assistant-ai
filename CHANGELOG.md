@@ -6,6 +6,14 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Updater:** Missing Ed25519 (`@noble/ed25519`) in a packaged app no longer surfaces a background-error dialog; update checks soft-fail and retry with backoff. Packaged builds require `@noble/ed25519` in `app.asar` (verified by `package:mac`).
+
+### Changed
+
+- Update checks are deferred after startup, deduped in-flight, use ETag/304 when possible, and back off on network/signature failures.
+
 ## [1.1.49] - 2026-07-15
 
 ### Security

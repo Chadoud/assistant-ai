@@ -1,6 +1,8 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 
 const { canonicalUpdateFeedPayload, compareVersions } = require("./canonical");
 const { verifyUpdateFeed } = require("./verify");
@@ -110,4 +112,48 @@ test("isDeveloperIdSigned parses codesign Authority lines", () => {
     }),
     false
   );
+});
+
+test("verifyUpdateFeed returns crypto_unavailable when loader fails", async () => {
+  const edPath = require.resolve("../crypto/ed25519");
+  const verifyPath = require.resolve("./verify");
+  const previousEd = require.cache[edPath];
+  const previousVerify = require.cache[verifyPath];
+  require.cache[edPath] = {
+    id: edPath,
+    filename: edPath,
+    loaded: true,
+    exports: {
+      loadEd25519: async () => ({ ok: false, reason: "crypto_unavailable" }),
+    },
+  };
+  delete require.cache[verifyPath];
+  try {
+    const { verifyUpdateFeed: verifyFresh } = require("./verify");
+    const v = await verifyFresh({
+      version: "1.0.0",
+      notes: "n",
+      mac: "m",
+      windows: "w",
+      sig: Buffer.alloc(64).toString("base64url"),
+    });
+    assert.equal(v.ok, false);
+    assert.equal(v.reason, "crypto_unavailable");
+  } finally {
+    if (previousEd) require.cache[edPath] = previousEd;
+    else delete require.cache[edPath];
+    if (previousVerify) require.cache[verifyPath] = previousVerify;
+    else delete require.cache[verifyPath];
+  }
+});
+
+test("fixture signed latest.json verifies offline (no network)", async () => {
+  const fixturePath = path.join(__dirname, "fixtures", "latest.signed.json");
+  const fromDisk = JSON.parse(fs.readFileSync(fixturePath, "utf8"));
+  assert.equal(typeof fromDisk.sig, "string");
+  assert.ok(fromDisk.sig.length > 20);
+  const v = await verifyUpdateFeed(fromDisk, {
+    publicKeyHex: EMBEDDED_UPDATE_FEED_PUBLIC_KEY_HEX,
+  });
+  assert.equal(v.ok, true);
 });

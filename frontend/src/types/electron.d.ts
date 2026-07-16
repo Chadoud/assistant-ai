@@ -227,7 +227,13 @@ export interface ElectronAPI {
    * Returns an unsubscribe function.
    */
   onMainProcessError: (
-    handler: (payload: { kind?: string; message?: string; stack?: string | null }) => void
+    handler: (payload: {
+      kind?: string;
+      message?: string;
+      stack?: string | null;
+      /** Expected updater/crypto noise — renderer should skip toast. */
+      benign?: boolean;
+    }) => void
   ) => () => void;
   /** Main process gave up waiting for the local Python service during cold start. */
   onBackendStartupFailed: (handler: () => void) => () => void;

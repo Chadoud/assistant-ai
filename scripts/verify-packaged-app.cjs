@@ -12,7 +12,10 @@ const path = require("path");
 
 const { findPackagedMacApp } = require("./find-packaged-mac-app.cjs");
 const { isUniversalBuild, verifyBackendSlices } = require("./lib/mac-packaging.cjs");
-const { verifyElectronUpdaterInAsar } = require("./lib/updater-packaging.cjs");
+const {
+  verifyElectronUpdaterInAsar,
+  assertDynamicImportsCovered,
+} = require("./lib/updater-packaging.cjs");
 
 const ROOT = path.join(__dirname, "..");
 const arg = process.argv[2];
@@ -67,6 +70,9 @@ function verifyMacBackendSlices(resourcesDir) {
 }
 
 let failed = false;
+
+// Fail closed if Electron main gained a dynamic import without an asar packaging entry.
+if (!assertDynamicImportsCovered().ok) failed = true;
 
 if (!fs.existsSync(resourcesDir)) {
   console.error(`[verify-packaged-app] Resources not found: ${resourcesDir}`);

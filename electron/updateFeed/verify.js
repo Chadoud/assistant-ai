@@ -1,3 +1,4 @@
+const { loadEd25519 } = require("../crypto/ed25519");
 const { canonicalUpdateFeedPayload } = require("./canonical");
 const { EMBEDDED_UPDATE_FEED_PUBLIC_KEY_HEX } = require("./embeddedPublicKey");
 
@@ -50,8 +51,12 @@ async function verifyUpdateFeed(feed, opts = {}) {
     return { ok: false, reason: "canonical" };
   }
 
-  const ed = await import("@noble/ed25519");
-  const ok = await ed.verifyAsync(Uint8Array.from(sig), message, pub);
+  const loaded = await loadEd25519();
+  if (!loaded.ok) {
+    // Packaged builds must include @noble/ed25519 in app.asar (see updater-packaging.cjs).
+    return { ok: false, reason: loaded.reason || "crypto_unavailable" };
+  }
+  const ok = await loaded.ed.verifyAsync(Uint8Array.from(sig), message, pub);
   if (!ok) {
     return { ok: false, reason: "sig_verify" };
   }

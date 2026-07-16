@@ -1,0 +1,7 @@
+{
+  "version": "1.1.48",
+  "notes": "fixture for offline verify tests",
+  "mac": "https://exosites.ch/downloads/exo-assistant/Exo.dmg",
+  "windows": "https://exosites.ch/downloads/exo-assistant/Exo%20Setup.exe",
+  "sig": "RH9GHmQ3or8jT_a6ijpvTeRAdmEpdKNs1pH2H3BYC8OC4hxpEWHq0_DDJS13LESTBVXCCOAnLTbG-bS8v2y0DA"
+}

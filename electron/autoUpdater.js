@@ -15,16 +15,23 @@
  * Integrity (M1c): packaged clients require a valid Ed25519 `sig` on latest.json.
  * Mac self-update additionally requires the running app to be Developer ID–signed.
  *
- * Defensive by design: missing feed / offline / bad signature / dev build must never
- * throw or block startup.
+ * Defensive by design: missing feed / offline / bad signature / missing crypto / dev build
+ * must never throw or block startup. Fail closed for updates; fail open for the product.
  */
 
+const fs = require("fs");
+const path = require("path");
 const { ipcMain, shell, app } = require("electron");
-const https = require("https");
 const state = require("./state");
 const { compareVersions } = require("./updateFeed/canonical");
 const { verifyUpdateFeed } = require("./updateFeed/verify");
 const { isDeveloperIdSigned } = require("./updateFeed/isDeveloperIdSigned");
+const { fetchFeed } = require("./autoUpdater/fetchFeed");
+const {
+  nextBackoffMs,
+  withJitter,
+  applyFeedToState,
+} = require("./autoUpdater/helpers");
 
 const FEED_BASE = (
   process.env.EXOSITES_UPDATE_FEED_URL || "https://exosites.ch/downloads/exo-assistant"
@@ -35,18 +42,29 @@ const DOWNLOAD_PAGE_URL =
   "https://exosites.ch/eng/projects/exo-ai";
 
 const RECHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-const FETCH_TIMEOUT_MS = 10_000;
+const FIRST_CHECK_DELAY_MS = 30_000;
+/** Retry interval while first-launch setup window is still open. */
+const SETUP_RETRY_MS = 60_000;
 /** Brief pause so the UI can show "Restarting…" before quitAndInstall. */
 const AUTO_INSTALL_DELAY_MS = 2000;
 
 let started = false;
 let macUpdater = null;
 let autoInstallTimer = null;
+let scheduleTimer = null;
 /** Cached Developer ID check for the running .app (packaged Mac only). */
 let runningAppDeveloperIdSigned = null;
 
+/** In-flight check promise for dedupe (manual + scheduled join the same work). */
+let checkPromise = null;
+/** Consecutive check failures; success resets to 0. */
+let failCount = 0;
+/** Cached validators for conditional GET. */
+let feedCache = { etag: null, lastModified: null };
+
 /**
  * Latest snapshot the renderer can read on mount (events may fire before the UI exists).
+ * status: idle | checking | up-to-date | available | downloading | downloaded | installing | error
  * @type {{ status: string, version: string|null, notes: string|null, canSelfUpdate: boolean, downloadUrl: string|null, progress: number|null, error: string|null }}
  */
 let lastState = {
@@ -70,6 +88,56 @@ function clearAutoInstallTimer() {
   if (autoInstallTimer) {
     clearTimeout(autoInstallTimer);
     autoInstallTimer = null;
+  }
+}
+
+function clearScheduleTimer() {
+  if (scheduleTimer) {
+    clearTimeout(scheduleTimer);
+    scheduleTimer = null;
+  }
+}
+
+function feedCachePath() {
+  try {
+    return path.join(app.getPath("userData"), "update-feed-cache.json");
+  } catch {
+    return null;
+  }
+}
+
+function loadFeedCacheFromDisk() {
+  const p = feedCachePath();
+  if (!p) return;
+  try {
+    if (!fs.existsSync(p)) return;
+    const raw = JSON.parse(fs.readFileSync(p, "utf8"));
+    if (raw && typeof raw === "object") {
+      feedCache = {
+        etag: typeof raw.etag === "string" ? raw.etag : null,
+        lastModified: typeof raw.lastModified === "string" ? raw.lastModified : null,
+      };
+    }
+  } catch {
+    /* ignore corrupt cache */
+  }
+}
+
+function persistFeedCache() {
+  const p = feedCachePath();
+  if (!p) return;
+  try {
+    fs.writeFileSync(
+      p,
+      JSON.stringify({
+        etag: feedCache.etag,
+        lastModified: feedCache.lastModified,
+        savedAt: Date.now(),
+      }),
+      "utf8"
+    );
+  } catch {
+    /* best-effort */
   }
 }
 
@@ -108,6 +176,14 @@ function isMac() {
   return process.platform === "darwin";
 }
 
+function setupWindowActive() {
+  return Boolean(state.setupWindow && !state.setupWindow.isDestroyed());
+}
+
+function mainWindowReady() {
+  return Boolean(state.mainWindow && !state.mainWindow.isDestroyed());
+}
+
 function ensureRunningAppDeveloperIdSigned() {
   if (runningAppDeveloperIdSigned != null) return runningAppDeveloperIdSigned;
   if (!isMac() || !app.isPackaged) {
@@ -131,35 +207,6 @@ function canSelfUpdateMac() {
   );
 }
 
-function fetchJson(url) {
-  return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: FETCH_TIMEOUT_MS }, (res) => {
-      if (res.statusCode && res.statusCode >= 300) {
-        res.resume();
-        reject(new Error(`HTTP ${res.statusCode}`));
-        return;
-      }
-      let raw = "";
-      res.setEncoding("utf8");
-      res.on("data", (chunk) => {
-        raw += chunk;
-        if (raw.length > 64_000) {
-          req.destroy(new Error("response too large"));
-        }
-      });
-      res.on("end", () => {
-        try {
-          resolve(JSON.parse(raw));
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-    req.on("timeout", () => req.destroy(new Error("timeout")));
-    req.on("error", reject);
-  });
-}
-
 /** Pick the platform-specific download URL from latest.json, falling back to the page. */
 function downloadUrlFor(feed) {
   const key = isMac() ? "mac" : "windows";
@@ -169,71 +216,178 @@ function downloadUrlFor(feed) {
 
 /**
  * Packaged: require valid sig. Dev: if sig present, verify; if absent, allow (local UI).
+ * Never throws.
  * @param {object} feed
  * @returns {Promise<boolean>}
  */
 async function feedSignatureAcceptable(feed) {
-  const hasSig = feed && typeof feed.sig === "string" && feed.sig.trim();
-  if (app.isPackaged) {
+  try {
+    const hasSig = feed && typeof feed.sig === "string" && feed.sig.trim();
+    if (app.isPackaged) {
+      const v = await verifyUpdateFeed(feed);
+      if (!v.ok) {
+        console.warn("[updater] latest.json signature rejected:", v.reason || "invalid");
+        return false;
+      }
+      return true;
+    }
+    if (!hasSig) return true;
     const v = await verifyUpdateFeed(feed);
     if (!v.ok) {
-      console.warn("[updater] latest.json signature rejected:", v.reason || "invalid");
+      console.warn("[updater] latest.json signature rejected (dev):", v.reason || "invalid");
       return false;
     }
     return true;
-  }
-  if (!hasSig) return true;
-  const v = await verifyUpdateFeed(feed);
-  if (!v.ok) {
-    console.warn("[updater] latest.json signature rejected (dev):", v.reason || "invalid");
+  } catch (err) {
+    console.warn("[updater] signature check failed:", err && err.message);
     return false;
   }
-  return true;
 }
 
-async function checkLatestJson() {
-  setState({ status: "checking", error: null });
-  let feed;
+/**
+ * @param {number} baseMs
+ * @param {string} label
+ */
+function armSchedule(baseMs, label) {
+  clearScheduleTimer();
+  const delay = withJitter(baseMs);
+  scheduleTimer = setTimeout(() => {
+    scheduleTimer = null;
+    void checkLatestJson({ reason: "schedule" }).catch((err) => {
+      console.warn("[updater] scheduled check failed:", err && err.message);
+    });
+  }, delay);
   try {
-    feed = await fetchJson(LATEST_JSON_URL);
+    scheduleTimer.unref?.();
+  } catch {
+    /* ignore */
+  }
+  console.warn(`[updater] next check in ${delay}ms (${label} failCount=${failCount})`);
+}
+
+/**
+ * Schedule the next automatic check. Success → 6h + jitter; failure → backoff + jitter.
+ * @param {"success"|"failure"|"setup"} outcome
+ */
+function scheduleNextCheck(outcome) {
+  if (outcome === "setup") {
+    armSchedule(SETUP_RETRY_MS, "outcome=setup");
+    return;
+  }
+  const baseMs =
+    outcome === "success" ? RECHECK_INTERVAL_MS : nextBackoffMs(failCount);
+  armSchedule(baseMs, `outcome=${outcome}`);
+}
+
+/**
+ * @param {{ manual?: boolean, reason?: string }} [opts]
+ */
+async function checkLatestJsonInner(opts = {}) {
+  const reason = opts.reason || (opts.manual ? "manual" : "auto");
+
+  // During first-launch setup, skip automatic checks (manual still runs).
+  if (!opts.manual && setupWindowActive()) {
+    console.warn(`[updater] check result=skipped reason=setup_window`);
+    scheduleNextCheck("setup");
+    return;
+  }
+
+  setState({ status: "checking", error: null });
+
+  let result;
+  try {
+    result = await fetchFeed(LATEST_JSON_URL, {
+      etag: feedCache.etag,
+      lastModified: feedCache.lastModified,
+    });
   } catch (err) {
-    // Offline / no feed yet — not an error worth surfacing to the user.
+    failCount += 1;
     setState({ status: "idle", error: null });
+    console.warn(
+      `[updater] check result=network_error reason=${reason} message=${err && err.message} backoffMs=${nextBackoffMs(failCount)}`
+    );
+    scheduleNextCheck("failure");
     return;
   }
 
+  if (result.etag) feedCache.etag = result.etag;
+  if (result.lastModified) feedCache.lastModified = result.lastModified;
+  persistFeedCache();
+
+  if (result.notModified) {
+    failCount = 0;
+    if (lastState.status !== "available" && lastState.status !== "downloading" && lastState.status !== "downloaded" && lastState.status !== "installing") {
+      setState({ status: "up-to-date", error: null });
+    }
+    console.warn(`[updater] check result=not_modified reason=${reason} backoffMs=${RECHECK_INTERVAL_MS}`);
+    scheduleNextCheck("success");
+    return;
+  }
+
+  const feed = result.feed;
   if (!(await feedSignatureAcceptable(feed))) {
+    failCount += 1;
     setState({ status: "idle", error: null });
+    console.warn(
+      `[updater] check result=sig_reject reason=${reason} backoffMs=${nextBackoffMs(failCount)}`
+    );
+    scheduleNextCheck("failure");
     return;
   }
 
-  const remoteVersion = feed && typeof feed.version === "string" ? feed.version.trim() : "";
-  if (!remoteVersion) {
-    setState({ status: "idle" });
+  const applied = applyFeedToState(
+    feed,
+    app.getVersion(),
+    compareVersions,
+    canSelfUpdateMac,
+    downloadUrlFor
+  );
+
+  if (applied.status === "available") {
+    failCount = 0;
+    setState(applied);
+    sendToRenderer("update:available", {
+      version: lastState.version,
+      notes: lastState.notes,
+      canSelfUpdate: lastState.canSelfUpdate,
+      downloadUrl: lastState.downloadUrl,
+    });
+    console.warn(
+      `[updater] check result=available reason=${reason} version=${lastState.version} backoffMs=${RECHECK_INTERVAL_MS}`
+    );
+    scheduleNextCheck("success");
     return;
   }
 
-  const current = app.getVersion();
-  if (compareVersions(remoteVersion, current) <= 0) {
-    setState({ status: "up-to-date", version: remoteVersion });
-    return;
-  }
+  failCount = 0;
+  setState(applied);
+  console.warn(
+    `[updater] check result=${applied.status} reason=${reason} backoffMs=${RECHECK_INTERVAL_MS}`
+  );
+  scheduleNextCheck("success");
+}
 
-  setState({
-    status: "available",
-    version: remoteVersion,
-    notes: typeof feed.notes === "string" ? feed.notes : null,
-    canSelfUpdate: canSelfUpdateMac(),
-    downloadUrl: downloadUrlFor(feed),
-    progress: null,
-    error: null,
-  });
-  sendToRenderer("update:available", {
-    version: lastState.version,
-    notes: lastState.notes,
-    canSelfUpdate: lastState.canSelfUpdate,
-    downloadUrl: lastState.downloadUrl,
-  });
+/**
+ * Public check entry — never throws; dedupes concurrent callers.
+ * @param {{ manual?: boolean, reason?: string }} [opts]
+ */
+function checkLatestJson(opts = {}) {
+  if (checkPromise) return checkPromise;
+  checkPromise = (async () => {
+    try {
+      await checkLatestJsonInner(opts);
+    } catch (err) {
+      failCount += 1;
+      setState({ status: "idle", error: null });
+      console.warn(
+        `[updater] check result=unexpected reason=${opts.reason || "auto"} message=${err && err.message} backoffMs=${nextBackoffMs(failCount)}`
+      );
+      scheduleNextCheck("failure");
+    } finally {
+      checkPromise = null;
+    }
+  })();
+  return checkPromise;
 }
 
 function setupMacUpdater() {
@@ -284,6 +438,7 @@ function setupMacUpdater() {
 
 /**
  * Start the update checks. Safe to call unconditionally.
+ * Packaged: first check deferred 30s (and skipped while setup window is active).
  * @param {import("electron").App} _app
  */
 function initAutoUpdates(_app) {
@@ -291,6 +446,7 @@ function initAutoUpdates(_app) {
   started = true;
 
   setupMacUpdater();
+  loadFeedCacheFromDisk();
 
   // Dev convenience: simulate an available update so the modal can be exercised.
   if (!app.isPackaged && process.env.EXOSITES_UPDATE_DEV_SIMULATE === "1") {
@@ -312,15 +468,40 @@ function initAutoUpdates(_app) {
     return;
   }
 
-  void checkLatestJson();
-  setInterval(() => void checkLatestJson(), RECHECK_INTERVAL_MS).unref();
+  const startChecks = () => {
+    void checkLatestJson({ reason: "startup" }).catch((err) => {
+      console.warn("[updater] startup check failed:", err && err.message);
+    });
+  };
+
+  if (app.isPackaged) {
+    // Defer until after main UI is up; skip entirely while setup is showing.
+    const timer = setTimeout(() => {
+      if (setupWindowActive()) {
+        console.warn("[updater] deferred check skipped — setup window active");
+        scheduleNextCheck("setup");
+        return;
+      }
+      if (!mainWindowReady()) {
+        console.warn("[updater] deferred check — main window not ready yet, checking anyway");
+      }
+      startChecks();
+    }, FIRST_CHECK_DELAY_MS);
+    try {
+      timer.unref?.();
+    } catch {
+      /* ignore */
+    }
+  } else {
+    startChecks();
+  }
 }
 
 function registerUpdateHandlers() {
   ipcMain.handle("update:getState", () => lastState);
 
   ipcMain.handle("update:check", async () => {
-    await checkLatestJson();
+    await checkLatestJson({ manual: true, reason: "manual" });
     return { ok: true, status: lastState.status };
   });
 
@@ -365,4 +546,10 @@ function registerUpdateHandlers() {
   });
 }
 
-module.exports = { initAutoUpdates, registerUpdateHandlers };
+module.exports = {
+  initAutoUpdates,
+  registerUpdateHandlers,
+  // Test / diagnostics seams
+  checkLatestJson,
+  NEXT_BACKOFF: { RECHECK_INTERVAL_MS, FIRST_CHECK_DELAY_MS },
+};

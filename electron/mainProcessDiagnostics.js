@@ -11,6 +11,8 @@
  *   3. Shows a throttled, friendly dialog so the user isn't left staring at a frozen UI.
  *
  * It never re-throws and never force-quits: a single stray rejection shouldn't kill the app.
+ *
+ * Expected updater/crypto packaging noise is classified as benign (log only, no dialog/toast).
  */
 
 const { app, dialog, crashReporter } = require("electron");
@@ -21,6 +23,26 @@ const { appendMainDiagnosticLine, getRendererDiagnosticsLogPath } = require("./r
 const DIALOG_THROTTLE_MS = 10000;
 let lastDialogAt = 0;
 let installed = false;
+
+/** Patterns for expected updater / crypto packaging noise — never surface a dialog. */
+const BENIGN_BACKGROUND_PATTERNS = [
+  /@noble\/ed25519/i,
+  /crypto_unavailable/i,
+  /cannot find package ['"]@noble\/ed25519['"]/i,
+  /\[updater\].*(sig_reject|crypto|network_error|signature rejected)/i,
+  /latest\.json signature rejected/i,
+  /electron-updater unavailable/i,
+];
+
+/**
+ * @param {string} message
+ * @returns {boolean}
+ */
+function isBenignBackgroundError(message) {
+  const text = String(message || "");
+  if (!text.trim()) return false;
+  return BENIGN_BACKGROUND_PATTERNS.some((re) => re.test(text));
+}
 
 /** Reduce any thrown value to a `{ message, stack }` pair safe to log and relay. */
 function normalizeError(value) {
@@ -34,7 +56,7 @@ function normalizeError(value) {
 }
 
 /** Relay to the renderer so it can report (respecting the user's Privacy opt-in) and toast. */
-function relayToRenderer(kind, normalized) {
+function relayToRenderer(kind, normalized, { benign = false } = {}) {
   const win = state.mainWindow;
   if (!win || win.isDestroyed()) return;
   try {
@@ -42,6 +64,7 @@ function relayToRenderer(kind, normalized) {
       kind,
       message: normalized.message,
       stack: normalized.stack,
+      benign,
     });
   } catch {
     /* renderer not ready — local log already has it */
@@ -88,16 +111,26 @@ function maybeShowDialog(normalized) {
 
 function handle(kind, value) {
   const normalized = normalizeError(value);
-  appendMainDiagnosticLine({ event: kind, message: normalized.message, stack: normalized.stack });
+  const benign = isBenignBackgroundError(normalized.message);
+  appendMainDiagnosticLine({
+    event: kind,
+    message: normalized.message,
+    stack: normalized.stack,
+    benign,
+  });
   // eslint-disable-next-line no-console
-  console.error(`[main-diagnostics] ${kind}:`, normalized.message);
+  console.error(`[main-diagnostics] ${kind}${benign ? " (benign)" : ""}:`, normalized.message);
+  if (benign) {
+    // Safety net only — Phase 1 should prevent updater crypto failures from reaching here.
+    return;
+  }
   try {
     const { deleteMaterializedGmailOAuthMirror } = require("./gmailOAuthMirrorStore");
     deleteMaterializedGmailOAuthMirror(app.getPath("userData"));
   } catch {
     /* best-effort wipe of ephemeral gmail mirror (M2.4) */
   }
-  relayToRenderer(kind, normalized);
+  relayToRenderer(kind, normalized, { benign: false });
   maybeShowDialog(normalized);
 }
 
@@ -134,4 +167,8 @@ function installMainProcessGuards() {
   });
 }
 
-module.exports = { installMainProcessGuards, normalizeError };
+module.exports = {
+  installMainProcessGuards,
+  normalizeError,
+  isBenignBackgroundError,
+};

@@ -37,6 +37,8 @@ function toastIdFor(message: string): string {
 type MainProcessErrorPayload = {
   message?: string;
   stack?: string | null;
+  /** Main classified expected updater/crypto noise — log/report only, no toast. */
+  benign?: boolean;
 };
 
 /**
@@ -93,6 +95,7 @@ export function useGlobalErrorToasts(uiLocale: UiLocale): void {
     // Electron main-process crashes are relayed here: report them (renderer respects
     // opt-in and owns the DB/Sentry path) and tell the user the background service hiccuped.
     const onMainError = (payload: MainProcessErrorPayload) => {
+      if (payload?.benign) return;
       const message = (payload?.message || "Background service error").slice(0, 300);
       reportHandledError("main_process", new Error(message), payload?.stack ?? undefined);
       const now = Date.now();

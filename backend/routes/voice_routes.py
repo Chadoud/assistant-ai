@@ -38,6 +38,7 @@ from voice.briefing import (
     resolve_startup_briefing_mode,
     stream_briefing_sections,
 )
+from voice.model import GEMINI_VOICE_MODEL_DEFAULT, resolve_gemini_voice_model
 from voice.observability import log_voice_event
 from voice.pending_delete_sync import PendingDeleteSyncHolder, pending_delete_blocks_briefing
 from voice_briefing_consent import (
@@ -51,7 +52,7 @@ from voice_briefing_gate import (
     clear_voice_briefing_gate,
 )
 from voice_instructions import CORE_PROTOCOL
-from voice_session import GEMINI_VOICE_MODEL_DEFAULT, resolve_gemini_voice_model, run_voice_session
+from voice_session import run_voice_session
 from voice_session_bootstrap import consume_voice_session_provider, prime_voice_session_provider
 from voice_tool_approval import VoiceToolApprovalWaiter
 from voice_ws_auth import authenticate_voice_websocket

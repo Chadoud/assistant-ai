@@ -27,7 +27,10 @@ from provider_context import ProviderContextHolder
 # Re-export tool helpers for tests and backward compatibility.
 from tool_registry import dispatch_sync  # noqa: E402, F401, I001
 from voice.gemini_session import run_gemini_live_session
-from voice.model import resolve_gemini_voice_model
+from voice.model import (  # noqa: F401
+    GEMINI_VOICE_MODEL_DEFAULT,
+    resolve_gemini_voice_model,
+)
 from voice.pending_delete_sync import PendingDeleteSyncHolder
 from voice.tool_args import (  # noqa: E402, I001
     enrich_voice_tool_args as _enrich_voice_tool_args,  # noqa: F401

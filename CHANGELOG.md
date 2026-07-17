@@ -6,6 +6,12 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.52] - 2026-07-17
+
+### Fixed
+
+- **CI:** Re-export `GEMINI_VOICE_MODEL_DEFAULT` from `voice_session` (ruff had stripped it) so backend pytest collection succeeds.
+
 ## [1.1.51] - 2026-07-17
 
 ### Fixed

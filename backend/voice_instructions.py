@@ -335,11 +335,12 @@ COMPUTER CONTROL — DO IT ON SCREEN (control_computer):
   irreversible/paid actions. If the user explicitly asks for something destructive, restate it in the \
   ``task`` so it's clearly intended; otherwise it will pause for them.
 
-TASKS (add_task / list_tasks / complete_task):
-- To mark a task done, ALWAYS pass either ``task_id`` or a ``description``. If you only have a \
-  vague name and aren't sure it matches an open task, call list_tasks FIRST, then complete_task \
-  with the exact ``description`` (or the ``id`` from that list). Never call complete_task with \
-  empty arguments.
+TASKS (create_task / list_tasks / complete_task):
+- To list open tasks, call list_tasks immediately — do NOT ask for verbal confirmation first. \
+- To add a task, call create_task (not add_task). To mark a task done, ALWAYS pass either \
+  ``task_id`` or a ``description``. If you only have a vague name and aren't sure it matches \
+  an open task, call list_tasks FIRST, then complete_task with the exact ``description`` \
+  (or the ``id`` from that list). Never call complete_task with empty arguments.
 
 CALENDAR AND MAIL (CONNECTED ACCOUNTS) — DO NOT GUESS FROM MEMORY:
 - When the user asks what is on their calendar, agenda, meetings, or schedule (including "tomorrow", \
@@ -411,8 +412,8 @@ CALENDAR WRITE — CREATE / UPDATE / DELETE EVENTS:
   After ok=false: say what failed in one sentence.
 - When the user asks to MOVE, RESCHEDULE, CHANGE, or UPDATE an existing event: \
   first call list_calendar_events to find the event, confirm the match in one sentence, then call \
-  update_event (google_workspace) or update_calendar_event (microsoft_graph) with the new time. \
-  Never update without confirming you found the right event.
+  update_calendar_event (google_workspace / microsoft_graph) or update_event (infomaniak_services) \
+  with the new time. Never update without confirming you found the right event.
 - When the user asks to CANCEL, DELETE, or REMOVE an event: \
   first call list_calendar_events to find it. The server returns needs_scope for recurring events — \
   recap title, time, and repeat pattern in ONE sentence, then ask: only this occurrence, this and \

@@ -35,6 +35,8 @@ const baseSettings = {} as AppSettings;
 describe("ensureVoiceBackendReady", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
+    vi.stubGlobal("window", { electronAPI: undefined });
     const { desktopClient } = await import("../desktopClient");
     const { isGeminiConnectedInSettings } = await import("../utils/geminiConnection");
     const { resolveGeminiApiKeyFromSettings, syncGeminiKeyToBackend } = await import(
@@ -51,20 +53,36 @@ describe("ensureVoiceBackendReady", () => {
     expect(result).toEqual({ ready: false, reason: "offline" });
   });
 
-  it("returns missing_key when Settings has no Gemini key even if backend env is ready", async () => {
+  it("returns missing_key when Settings and vault both lack Gemini", async () => {
     const { desktopClient } = await import("../desktopClient");
     const { isGeminiConnectedInSettings } = await import("../utils/geminiConnection");
     const { syncGeminiKeyToBackend } = await import("../utils/syncGeminiKeyToBackend");
     vi.mocked(isGeminiConnectedInSettings).mockReturnValue(false);
+    vi.stubGlobal("electronAPI", undefined);
+    vi.stubGlobal("window", { electronAPI: undefined });
+
+    const result = await ensureVoiceBackendReady(baseSettings, { backendOnline: true });
+    expect(result).toEqual({ ready: false, reason: "missing_key" });
+    expect(syncGeminiKeyToBackend).not.toHaveBeenCalled();
+    expect(desktopClient.getVoiceStatus).not.toHaveBeenCalled();
+  });
+
+  it("returns ready when vault has Gemini but Settings mask is not hydrated yet", async () => {
+    const { desktopClient } = await import("../desktopClient");
+    const { isGeminiConnectedInSettings } = await import("../utils/geminiConnection");
+    const { syncGeminiKeyToBackend } = await import("../utils/syncGeminiKeyToBackend");
+    vi.mocked(isGeminiConnectedInSettings).mockReturnValue(false);
+    vi.stubGlobal("window", {
+      electronAPI: { hasSecret: vi.fn(async () => true) },
+    });
     vi.mocked(desktopClient.getVoiceStatus).mockResolvedValue({
       ready: true,
       model: "gemini-live",
     });
 
     const result = await ensureVoiceBackendReady(baseSettings, { backendOnline: true });
-    expect(result).toEqual({ ready: false, reason: "missing_key" });
+    expect(result).toEqual({ ready: true, model: "gemini-live" });
     expect(syncGeminiKeyToBackend).not.toHaveBeenCalled();
-    expect(desktopClient.getVoiceStatus).not.toHaveBeenCalled();
   });
 
   it("returns ready when Settings is connected and voice status is already configured (skips sync)", async () => {

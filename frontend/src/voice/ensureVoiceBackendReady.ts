@@ -23,6 +23,17 @@ async function readVoiceBackendStatus(): Promise<VoiceBackendReadyResult | null>
   }
 }
 
+/** Packaged vault may hold the key even when React settings briefly lack the mask. */
+async function hasGeminiVaultSecret(): Promise<boolean> {
+  const hasSecret = window.electronAPI?.hasSecret;
+  if (typeof hasSecret !== "function") return false;
+  try {
+    return Boolean(await hasSecret("geminiApiKey"));
+  } catch {
+    return false;
+  }
+}
+
 export async function ensureVoiceBackendReady(
   settings: AppSettings,
   options?: { backendOnline?: boolean },
@@ -31,11 +42,14 @@ export async function ensureVoiceBackendReady(
     return { ready: false, reason: "offline" };
   }
 
-  // Same gate as chat: user must have connected Gemini in Settings / safeStorage.
-  if (!isGeminiConnectedInSettings(settings)) {
+  const connectedInUi = isGeminiConnectedInSettings(settings);
+  const vaultHasKey = connectedInUi ? true : await hasGeminiVaultSecret();
+  if (!connectedInUi && !vaultHasKey) {
     return { ready: false, reason: "missing_key" };
   }
 
+  // Prefer live backend status: spawn already injects the vault key. Do not block
+  // voice when React settings have not re-hydrated the •••• mask yet.
   const alreadyReady = await readVoiceBackendStatus();
   if (alreadyReady?.ready) {
     return alreadyReady;
@@ -43,8 +57,7 @@ export async function ensureVoiceBackendReady(
 
   const apiKey = resolveGeminiApiKeyFromSettings(settings);
   if (!apiKey) {
-    // Packaged mask-only: main already injects safeStorage into the backend on spawn.
-    // If status is not ready yet, surface backend_not_ready rather than inventing a sync.
+    // Packaged mask-only / vault-only: cannot re-POST the raw key from the renderer.
     return { ready: false, reason: "backend_not_ready" };
   }
 

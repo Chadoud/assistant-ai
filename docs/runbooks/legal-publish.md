@@ -41,7 +41,7 @@ Counsel packet: [`docs/COUNSEL_REVIEW_PACKET.md`](../COUNSEL_REVIEW_PACKET.md)
 
 Sign-off **2026-06-25** — see [`COUNSEL_REVIEW_PACKET.md`](../COUNSEL_REVIEW_PACKET.md) (legitimate interest for diagnostics; Art. 21 objection in Settings).
 
-**Remaining:** merge [`legal/app-privacy-legitimate-interest-supplement.md`](../legal/app-privacy-legitimate-interest-supplement.md) into exosites-agency `appPrivacy.ts` (EN + FR) and deploy.
+**Published (verified 2026-07-17):** EN/FR app privacy include legitimate-interest diagnostics + objection; EN/FR app terms include PolyForm source-license section. `npm run verify:legal-urls` green.
 
 ---
 

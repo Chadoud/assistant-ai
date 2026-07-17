@@ -33,7 +33,7 @@ def is_mutating_voice_tool(name: str, args: dict[str, Any]) -> bool:
     if not ops:
         return name in {
             "send_message",
-            "add_task",
+            "create_task",
             "complete_task",
             "save_memory",
             "plan_and_execute",

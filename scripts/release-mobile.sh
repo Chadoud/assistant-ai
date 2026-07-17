@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Mobile release gate — run before tagging mobile-v*.
+# On success writes .git/exo-release-gate (required by pre-push for mobile-v* tags).
 #
 # Usage:
 #   ./scripts/release-mobile.sh
@@ -33,9 +34,14 @@ fi
 echo "==> Legal URLs (store blocker)"
 npm run verify:legal-urls || echo "WARN: legal URLs not reachable — required before store builds"
 
+# Mobile has no Mac DMG packaging step; stamp packaging=ok after quality.
+bash scripts/write-release-gate.sh mobile
+
+MOBILE_VER="$(grep -E '^version:' mobile/pubspec.yaml | head -1 | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
 echo ""
-echo "Mobile release gate passed. Next:"
-echo "  1. ./scripts/bump-mobile-version.sh <semver> [build]"
-echo "  2. Configure CI secrets per docs/MOBILE_CI_SECRETS.md"
-echo "  3. git tag mobile-v<semver> && git push origin mobile-v<semver>"
-echo "  4. GO SYNC pairing smoke: docs/runbooks/go-sync-e2e-smoke.md"
+echo "Mobile release gate passed (stamp written for mobile-v${MOBILE_VER} @ HEAD)."
+echo "If you still need to bump: ./scripts/bump-mobile-version.sh <semver> [build], commit, then re-run this script."
+echo "Next (version already correct):"
+echo "  1. git tag mobile-v${MOBILE_VER} && git push origin mobile-v${MOBILE_VER}"
+echo "  2. Configure CI secrets per docs/MOBILE_CI_SECRETS.md if needed"
+echo "  3. GO SYNC pairing smoke: docs/runbooks/go-sync-e2e-smoke.md"

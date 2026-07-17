@@ -32,7 +32,7 @@
 
 | # | Item | Owner | How to close |
 |---|------|-------|--------------|
-| 1 | Ship desktop build with `LEGAL_TERMS_BUNDLE_VERSION` `2026-06-25-gdpr-li` | Product | Tag `v1.1.5` after merge |
+| 1 | Ship signed Mac desktop build with `LEGAL_TERMS_BUNDLE_VERSION` `2026-06-25-gdpr-li` | Product | Tag `v*` → staging → promote (see go-live release track) |
 | 2 | *(Optional)* Sentry alert rules in Sentry UI | Ops | [`runbooks/sentry-alerts.md`](./runbooks/sentry-alerts.md) |
 | 3 | *(Optional)* DE/IT legal pages on exosites.ch | Product | Agency translations |
 
@@ -61,7 +61,7 @@ Items 3–5 are release hygiene, not register blockers.
 | PR-1.5.2 | Harden `backend/.env` | **Done** | `chmod 0o600` in `ai_routes._upsert_env` |
 | PR-1.5.3 | safeStorage fail-closed | **Done** | Settings secrets + integration OAuth tokens — no plaintext fallback ([PR-4.4](#phase-4--hardening--hygiene)) |
 | PR-1.5.4 | Cloud LLM / voice egress disclosure | **Done** | `settings.aiProviderCloudEgressHint` + Settings UI (en/de/fr/it) |
-| PR-1.5.5 | Publish Terms + Privacy | **Done** | Legitimate-interest supplement drafted; in-app objection + export + erasure (2026-06-25). Publish supplement on exosites.ch from [`legal/app-privacy-legitimate-interest-supplement.md`](./legal/app-privacy-legitimate-interest-supplement.md). |
+| PR-1.5.5 | Publish Terms + Privacy | **Done** | Legitimate-interest + objection live on exosites.ch EN/FR (verified 2026-07-17); PolyForm source license on app terms; in-app export/erasure. |
 
 ---
 

@@ -7,7 +7,7 @@ import { useVoiceWebSocket } from "./useVoiceWebSocket";
 import type { VoiceFrameRouterDeps } from "./voiceFrameRouter";
 
 vi.mock("./voiceWsAuth", () => ({
-  sendVoiceWsAppAuth: vi.fn(async () => undefined),
+  sendVoiceWsAppAuth: vi.fn(async () => ({ ok: true })),
 }));
 
 vi.mock("./voiceSessionPrime", () => ({

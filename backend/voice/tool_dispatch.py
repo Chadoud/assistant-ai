@@ -738,6 +738,20 @@ async def handle_voice_tool_calls(
                 approved_tool = False
                 logger.warning("[voice] approval   name=%s denied (no waiter or call_id)", name)
             else:
+                # Ensure debug dumps show which tool awaited Allow once / Always / Deny.
+                if (
+                    dispatch_state.last_trace_at_tool is None
+                    or dispatch_state.last_trace_at_tool.tool_name != name
+                ):
+                    dispatch_state.last_trace_at_tool = VoiceTurnTraceEntry(
+                        commit_reason="tool_call",
+                        stt_chunk_count=0,
+                        canonical_at_tool=canonical_at_tool,
+                        canonical_at_turn_complete=canonical_at_turn_start,
+                        tool_name=name,
+                        tool_operation=str(args.get("operation", "")).strip() or None,
+                        confirm_state="awaiting_approval",
+                    )
                 approval_fut = approval_waiter.prepare(call_id)
                 logger.info("[voice] approval   name=%s waiting for user consent…", name)
                 yield frame(
@@ -761,6 +775,19 @@ async def handle_voice_tool_calls(
         elif policy_block := _policy_block_result(
             name, args, allow_sensitive=allow_sensitive, approved_tool=approved_tool
         ):
+            # Dead-zone / policy blocks must still appear in turn traces (not tool_name=null).
+            if (
+                dispatch_state.last_trace_at_tool is None
+                or dispatch_state.last_trace_at_tool.tool_name != name
+            ):
+                dispatch_state.last_trace_at_tool = VoiceTurnTraceEntry(
+                    commit_reason="tool_call",
+                    stt_chunk_count=0,
+                    canonical_at_tool=canonical_at_tool,
+                    canonical_at_turn_complete=canonical_at_turn_start,
+                    tool_name=name,
+                    tool_operation=str(args.get("operation", "")).strip() or None,
+                )
             result = policy_block
         elif blocked := _briefing_tool_block_result(dispatch_state, name, args):
             result = blocked

@@ -14,6 +14,13 @@ SAFE_TOOLS = frozenset({
     "web_search", "weather_report", "analyze_local_file", "screen_capture",
     "youtube_video", "flight_finder", "review_and_suggest",
     "read_project_file", "list_project_tree",
+    # Local second-brain / tasks reads — never fake "needs confirmation"
+    "list_tasks",
+    "search_memories",
+    "search_conversations",
+    "search_activity",
+    "search_everything",
+    "run_startup_briefing",
 })
 
 # Tools whose every call can have real-world side effects (AutonomyPolicy gate).
@@ -23,12 +30,15 @@ SENSITIVE_TOOLS = frozenset({
     "desktop_environment", "manage_connection", "schedule_reminder", "save_memory",
     "system_volume", "start_local_file_sort", "run_google_drive_workspace_sort",
     "write_project_files",
+    "create_task", "complete_task", "start_codegen_studio",
     "google_workspace", "microsoft_graph", "dropbox_files", "slack_messaging",
     "whatsapp_messaging", "s3_storage", "infomaniak_services", "icloud_drive",
     "notion", "browser_control", "web_agent",
 })
 
-# Explicit user approval required (voice UI / chat without autonomous mode).
+# Explicit user approval required (voice UI / agent task without autonomous mode).
+# Must include every SENSITIVE non-connector tool — otherwise AutonomyPolicy returns
+# "needs your confirmation" with no Allow once / Always allow / Deny UI.
 APPROVAL_TOOLS = frozenset({
     "screen_capture",
     "code_runner",
@@ -60,6 +70,12 @@ APPROVAL_TOOLS = frozenset({
     # approval UI as google_workspace; otherwise AutonomyPolicy hard-blocks it
     # with "needs your confirmation" and never shows the Allow prompt.
     "manage_connection",
+    "create_task",
+    "complete_task",
+    "save_memory",
+    "schedule_reminder",
+    "system_volume",
+    "start_codegen_studio",
 })
 
 # Never run inside an autonomous plan loop.

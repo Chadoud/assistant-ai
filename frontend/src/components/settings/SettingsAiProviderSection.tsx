@@ -105,13 +105,6 @@ const PROVIDER_BY_ID: Partial<Record<ChatProviderId, ProviderUi>> = Object.fromE
   PROVIDERS.map((provider) => [provider.id, provider]),
 );
 
-/** Backup keys only — never become the primary chat provider from this UI. */
-const BACKUP_PROVIDER_IDS: ReadonlySet<ChatProviderId> = new Set(["openai", "anthropic", "custom"]);
-
-function isBackupProvider(id: ChatProviderId): boolean {
-  return BACKUP_PROVIDER_IDS.has(id);
-}
-
 interface ProviderSectionConfig {
   id: "gemini" | "altChat";
   titleKey: string;
@@ -408,9 +401,10 @@ export default function SettingsAiProviderSection({
   );
 
   const showActiveBadge = useCallback(
-    (ui: ProviderUi, ready: boolean): boolean => {
-      if (isBackupProvider(ui.id)) return false;
-      return ui.id === "gemini" && ready;
+    (_ui: ProviderUi, _ready: boolean): boolean => {
+      // Gemini is the only primary voice/chat card — "Configured" already means key saved.
+      // Do not show a separate Active tag (it read as "voice is healthy").
+      return false;
     },
     [],
   );

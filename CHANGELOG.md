@@ -6,6 +6,19 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.54] - 2026-07-17
+
+### Fixed
+
+- **Go-live:** Confirm published app Privacy/Terms (legitimate-interest diagnostics EN/FR; PolyForm source license on terms); close Track B legal checklist.
+- **Distribution:** Prefer CI-signed/notarized Mac DMG from the update feed — do not install unsigned `dist-installer/mac/` copies via ditto (silent mic on macOS).
+- **Voice:** Ready gate accepts vault-held Gemini key when React settings mask is empty; surface prime/auth failures instead of silent reconnect.
+- **Voice tools:** Classify remaining handler dead-zone tools into SAFE/APPROVAL; keep list_tasks callable.
+
+### Changed
+
+- **Release:** Local `release:desktop` / pre-push gate stamp for `v*` tags; remove misleading Gemini “Active” badge (keep Configured).
+
 ## [1.1.53] - 2026-07-17
 
 ### Fixed

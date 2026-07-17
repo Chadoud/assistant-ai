@@ -47,9 +47,13 @@ Review security alerts when they appear; run full `npm run quality` before mergi
 
 | Step | Command |
 |------|---------|
-| Full local gate | `npm run quality` |
+| Path-aware push gate | `npm run verify:local` (also runs via Husky pre-push) |
+| Desktop pre-tag gate | `npm run release:desktop` — quality + **unsigned** `build:mac` + packaged-app + backend health; writes `.git/exo-release-gate` |
+| Mobile pre-tag gate | `npm run release:mobile` |
 | Version alignment | `npm run verify:release-version` (tag must match package / appVersion / Inno / CHANGELOG) |
-| Or wait for tag CI | Push `v*` — L3 builds + L3.5 stages to staging feed (not prod) |
+| Tag CI | Push `v*` — L3 builds + L3.5 stages to staging feed (not prod) |
+
+Full flow: [runbooks/pre-push-verification.md](runbooks/pre-push-verification.md).
 
 PRs do **not** build Windows/Mac installers. Packaging confidence on PRs comes from path-gated `package-smoke-mac` + Linux electron/packaging unit tests.
 

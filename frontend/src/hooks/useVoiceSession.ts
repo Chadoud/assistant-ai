@@ -309,6 +309,7 @@ export function useVoiceSession(options?: UseVoiceSessionOptions): UseVoiceSessi
     frameRouterDepsRef,
     setIsListening,
     setIsReconnecting,
+    setError,
     onWsClose: handleWsClose,
     attachPcmForwarder: (ws) => attachPcmForwarderRef.current(ws),
   });

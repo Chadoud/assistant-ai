@@ -23,6 +23,7 @@ Start here for architecture, contributor workflows, and release context.
 - [I18N.md](I18N.md) — translation workflow; run `npm run check-locale-keys` in `frontend/` after key changes.
 - [accuracy-*.md](.) — classification / eval playbooks (see file list in repo).
 
-**Optional quality gate list:** [QUALITY_GATES.md](QUALITY_GATES.md).
+**Optional quality gate list:** [QUALITY_GATES.md](QUALITY_GATES.md).  
+**Local pre-push / pre-tag gates:** [runbooks/pre-push-verification.md](runbooks/pre-push-verification.md).
 
 **Video sorting (backend)** — **ffmpeg** / **ffprobe**: on `PATH`, or explicit paths in `backend/.env` (`EXOSITES_FFMPEG_PATH`, `EXOSITES_FFPROBE_PATH`), or an unpacked build under `tools/ffmpeg/<build>/bin` (commonly gitignored; backend may auto-detect). In the UI, **Settings → Connection check** lists what the process resolved. Optional STT: `pip install -r backend/requirements-video.txt` and `EXOSITES_VIDEO_STT_ENABLE=1`. `GET /meta/video` (same host/port as the API) is for diagnostics. All knobs: [`backend/.env.example`](../backend/.env.example) and the troubleshooting table in [root `README.md`](../README.md).

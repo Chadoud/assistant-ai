@@ -39,13 +39,17 @@ Full checklist: [desktop-update-pipeline-checklist.md](./desktop-update-pipeline
 
 ## Every release
 
-### 1. Prepare + tag
+### 1. Prepare + local release gate + tag
+
+Local gate (required before `v*` push): [pre-push-verification.md](./pre-push-verification.md).
 
 ```bash
 ./scripts/bump-version.sh X.Y.Z
 # edit CHANGELOG.md ## [X.Y.Z]
 npm run verify:release-version -- --version X.Y.Z
-git commit … && git tag vX.Y.Z && git push origin vX.Y.Z
+git commit …
+npm run release:desktop    # quality + unsigned Mac packaging; writes .git stamp
+git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
 Wait for **Build Installers** → `publish-staging` green.

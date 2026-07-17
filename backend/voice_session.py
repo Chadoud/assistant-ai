@@ -31,6 +31,14 @@ from voice.model import (  # noqa: F401
     GEMINI_VOICE_MODEL_DEFAULT,
     resolve_gemini_voice_model,
 )
+
+# Keep re-exports visible to importers; ruff F401 must not strip these names.
+__all__ = [
+    "GEMINI_VOICE_MODEL_DEFAULT",
+    "resolve_gemini_voice_model",
+    "run_voice_session",
+    "dispatch_sync",
+]
 from voice.pending_delete_sync import PendingDeleteSyncHolder
 from voice.tool_args import (  # noqa: E402, I001
     enrich_voice_tool_args as _enrich_voice_tool_args,  # noqa: F401

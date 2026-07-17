@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+# Path-aware local verify on every push; v*/mobile-v* tags require a fresh release stamp.
+set -e
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+cd "$ROOT"
+
+if [ "${HUSKY_SKIP_VERIFY:-0}" = "1" ]; then
+  echo "" >&2
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >&2
+  echo "WARNING: HUSKY_SKIP_VERIFY=1 — pre-push verification SKIPPED." >&2
+  echo "This is break-glass only. CI remains the real ship gate." >&2
+  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" >&2
+  echo "" >&2
+  exit 0
+fi
+
+echo "==> pre-push: verify-local --quick"
+bash scripts/verify-local.sh --quick
+
+# Husky/git provide ref lines on stdin: local_ref local_sha remote_ref remote_sha
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$local_ref" in
+    refs/tags/v*|refs/tags/mobile-v*)
+      echo "==> pre-push: require release gate for ${local_ref}"
+      bash scripts/require-release-gate.sh "$local_ref"
+      ;;
+  esac
+done

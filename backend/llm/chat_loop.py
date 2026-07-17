@@ -189,6 +189,8 @@ def _run_tool(
         preferred_base_url=base_url,
     )
     try:
+        # Typed chat has no tool_approval_required UI (unlike voice /agent/task).
+        # APPROVAL-tier tools hard-fail here unless autonomousMode is on — follow-up Allow once/Always/Deny.
         policy = AutonomyPolicy(allow_sensitive=allow_sensitive)
         decision = policy.check(call.name, arguments)
         if not decision.allowed:

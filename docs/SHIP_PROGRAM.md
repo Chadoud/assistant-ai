@@ -18,11 +18,11 @@
 
 | Step | Action | Owner | Status |
 |------|--------|-------|--------|
-| B1 | Counsel review **exosites-agency** `appPrivacy.ts` + `appTerms.ts` (mobile + GO SYNC) | Legal | ⏳ |
-| B2 | Host Privacy + Terms at stable HTTPS URLs | Product | ✅ exosites.ch |
+| B1 | Counsel review **exosites-agency** `appPrivacy.ts` + `appTerms.ts` (mobile + GO SYNC) | Legal | ✅ 2026-06-25 |
+| B2 | Host Privacy + Terms at stable HTTPS URLs | Product | ✅ exosites.ch (LI diagnostics + PolyForm terms live) |
 | B3 | `npm run verify:legal-urls` passes | Eng | ✅ |
-| B4 | `LEGAL_TERMS_BUNDLE_VERSION` aligned with published text | Eng | ✅ 2026-06-18 |
-| B5 | Mark PR-1.5.5 Done in [`PRODUCTION_READINESS.md`](./PRODUCTION_READINESS.md) | Product | After B1 |
+| B4 | `LEGAL_TERMS_BUNDLE_VERSION` aligned with published text | Eng | ✅ `2026-06-25-gdpr-li` |
+| B5 | Mark PR-1.5.5 Done in [`PRODUCTION_READINESS.md`](./PRODUCTION_READINESS.md) | Product | ✅ |
 
 See [`runbooks/legal-publish.md`](./runbooks/legal-publish.md).
 

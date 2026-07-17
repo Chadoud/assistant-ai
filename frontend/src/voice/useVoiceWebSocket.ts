@@ -24,6 +24,7 @@ interface UseVoiceWebSocketOptions {
   frameRouterDepsRef: RefObject<VoiceFrameRouterDeps | null>;
   setIsListening: (value: boolean) => void;
   setIsReconnecting: (value: boolean) => void;
+  setError?: (message: string) => void;
   onWsClose?: () => void;
   /** Called after the WebSocket opens and the worklet node is ready to forward PCM. */
   attachPcmForwarder?: (ws: WebSocket) => void;
@@ -54,6 +55,7 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
     frameRouterDepsRef,
     setIsListening,
     setIsReconnecting,
+    setError,
     onWsClose,
     attachPcmForwarder,
   } = options;
@@ -95,6 +97,11 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
     if (!prime.ok) {
       setIsListening(false);
       setIsReconnecting(false);
+      setError?.(
+        prime.reason === "session_id_required"
+          ? "Voice session failed to start. Try the microphone again."
+          : "Couldn't prepare the voice session. Check Settings → AI agents → AI provider, then retry.",
+      );
       return;
     }
 
@@ -109,13 +116,23 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
 
     ws.onopen = () => {
       void (async () => {
-        try {
-          await sendVoiceWsAppAuth(ws);
-        } finally {
-          tokensRelayedRef.current = true;
-          setIsListening(true);
+        const auth = await sendVoiceWsAppAuth(ws);
+        if (!auth.ok) {
+          setIsListening(false);
           setIsReconnecting(false);
+          setError?.(
+            "Couldn't authorize the voice connection. Wait for Exo to finish starting, then retry.",
+          );
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
+          return;
         }
+        tokensRelayedRef.current = true;
+        setIsListening(true);
+        setIsReconnecting(false);
       })();
     };
 
@@ -156,6 +173,7 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
     onWsClose,
     setIsListening,
     setIsReconnecting,
+    setError,
     skipStartupBriefingRef,
     startupFiredRef,
     stoppedRef,

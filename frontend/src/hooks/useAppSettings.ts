@@ -39,7 +39,17 @@ export function useAppSettings() {
           const parsed = JSON.parse(raw) as Partial<AppSettings> & { ocrLanguage?: string };
           merged = mergeAppSettings(parsed, DEFAULT_APP_SETTINGS);
         }
-        const secrets = await hydrateSecretsFromSafeStorage();
+        let secrets = await hydrateSecretsFromSafeStorage();
+        // Vault can still hold Gemini when React state / first hydrate missed the mask.
+        if (!secrets.geminiApiKey && window.electronAPI?.hasSecret) {
+          try {
+            if (await window.electronAPI.hasSecret("geminiApiKey")) {
+              secrets = await hydrateSecretsFromSafeStorage();
+            }
+          } catch {
+            /* ignore */
+          }
+        }
         setSettings((prev) => mergeAppSettings({ ...merged, ...secrets }, prev));
       } catch {
         /* ignore malformed local settings */

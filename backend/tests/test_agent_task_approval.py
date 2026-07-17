@@ -40,11 +40,10 @@ def test_gate_lets_approval_tools_reach_dispatch():
     assert _gate_tool_step(step, AutonomyPolicy(allow_sensitive=False), audit=None) is None
 
 
-def test_gate_still_blocks_sensitive_non_approval():
+def test_gate_lets_save_memory_reach_dispatch_for_approval_ui():
+    """save_memory is APPROVAL-tier — gate must not hard-block before Allow UI."""
     step = Step(id=1, description="mem", kind="tool", tool="save_memory", args={"key": "k"})
-    blocked = _gate_tool_step(step, AutonomyPolicy(allow_sensitive=False), audit=None)
-    assert blocked is not None
-    assert blocked.ok is False
+    assert _gate_tool_step(step, AutonomyPolicy(allow_sensitive=False), audit=None) is None
 
 
 def test_approval_dispatch_waits_and_grants():

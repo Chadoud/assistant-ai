@@ -518,7 +518,7 @@ function sanitizeFilename(name) {
 }
 
 function infomaniakStagingDir(jobId) {
-  return path.join(app.getPath("userData"), "infomaniak_sort_staging", jobId);
+  return path.join(require("../accountProfile").resolveProfileRoot(), "infomaniak_sort_staging", jobId);
 }
 
 /**

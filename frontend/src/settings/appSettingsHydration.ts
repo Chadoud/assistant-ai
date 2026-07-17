@@ -60,6 +60,7 @@ export const DEFAULT_APP_SETTINGS: AppSettings = {
   assistantInstalledToolIds: null,
   assistantMemoryEnabled: true,
   brainMapIncludeMailTasks: false,
+  brainMapIncludeLowValueChats: false,
   assistantAgentEnabled: true,
   autonomousMode: false,
   chatWebSearchEnabled: false,
@@ -295,6 +296,10 @@ export function mergeAppSettings(parsed: PersistedSettings, prev: AppSettings): 
     assistantInstalledToolIds,
     assistantMemoryEnabled: parseBool("assistantMemoryEnabled", prev.assistantMemoryEnabled),
     brainMapIncludeMailTasks: parseBool("brainMapIncludeMailTasks", prev.brainMapIncludeMailTasks),
+    brainMapIncludeLowValueChats: parseBool(
+      "brainMapIncludeLowValueChats",
+      prev.brainMapIncludeLowValueChats,
+    ),
     assistantAgentEnabled: parseBool("assistantAgentEnabled", prev.assistantAgentEnabled),
     autonomousMode: parseBool("autonomousMode", prev.autonomousMode),
     chatWebSearchEnabled: parseBool("chatWebSearchEnabled", prev.chatWebSearchEnabled),

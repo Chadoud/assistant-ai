@@ -17,7 +17,13 @@ from voice.audio_pipeline import (
     resolve_turn_user_text_raw,
     run_incoming_audio_send_loop,
 )
-from voice.errors import is_api_key_error, is_quota_exhausted_error, is_transient_connection_error
+from voice.errors import (
+    VOICE_AUDIO_CONFIG_USER_MESSAGE,
+    is_api_key_error,
+    is_live_audio_config_error,
+    is_quota_exhausted_error,
+    is_transient_connection_error,
+)
 from voice.frames import frame
 from voice.history import (
     append_voice_turn,
@@ -134,6 +140,8 @@ async def run_gemini_live_session(
     """
     from google.genai import types as genai_types  # type: ignore[import]
 
+    from voice.model import GEMINI_VOICE_MODEL_DEFAULT
+
     voice_history: list[dict[str, str]] = []
     pending_tool_results: list[str] = []
     tool_dispatch_state = ToolDispatchState()
@@ -143,6 +151,8 @@ async def run_gemini_live_session(
     session_handle: str | None = None
     startup_injected = False
     audio_send_state = AudioSendLoopState()
+    active_model = model
+    audio_model_fallback_tried = False
 
     while True:
         audio_send_state.stopped_explicitly = False
@@ -158,8 +168,8 @@ async def run_gemini_live_session(
                 memory_enabled=memory_enabled,
                 resume_handle=session_handle,
             )
-            async with client.aio.live.connect(model=model, config=config) as session:
-                yield frame("session_start", model=model)
+            async with client.aio.live.connect(model=active_model, config=config) as session:
+                yield frame("session_start", model=active_model)
                 session_started_at = time.monotonic()
 
                 if startup_message and not startup_injected:
@@ -538,6 +548,25 @@ async def run_gemini_live_session(
                 )
                 return
 
+            if is_live_audio_config_error(exc):
+                if (
+                    not transcription_only
+                    and not audio_model_fallback_tried
+                    and active_model != GEMINI_VOICE_MODEL_DEFAULT
+                ):
+                    audio_model_fallback_tried = True
+                    logger.warning(
+                        "Live audio rejected for model %s; falling back to %s",
+                        active_model,
+                        GEMINI_VOICE_MODEL_DEFAULT,
+                    )
+                    active_model = GEMINI_VOICE_MODEL_DEFAULT
+                    session_handle = None
+                    continue
+                logger.exception("Voice session audio config error")
+                yield frame("error", message=VOICE_AUDIO_CONFIG_USER_MESSAGE)
+                return
+
             transient = is_transient_connection_error(exc)
 
             reconnect.record_session_drop(stable_s)
@@ -557,6 +586,7 @@ async def run_gemini_live_session(
             else:
                 logger.exception("Voice session error (non-transient)")
                 yield frame("error", message=raw)
+                return
 
         if audio_send_state.stopped_explicitly:
             yield frame("done")

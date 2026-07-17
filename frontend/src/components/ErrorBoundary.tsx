@@ -52,6 +52,20 @@ export class ErrorBoundary extends Component<Props, State> {
     this.setState({ componentStack: stack });
     console.error("[ErrorBoundary] Uncaught render error:", error, stack);
     try {
+      const log = window.electronAPI?.appendRendererDiagnostic;
+      if (typeof log === "function") {
+        void log({
+          kind: "react_error_boundary",
+          message: error.message || "unknown_error",
+          errorName: error.name,
+          errorStack: error.stack,
+          componentStack: stack,
+        });
+      }
+    } catch {
+      /* diagnostics must never mask the original failure */
+    }
+    try {
       if (!IS_DEV && isCrashReportsUserOptIn()) {
         if (isSentryCrashClientActive()) {
           reportHandledError(
@@ -102,6 +116,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.props.fallback) return this.props.fallback;
 
     const t = translateStored;
+    const { error, componentStack } = this.state;
 
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center bg-bg-primary p-6 text-text-primary">
@@ -116,6 +131,12 @@ export class ErrorBoundary extends Component<Props, State> {
             <h1 className="text-xl font-bold">{t("errors.unexpectedTitle")}</h1>
             {/* Raw exception text stays out of the UI — "Copy error details" carries it. */}
             <p className="break-words text-sm text-muted">{t("errors.boundaryBody")}</p>
+            {IS_DEV && error ? (
+              <pre className="mt-3 max-h-40 overflow-auto rounded-lg bg-bg-primary p-3 text-left text-2xs text-red-400 whitespace-pre-wrap">
+                {error.message}
+                {componentStack ? `\n${componentStack}` : ""}
+              </pre>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -125,14 +146,12 @@ export class ErrorBoundary extends Component<Props, State> {
             >
               {t("errors.boundaryReload")}
             </button>
-            {!IS_DEV ? (
-              <button
-                onClick={this.handleCopyDetails}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-overlay"
-              >
-                {this.state.copied ? t("errors.copied") : t("errors.copyDetails")}
-              </button>
-            ) : null}
+            <button
+              onClick={this.handleCopyDetails}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-hover-overlay"
+            >
+              {this.state.copied ? t("errors.copied") : t("errors.copyDetails")}
+            </button>
           </div>
 
           {this.state.reported && !IS_DEV ? (

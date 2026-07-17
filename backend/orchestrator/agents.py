@@ -30,7 +30,7 @@ ReasonFn = Callable[[Capability, str, str], str]
 DispatchFn = Callable[[str, dict[str, Any]], dict[str, Any]]
 ProgressFn = Callable[[str, dict[str, Any]], None]
 
-_PLANNER_SYSTEM = (
+_PLANNER_SYSTEM_PREFIX = (
     "You are the planner of an autonomous assistant. Break the user's goal into the "
     "SMALLEST sequence of concrete steps. Each step is either:\n"
     "- kind 'tool': a single tool call (give 'tool' name and 'args' object), or\n"
@@ -40,6 +40,30 @@ _PLANNER_SYSTEM = (
     '{"steps": [{"id": 1, "kind": "tool"|"reason", "tool": <name|null>, '
     '"args": {...}, "description": "...", "success_check": "..."}]}'
 )
+
+_PLANNER_INVOICE_HINT = (
+    "For invoices, bills, receipts, or payments in email: use google_workspace with "
+    'operation="search_mail" and query like '
+    '"(invoice OR receipt OR facture OR rechnung) newer_than:30d" '
+    "(or microsoft_graph / infomaniak_services search_mail). "
+    "There is NO list_invoices tool — never invent tool names."
+)
+
+
+def _planner_system() -> str:
+    """Planner prompt with the live tool catalog so models cannot invent tools."""
+    try:
+        from tool_registry import ALL_TOOL_NAMES
+
+        catalog = ", ".join(sorted(ALL_TOOL_NAMES))
+    except Exception:  # noqa: BLE001
+        catalog = "(tool catalog unavailable)"
+    return (
+        f"{_PLANNER_SYSTEM_PREFIX}\n"
+        f"ALLOWED tool names only (never invent others): {catalog}.\n"
+        f"{_PLANNER_INVOICE_HINT}"
+    )
+
 
 _CRITIC_SYSTEM = (
     "You verify one step's result against its success check. Be strict but fair. "
@@ -70,7 +94,7 @@ def _extract_json(text: str) -> Any:
 def _make_plan(goal: str, board: Blackboard, reason_fn: ReasonFn) -> list[Step]:
     raw = reason_fn(
         Capability.REASONING,
-        _PLANNER_SYSTEM,
+        _planner_system(),
         f"Goal: {goal}\n\n{board.render_context()}",
     )
     steps = parse_plan(_extract_json(raw))
@@ -136,8 +160,17 @@ def _blocked_result(step: Step, reason: str) -> StepResult:
 
 
 def _gate_tool_step(step: Step, policy: Any | None, audit: Any | None) -> StepResult | None:
-    """Return a blocked result if a sensitive tool step is disallowed, else ``None``."""
+    """Return a blocked result if a sensitive tool step is disallowed, else ``None``.
+
+    Tools in ``TOOLS_NEEDING_APPROVAL`` are not hard-blocked here — they reach
+    dispatch so voice/chat can show the same consent UI (then
+    ``policy_block_result`` / ``approval_granted`` apply).
+    """
     if policy is None or step.kind != "tool" or not step.tool:
+        return None
+    from tool_registry import TOOLS_NEEDING_APPROVAL
+
+    if step.tool in TOOLS_NEEDING_APPROVAL:
         return None
     decision = policy.check(step.tool, step.args)
     if decision.allowed:
@@ -318,7 +351,12 @@ def orchestrate(
             skills.learn(goal, board.plan, all_ok)
         except Exception as exc:  # noqa: BLE001
             board.note(f"skill learn failed: {exc}")
-    return {"ok": all_ok, "summary": summary_text, **out}
+    payload: dict[str, Any] = {"ok": all_ok, "summary": summary_text, **out}
+    if not all_ok:
+        # Ensure tool_registry / voice speakable paths have a top-level error
+        # (summary alone used to log as "no detail" and speak "it didn't work").
+        payload["error"] = (summary_text or "one or more steps failed").strip()
+    return payload
 
 
 def _default_reason_fn() -> ReasonFn:
@@ -334,12 +372,23 @@ def _default_reason_fn() -> ReasonFn:
 _REENTRANT_TOOLS = frozenset({"plan_and_execute"})
 
 
-def _default_dispatch_fn() -> DispatchFn:
+def make_dispatch_fn(*, approval_granted: bool = False) -> DispatchFn:
+    """Build an orchestrator tool runner with a fixed consent flag for this run.
+
+    When the user approved the outer ``plan_and_execute`` (or autonomous mode is
+    on), pass ``approval_granted=True`` so nested ``TOOLS_NEEDING_APPROVAL``
+    calls match chat-loop semantics. The grant is bounded to this callable —
+    not a global session flag.
+    """
     from tool_registry import dispatch_sync
 
     def _fn(tool: str, args: dict[str, Any]) -> dict[str, Any]:
         if tool in _REENTRANT_TOOLS:
             return {"ok": False, "error": "nested planning is not allowed"}
-        return dispatch_sync(tool, args, approval_granted=False)
+        return dispatch_sync(tool, args, approval_granted=approval_granted)
 
     return _fn
+
+
+def _default_dispatch_fn() -> DispatchFn:
+    return make_dispatch_fn(approval_granted=False)

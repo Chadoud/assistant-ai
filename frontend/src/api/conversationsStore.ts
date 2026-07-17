@@ -16,6 +16,13 @@ const ConversationSummarySchema = z.object({
   action_items: z.array(z.string()),
   created_at: z.string(),
   updated_at: z.string(),
+  retain_tier: z.string().optional(),
+  retain_score: z.number().optional(),
+  retain_reasons: z.array(z.string()).optional(),
+  ephemeral: z.boolean().optional(),
+  archived_at: z.string().nullable().optional(),
+  last_judged_at: z.string().nullable().optional(),
+  pinned: z.boolean().optional(),
 });
 
 export type ConversationSummary = z.infer<typeof ConversationSummarySchema>;
@@ -37,9 +44,15 @@ export type ChatTurn = {
   name?: string;
 };
 
-export async function listStoredConversations(limit = 100): Promise<ConversationSummary[]> {
+export async function listStoredConversations(
+  limit = 100,
+  opts?: { mapEligible?: boolean; includeLowValue?: boolean },
+): Promise<ConversationSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (opts?.mapEligible) params.set("map_eligible", "1");
+  if (opts?.includeLowValue) params.set("include_low_value", "1");
   return requestValidated(
-    `/conversations?limit=${limit}`,
+    `/conversations?${params.toString()}`,
     z.array(ConversationSummarySchema),
   );
 }
@@ -72,6 +85,20 @@ export async function upsertStoredConversation(
   });
 }
 
+export async function pinStoredConversation(
+  id: string,
+  pinned = true,
+): Promise<ConversationSummary> {
+  return requestValidated(
+    `/conversations/${encodeURIComponent(id)}/pin`,
+    ConversationSummarySchema,
+    {
+      method: "POST",
+      body: JSON.stringify({ pinned }),
+    },
+  );
+}
+
 const DistillResultSchema = z.object({
   ok: z.boolean(),
   title: z.string().optional(),
@@ -79,6 +106,8 @@ const DistillResultSchema = z.object({
   memories_stored: z.number().optional(),
   tasks_stored: z.number().optional(),
   action_items: z.array(z.string()).optional(),
+  retain_tier: z.string().optional(),
+  retain_score: z.number().optional(),
   error: z.string().optional(),
   skipped: z.string().optional(),
 });

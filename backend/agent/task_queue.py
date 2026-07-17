@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import AsyncGenerator
 
+from voice_tool_approval import VoiceToolApprovalWaiter
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +43,9 @@ class AgentTask:
     model: str | None = None
     api_key: str | None = None
     base_url: str | None = None
+    """When True, AutonomyPolicy allows SENSITIVE (non-APPROVAL) tools — same as voice autonomousMode."""
+    allow_sensitive: bool = False
+    approval_waiter: VoiceToolApprovalWaiter = field(default_factory=VoiceToolApprovalWaiter)
     events: asyncio.Queue = field(default_factory=lambda: asyncio.Queue(maxsize=256))
     cancel_event: asyncio.Event = field(default_factory=asyncio.Event)
 
@@ -56,6 +61,7 @@ def create_task(
     model: str | None = None,
     api_key: str | None = None,
     base_url: str | None = None,
+    allow_sensitive: bool = False,
 ) -> AgentTask:
     task_id = str(uuid.uuid4())
     task = AgentTask(
@@ -65,6 +71,7 @@ def create_task(
         model=model,
         api_key=api_key,
         base_url=base_url,
+        allow_sensitive=allow_sensitive,
     )
     _tasks[task_id] = task
     return task
@@ -79,6 +86,7 @@ def cancel_task(task_id: str) -> bool:
     if not task:
         return False
     task.cancel_event.set()
+    task.approval_waiter.deny_all()
     return True
 
 

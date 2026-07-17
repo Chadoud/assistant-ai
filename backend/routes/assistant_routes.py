@@ -29,7 +29,8 @@ class GmailSearchPreviewBody(BaseModel):
 
 class AssistantChatMessage(BaseModel):
     role: str = Field(..., pattern="^(user|assistant|system)$")
-    content: str = Field(..., max_length=32_000)
+    # Plain string or multimodal parts list ``[{type, text|data, ...}]`` (see llm.base.iter_parts).
+    content: Any = Field(...)
 
 
 class AssistantChatBody(BaseModel):
@@ -65,6 +66,12 @@ class AssistantTurnBody(BaseModel):
     enable_tools: bool = True
     autonomous_mode: bool = False
     allow_sensitive: bool | None = None
+
+
+class ExtractAttachmentBody(BaseModel):
+    """Extract text from a dialog-granted local file for composer chat attach."""
+
+    path: str = Field(..., min_length=1, max_length=4096)
 
 
 def create_assistant_router() -> APIRouter:
@@ -169,6 +176,13 @@ def create_assistant_router() -> APIRouter:
                 }
             )
         return {"ok": True, "messages": out}
+
+    @router.post("/extract-attachment")
+    def extract_attachment(body: ExtractAttachmentBody) -> dict[str, Any]:
+        """Extract document text for composer attach (PDF/Office/text; no video)."""
+        from composer_attachment_extract import extract_attachment_for_chat
+
+        return extract_attachment_for_chat(body.path)
 
     @router.post("/turn", response_model=None)
     def assistant_turn(body: AssistantTurnBody) -> dict[str, Any] | StreamingResponse:

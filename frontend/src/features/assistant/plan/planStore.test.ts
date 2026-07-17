@@ -12,6 +12,7 @@ function base(): PlanState {
     finalResult: null,
     error: null,
     relayNotice: null,
+    pendingApproval: null,
   };
 }
 
@@ -116,6 +117,30 @@ describe("reducePlanEvent", () => {
     const start = base();
     expect(reducePlanEvent(start, { type: "heartbeat" })).toBe(start);
     expect(reducePlanEvent(start, { type: "mystery" })).toBe(start);
+  });
+
+  it("tracks tool_approval_required and clears on resolve/terminal", () => {
+    let s = reducePlanEvent(base(), {
+      type: "tool_approval_required",
+      call_id: "c1",
+      tool: "screen_capture",
+    });
+    expect(s.pendingApproval).toEqual({ callId: "c1", tool: "screen_capture" });
+
+    s = reducePlanEvent(s, {
+      type: "tool_approval_resolved",
+      call_id: "c1",
+      approved: true,
+    });
+    expect(s.pendingApproval).toBeNull();
+
+    s = reducePlanEvent(base(), {
+      type: "tool_approval_required",
+      call_id: "c2",
+      tool: "code_runner",
+    });
+    s = reducePlanEvent(s, { type: "task_cancelled" });
+    expect(s.pendingApproval).toBeNull();
   });
 });
 

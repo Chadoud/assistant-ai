@@ -36,4 +36,13 @@ describe("chatPromiseGuard", () => {
       sanitizeUnbackedPromiseClaim("Let me move those emails for you.", true, "fallback"),
     ).toBe("Let me move those emails for you.");
   });
+
+  it("flags bare I'll commitments used by models on analysis replies", () => {
+    // Documented false-positive shape: analysis turns must skip this guard in the stream handler.
+    expect(
+      looksLikeUnfulfilledPromise(
+        "I'll highlight your strongest experience from the CV you shared.",
+      ),
+    ).toBe(true);
+  });
 });

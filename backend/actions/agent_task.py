@@ -16,9 +16,6 @@ import logging
 from collections.abc import Callable
 from typing import Any
 
-from orchestrator.capabilities import Capability
-from orchestrator.complete import complete
-from orchestrator.conductor import candidates_for
 from provider_context import (
     get_provider_context,
     merge_provider_context,
@@ -37,10 +34,13 @@ def _build_reason_fn(
     preferred_model: str | None,
     preferred_api_key: str | None,
     preferred_base_url: str | None,
-) -> Callable[[Capability, str, str], str]:
+) -> Callable[[Any, str, str], str]:
     """Return a Conductor-backed completion function honoring the user's provider."""
+    # Lazy imports avoid orchestrator ↔ tool_registry ↔ agent_task cycles at import time.
+    from orchestrator.complete import complete
+    from orchestrator.conductor import candidates_for
 
-    def _reason(capability: Capability, system: str, user: str) -> str:
+    def _reason(capability: Any, system: str, user: str) -> str:
         cands = candidates_for(
             capability,
             preferred=preferred,
@@ -80,6 +80,7 @@ def plan_and_execute(parameters: dict[str, Any]) -> dict[str, Any]:
     max_steps = min(max(max_steps, 1), _MAX_STEPS_CAP)
 
     from orchestrator import orchestrate
+    from orchestrator.agents import make_dispatch_fn
     from orchestrator.audit import default_adapter as audit_adapter
     from orchestrator.budget import Budget
     from orchestrator.memory import default_adapter as memory_adapter
@@ -130,12 +131,14 @@ def plan_and_execute(parameters: dict[str, Any]) -> dict[str, Any]:
             or parameters.get("autonomous_mode")
             or parameters.get("_approval_granted")
         )
-        # One-shot: when plan_and_execute was voice-approved, sensitive steps inside
-        # this goal run are allowed; otherwise fail closed unless autonomous mode.
+        # One-shot for this orchestrate() call only: outer voice/chat approval
+        # (or autonomous mode) both opens AutonomyPolicy and sets
+        # approval_granted on nested TOOLS_NEEDING_APPROVAL — same as chat_loop.
         result = orchestrate(
             goal,
             max_steps=max_steps,
             reason_fn=reason_fn,
+            dispatch_fn=make_dispatch_fn(approval_granted=allow_sensitive),
             memory=memory_adapter(),
             skills=skill_adapter(),
             policy=AutonomyPolicy(allow_sensitive=allow_sensitive),

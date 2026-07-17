@@ -41,12 +41,14 @@ const MIME_FOLDER = "application/vnd.google-apps.folder";
  * Gmail OAuth (mirrored to Python ``gmail_oauth.json``).
  * - gmail.modify: read/search messages and label/move/trash them.
  * - gmail.send: send email on the user's behalf.
+ * - gmail.settings.basic: create inbox filters (create_filter).
  * Reconnecting the Google account is required after changing these so Google
  * re-issues a refresh token covering the new scope set.
  */
 const SCOPES_GMAIL = [
   "https://www.googleapis.com/auth/gmail.modify",
   "https://www.googleapis.com/auth/gmail.send",
+  "https://www.googleapis.com/auth/gmail.settings.basic",
 ].join(" ");
 
 /**
@@ -120,7 +122,7 @@ function syncGmailOAuthMirrorFromSecrets(secrets) {
   };
   saveGmailOAuthMirror(payload);
   try {
-    materializeGmailOAuthMirrorForBackend(app.getPath("userData"));
+    materializeGmailOAuthMirrorForBackend(require("../accountProfile").resolveProfileRoot());
   } catch {
     /* not in Electron main context */
   }
@@ -129,7 +131,7 @@ function syncGmailOAuthMirrorFromSecrets(secrets) {
 function deleteGmailOAuthMirror() {
   clearGmailOAuthMirror();
   try {
-    deleteMaterializedGmailOAuthMirror(app.getPath("userData"));
+    deleteMaterializedGmailOAuthMirror(require("../accountProfile").resolveProfileRoot());
   } catch {
     /* ignore */
   }
@@ -935,7 +937,7 @@ const { registerProvider } = require("./providerInterface");
 const GOOGLE_DRIVE_PROVIDER_IDS = ["google-drive", "google-all", "google-gmail", "google"];
 
 async function resolveGoogleDriveTokenForProvider() {
-  const ud = app.getPath("userData");
+  const ud = require("../accountProfile").resolveProfileRoot();
   for (const providerId of GOOGLE_DRIVE_PROVIDER_IDS) {
     const secrets = storage.loadProviderSecrets(ud, providerId);
     if (!secrets?.refresh_token && !secrets?.access_token) continue;
@@ -950,7 +952,7 @@ async function resolveGoogleDriveTokenForProvider() {
 }
 
 function googleDriveSecretsPresent() {
-  const ud = app.getPath("userData");
+  const ud = require("../accountProfile").resolveProfileRoot();
   return GOOGLE_DRIVE_PROVIDER_IDS.some((providerId) => {
     const secrets = storage.loadProviderSecrets(ud, providerId);
     return Boolean(secrets?.refresh_token || secrets?.access_token);
@@ -984,7 +986,7 @@ registerProvider("google", {
       .map((id) => id.trim())
       .filter(Boolean);
     if (fileIds.length === 0) return { ok: false, reason: "no_items" };
-    const ud = app.getPath("userData");
+    const ud = require("../accountProfile").resolveProfileRoot();
     const stagingDir =
       typeof options.stagingDir === "string" && options.stagingDir.trim()
         ? options.stagingDir.trim()

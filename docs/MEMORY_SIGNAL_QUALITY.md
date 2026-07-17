@@ -109,6 +109,31 @@ Modules: `backend/origin_refs.py`, `backend/memory_origin.py`
 - `noise_score` — 0..1 heuristic score at write time
 - `archived_at` — set when soft-archived instead of deleted
 
+## Retain / forget policy (conversations)
+
+**Module:** `backend/signal_quality/retain_policy.py`
+
+Promo/spam stays in `evaluate.py`. Retain policy answers: *is this worth keeping on the brain map / for resume?*
+
+| Tier | Meaning | Map |
+|------|---------|-----|
+| `forget` | Noise (voice check, agent retry, capability FAQ, empty) | Hidden |
+| `archive` | Keep in DB; hide from map (no summary, thin thread) | Hidden |
+| `working` | Useful for days (summary + some signal) | Shown if score ≥ 0.55 |
+| `durable` | Resume-worthy (memories/tasks, rich summary) | Shown |
+
+**Cascade:** L0 cheap title/summary rules → L1 structure (summary, action items, memory links) → optional mid-band LLM (`EXOSITES_MEMORY_RETAIN_LLM`) → surface filters → cleanup archive/TTL.
+
+| Env | Default | Effect |
+|-----|---------|--------|
+| `EXOSITES_MEMORY_RETAIN_POLICY` | `1` | Score on write + map filter |
+| `EXOSITES_MEMORY_RETAIN_LLM` | `0` | Mid-band LLM judge on distill |
+| `EXOSITES_MEMORY_WORKING_DAYS` | `30` | Archive cold unlinked working chats |
+
+Conversation columns: `retain_tier`, `retain_score`, `retain_reasons`, `ephemeral`, `archived_at`, `last_judged_at`, `pinned`.
+
+**Memory adapter:** `memory_entry_to_retain_verdict` maps `noise_score` / `reviewed` / `recall_weight` into the same tier language for metrics. Prompt/search still use `is_prompt_visible` / `is_recall_visible`.
+
 ## Tests
 
 - `backend/tests/test_signal_quality.py`
@@ -116,4 +141,5 @@ Modules: `backend/origin_refs.py`, `backend/memory_origin.py`
 - `backend/tests/test_memory_extract.py`
 - `backend/tests/test_assistant_memory_signal.py`
 - `backend/tests/test_second_brain_cleanup.py`
+- `backend/tests/test_retain_policy.py`
 - `frontend/src/utils/memoryUi.test.ts`

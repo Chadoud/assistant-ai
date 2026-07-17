@@ -40,3 +40,25 @@ class AutonomyPolicy:
                 f"{tool!r} has side effects and needs your confirmation before I run it.",
             )
         return Decision(True, risk, "")
+
+
+def policy_block_result(
+    name: str,
+    args: dict | None,
+    *,
+    allow_sensitive: bool,
+    approved_tool: bool,
+) -> dict | None:
+    """Block sensitive tools unless autonomous mode is on or the user approved this call.
+
+    Shared by voice tool dispatch and chat ``/agent/task`` so APPROVAL-tier tools
+    that the user just consented to skip AutonomyPolicy (same as voice).
+    """
+    from tool_registry.risk_tiers import APPROVAL_TOOLS
+
+    if name in APPROVAL_TOOLS and approved_tool:
+        return None
+    decision = AutonomyPolicy(allow_sensitive=allow_sensitive).check(name, args)
+    if decision.allowed:
+        return None
+    return {"ok": False, "error": decision.reason}

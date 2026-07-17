@@ -27,6 +27,9 @@ const EXTERNAL_SOURCE_TASK_RE =
 const AGENT_TASK_RE =
   /\b(plan\s+step|autonomously|step[\s-]by[\s-]step|automatically|do everything|execute|carry\s+out|handle\s+everything|multiple steps?|find.*then.*then|then.*and\s+then)\b/i;
 
+/** Inbox Retry prefills — classify underlying goal (sync with backend `_AGENT_RETRY_RE`). */
+const AGENT_RETRY_RE = /^please\s+retry\s+this(?:\s+autonomously)?\s*:\s*(.+)$/i;
+
 const SHORT_FOLLOW_UP_RE =
   /^(do\s+it|go\s+ahead|yes|please|now|continue|try\s+again|same\s+thing|make\s+it\s+happen)\b/i;
 
@@ -51,7 +54,7 @@ const CALENDAR_WRITE_RE =
 const CALENDAR_DELETE_RE =
   /\b(delete|remove|cancel|clear|drop|supprim|effac|annul|lösch|entfern|elimina)\b/i;
 
-function classifyIntentFromMessageBody(text: string): AssistantIntent {
+function classifyIntentBodyWithoutRetry(text: string): AssistantIntent {
   if (isCodegenTask(text)) return "codegen_studio";
   if (AGENT_TASK_RE.test(text)) return "agent_task";
   if (CALENDAR_WRITE_RE.test(text)) {
@@ -67,6 +70,17 @@ function classifyIntentFromMessageBody(text: string): AssistantIntent {
   if (EXTERNAL_SOURCE_TASK_RE.test(text)) return "external_source_task";
   if (SEND_MESSAGE_RE.test(text) && !isMailWriteIntent(text)) return "send_message";
   return "generic_chat";
+}
+
+function classifyIntentFromMessageBody(text: string): AssistantIntent {
+  const trimmed = text.trim();
+  const retryMatch = AGENT_RETRY_RE.exec(trimmed);
+  if (retryMatch) {
+    const goal = (retryMatch[1] ?? "").trim() || trimmed;
+    const intent = classifyIntentBodyWithoutRetry(goal);
+    return intent === "generic_chat" ? "agent_task" : intent;
+  }
+  return classifyIntentBodyWithoutRetry(trimmed);
 }
 
 /** Classify UI routing hints for one user message (server owns text chat routing). */

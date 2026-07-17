@@ -38,6 +38,7 @@ import {
 } from "../utils/taskBuckets";
 import { scrollToSectionId } from "../utils/scrollAnchor";
 import { taskMayHaveOpenTarget } from "../utils/memoryOrigin";
+import { useConversations } from "../hooks/useConversations";
 import { queueChatDraft } from "../utils/deferredPanelActions";
 
 interface Props {
@@ -103,6 +104,24 @@ export default function TasksPanel({
     onActiveIdChange: onScrollSectionReport,
   });
   const { openTarget } = useOpenTarget(onOpenConversation);
+  const { create: createConversation } = useConversations();
+  const retryFailureInChat = useCallback(
+    (prompt: string, failureId?: number) => {
+      const trimmed = prompt.trim();
+      if (!trimmed) return;
+      // Leave the open failure card while retrying — upsert/success clears it.
+      // Still dismiss optimistically so Inbox doesn't feel like stacked duplicates
+      // if the poll lags behind a same-goal re-fail.
+      if (typeof failureId === "number") {
+        void todoFeed.dismissInboxFailure(failureId);
+      }
+      // Fresh thread so polluted history / prior demo goals cannot hijack the retry.
+      createConversation();
+      queueChatDraft(trimmed, "assistant");
+      onOpenConversation?.();
+    },
+    [createConversation, onOpenConversation, todoFeed],
+  );
   const showTasks = showAllSections || subTab === "today";
   const showInbox = showAllSections || subTab === "inbox";
   const showDone = showAllSections || subTab === "done";
@@ -418,10 +437,7 @@ export default function TasksPanel({
                   onOpenMemoryReview={() => onOpenMemoryReview?.()}
                   onOpenToday={() => onSelectSubTab?.("today")}
                   onOpenChat={() => onOpenConversation?.()}
-                  onRetryFailureInChat={(prompt) => {
-                    queueChatDraft(prompt, "assistant");
-                    onOpenConversation?.();
-                  }}
+                  onRetryFailureInChat={retryFailureInChat}
                 />
               </section>
             ) : null}
@@ -447,10 +463,7 @@ export default function TasksPanel({
                 onOpenMemoryReview={() => onOpenMemoryReview?.()}
                 onOpenToday={() => onSelectSubTab?.("today")}
                 onOpenChat={() => onOpenConversation?.()}
-                onRetryFailureInChat={(prompt) => {
-                  queueChatDraft(prompt, "assistant");
-                  onOpenConversation?.();
-                }}
+                onRetryFailureInChat={retryFailureInChat}
               />
             ) : null}
 

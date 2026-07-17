@@ -15,8 +15,12 @@ export async function handleAssistantTurnStream(
   const decoder = new TextDecoder();
   let buf = "";
   let accumulatedText = "";
-  const { setMessages, stampEmission, setIsStreaming, t } = params;
+  const toolsCalled: string[] = [];
+  const { setMessages, stampEmission, setIsStreaming, t, documentAttachment, imageAttachment } =
+    params;
   const promiseFailureText = t("assistant.actionPromiseUnfulfilled");
+  // Document/image analyze turns are Q&A over inlined content — no tool is expected.
+  const analysisTurn = Boolean(documentAttachment || imageAttachment);
 
   pushExecutionTrace({ path: "turn_sse", toolsCalled: [] });
 
@@ -46,6 +50,16 @@ export async function handleAssistantTurnStream(
         setIsStreaming(false);
         return;
       }
+      if (data.tool_call && typeof data.tool_call === "object") {
+        const name = (data.tool_call as { name?: unknown }).name;
+        if (typeof name === "string" && name.trim()) {
+          toolsCalled.push(name.trim());
+          pushExecutionTrace({
+            path: "turn_sse",
+            toolsCalled: [{ name: name.trim(), ok: true }],
+          });
+        }
+      }
       if (typeof data.delta === "string") {
         accumulatedText += data.delta;
         const display = toDisplayText(accumulatedText);
@@ -57,9 +71,20 @@ export async function handleAssistantTurnStream(
       }
       dispatchIntegrationClientActionFromSsePayload(data);
       if (data.done === true) {
-        const rawFull = typeof data.full === "string" ? data.full : accumulatedText;
+        // Prefer non-empty `full`; some providers emit done with full:"" while deltas accumulated.
+        const rawFull =
+          typeof data.full === "string" && data.full.trim()
+            ? data.full
+            : accumulatedText;
         const raw = toDisplayText(typeof rawFull === "string" ? rawFull : String(rawFull ?? ""));
-        const full = sanitizeUnbackedPromiseClaim(raw || "Done.", false, promiseFailureText);
+        const toolWasCalled = toolsCalled.length > 0;
+        const emptyFallback = analysisTurn
+          ? "I couldn't generate an analysis for that document. Try attaching it again."
+          : "Done.";
+        const full =
+          analysisTurn || toolWasCalled
+            ? raw || emptyFallback
+            : sanitizeUnbackedPromiseClaim(raw || emptyFallback, false, promiseFailureText);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
@@ -69,7 +94,11 @@ export async function handleAssistantTurnStream(
         );
         setIsStreaming(false);
         notifyAssistantReplyComplete(full);
-        pushExecutionTrace({ path: "turn_sse", toolsCalled: [], promiseGuardFired: full !== raw });
+        pushExecutionTrace({
+          path: "turn_sse",
+          toolsCalled: toolsCalled.map((name) => ({ name, ok: true })),
+          promiseGuardFired: !analysisTurn && !toolWasCalled && full !== raw,
+        });
         return;
       }
     }

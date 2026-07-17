@@ -1,4 +1,10 @@
-/** Full local erasure: backend SQLite + Electron userData artifacts + renderer chat cache. */
+import { resetConversationsStore } from "../hooks/useConversations";
+
+function clearRendererCaches(): void {
+  resetConversationsStore();
+}
+
+/** Erase the active account vault (backend SQLite + Electron profile + renderer chat cache). */
 export async function wipeAllLocalData(): Promise<{
   ok: boolean;
   cleared?: string[];
@@ -15,12 +21,7 @@ export async function wipeAllLocalData(): Promise<{
       };
     }
 
-    try {
-      localStorage.removeItem("assistant_conversations_v1");
-    } catch {
-      /* ignore */
-    }
-
+    clearRendererCaches();
     return { ok: true, cleared: result.cleared };
   }
 
@@ -34,11 +35,7 @@ export async function wipeAllLocalData(): Promise<{
   );
   if (!backend.ok) return backend;
 
-  try {
-    localStorage.removeItem("assistant_conversations_v1");
-  } catch {
-    /* ignore */
-  }
+  clearRendererCaches();
 
   if (electron?.privacyWipeElectronFiles) {
     const fileResult = await electron.privacyWipeElectronFiles();
@@ -51,4 +48,25 @@ export async function wipeAllLocalData(): Promise<{
   }
 
   return backend;
+}
+
+/** Erase every local account vault on this device (and clear the cloud session). */
+export async function wipeAllProfilesOnDevice(): Promise<{
+  ok: boolean;
+  cleared?: string[];
+  detail?: string;
+}> {
+  const electron = window.electronAPI;
+  if (!electron?.privacyWipeAllProfilesOnDevice) {
+    return wipeAllLocalData();
+  }
+  const result = await electron.privacyWipeAllProfilesOnDevice();
+  if (!result?.ok) {
+    return {
+      ok: false,
+      detail: String((result as { detail?: string; reason?: string }).detail || result?.reason || "wipe_failed"),
+    };
+  }
+  clearRendererCaches();
+  return { ok: true, cleared: result.cleared };
 }

@@ -62,5 +62,20 @@ Noise REJECT/QUARANTINE still handled by `cleanup_noise_memories`.
 - Sort/classify → VPS (cloud sort credentials)
 - Memory distill / chat → `llm.complete` (configured cloud providers)
 - Memory semantic rerank → optional embeddings; lexical-only fallback
+- Conversation retain mid-band judge → `EXOSITES_MEMORY_RETAIN_LLM` (off by default); see retain policy in `MEMORY_SIGNAL_QUALITY.md`
+
+## Memory ↔ retain tiers (adapter)
+
+`memory_entry_to_retain_verdict` maps existing memory fields into retain language for metrics only:
+
+| Memory signal | Retain tier |
+|---------------|-------------|
+| manual / reviewed | `durable` |
+| `noise_score` ≥ 0.55 | `forget` |
+| `noise_score` ≥ 0.35 unreviewed | `archive` |
+| high `recall_weight` | `durable` |
+| clean auto | `working` |
+
+Prompt and search still use `is_prompt_visible` / `is_recall_visible` — not this adapter.
 
 See also `docs/MEMORY_SIGNAL_QUALITY.md`.

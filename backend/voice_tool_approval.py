@@ -40,6 +40,11 @@ class VoiceToolApprovalWaiter:
         if not fut.done():
             fut.set_result(approved)
 
+    def deny_all(self) -> None:
+        """Unblock every waiter (task cancel / session teardown)."""
+        for call_id in list(self._pending):
+            self.resolve(call_id, False)
+
     async def wait_for_decision(self, call_id: str, timeout_sec: float = 120.0) -> bool:
         """Wait for resolve(); prefer prepare() + wait on returned Future for Live tools."""
         loop = asyncio.get_running_loop()

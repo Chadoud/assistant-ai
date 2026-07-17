@@ -75,8 +75,8 @@ export default function ConversationCitations({ query, currentConversationId }: 
           className="inline-flex max-w-[14rem] items-center gap-1 truncate rounded-full border border-border bg-bg-secondary px-2 py-0.5 text-[11px] text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
         >
           <span className="text-muted">[{i + 1}]</span>
-          {hit.emoji ? <span>{hit.emoji}</span> : null}
-          <span className="truncate">{hit.title || "Untitled"}</span>
+          {hit.emoji ? <span>{String(hit.emoji)}</span> : null}
+          <span className="truncate">{String(hit.title || "Untitled")}</span>
         </button>
       ))}
     </div>

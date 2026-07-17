@@ -26,6 +26,7 @@ Module._load = function mockElectron(request, parent, isMain) {
 const {
   recordAuthorizedPath,
   isAuthorizedFolder,
+  isSafeUserContentPath,
   resetAuthorizedPathsCacheForTests,
 } = require("./authorizedPaths");
 
@@ -59,4 +60,32 @@ test("isAuthorizedFolder allows granted folder", () => {
 
 test("isAuthorizedFolder still blocks .ssh under real home", () => {
   assert.equal(isAuthorizedFolder(path.join(os.homedir(), ".ssh")), false);
+});
+
+test("isAuthorizedFolder blocks app secrets under userData", () => {
+  assert.equal(isAuthorizedFolder(path.join(userData, "gmail_oauth.json")), false);
+  assert.equal(isAuthorizedFolder(path.join(userData, "settings_secrets_v1", "x")), false);
+  assert.equal(isAuthorizedFolder(path.join(userData, "sync_master_key.enc")), false);
+});
+
+test("isSafeUserContentPath rejects userData entirely", () => {
+  assert.equal(isSafeUserContentPath(path.join(userData, "nested")), false);
+  assert.equal(isSafeUserContentPath(path.join(userData, "gmail_oauth.json")), false);
+});
+
+test("isSafeUserContentPath rejects home without grant", () => {
+  assert.equal(isSafeUserContentPath(path.join(home, "Documents", "a.txt")), false);
+});
+
+test("isSafeUserContentPath allows dialog-granted folder", () => {
+  const granted = path.join(home, "Inbox");
+  fs.mkdirSync(granted, { recursive: true });
+  recordAuthorizedPath(granted);
+  assert.equal(isSafeUserContentPath(path.join(granted, "note.txt")), true);
+});
+
+test("isSafeUserContentPath still blocks .ssh even if somehow granted", () => {
+  const ssh = path.join(os.homedir(), ".ssh");
+  recordAuthorizedPath(ssh);
+  assert.equal(isSafeUserContentPath(path.join(ssh, "id_rsa")), false);
 });

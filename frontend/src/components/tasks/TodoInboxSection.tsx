@@ -20,7 +20,7 @@ interface TodoInboxSectionProps {
   onOpenMemoryReview: () => void;
   onOpenToday: () => void;
   onOpenChat: () => void;
-  onRetryFailureInChat: (prompt: string) => void;
+  onRetryFailureInChat: (prompt: string, failureId: number) => void;
 }
 
 function AgentFailureCard({
@@ -153,7 +153,10 @@ export default function TodoInboxSection({
                 failure={failure}
                 t={t}
                 onRetry={() => {
-                  onRetryFailureInChat(buildAgentFailureRetryPrompt(parseAgentFailureContent(failure.content)));
+                  onRetryFailureInChat(
+                    buildAgentFailureRetryPrompt(parseAgentFailureContent(failure.content)),
+                    failure.id,
+                  );
                 }}
                 onDismiss={() => void onDismissFailure(failure.id)}
               />

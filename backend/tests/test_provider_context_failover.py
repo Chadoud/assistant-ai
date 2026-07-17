@@ -12,14 +12,19 @@ from llm.base import StreamError, TextDelta
 from orchestrator import complete as complete_mod
 from orchestrator.capabilities import Capability
 from orchestrator.complete import CompletionError, complete
-from orchestrator.conductor import Candidate
+from orchestrator.conductor import Candidate, candidates_for
 from orchestrator.health import (
     HealthRegistry,
     is_failover_error,
     is_model_failover_error,
     is_provider_credential_error,
 )
-from provider_context import ProviderContext, inject_provider_tool_args
+from provider_context import (
+    ProviderContext,
+    ProviderContextHolder,
+    anthropic_voice_execution_context,
+    inject_provider_tool_args,
+)
 
 
 class _FakeProvider:
@@ -87,6 +92,72 @@ def test_inject_provider_tool_args_attaches_preferred_fields() -> None:
     assert args["_preferred_api_key"] == "g-key"
 
 
+def test_voice_handoff_prefers_anthropic_when_key_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
+    holder = ProviderContextHolder()
+    holder.update(
+        ProviderContext(
+            preferred="gemini",
+            preferred_model="gemini-2.5-flash",
+            preferred_api_key="g-key",
+        )
+    )
+    args = inject_provider_tool_args(
+        "plan_and_execute",
+        {"goal": "check emails"},
+        holder=holder,
+        voice_handoff=True,
+    )
+    assert args["_preferred"] == "anthropic"
+    assert args["_preferred_api_key"] == "sk-ant-test-key"
+    assert args.get("_preferred_model")
+
+
+def test_voice_handoff_keeps_gemini_without_anthropic_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    holder = ProviderContextHolder()
+    holder.update(
+        ProviderContext(
+            preferred="gemini",
+            preferred_model="gemini-2.5-flash",
+            preferred_api_key="g-key",
+        )
+    )
+    args = inject_provider_tool_args(
+        "plan_and_execute",
+        {"goal": "check emails"},
+        holder=holder,
+        voice_handoff=True,
+    )
+    assert args["_preferred"] == "gemini"
+    assert args["_preferred_api_key"] == "g-key"
+
+
+def test_anthropic_voice_execution_context_none_without_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert anthropic_voice_execution_context() is None
+
+
+def test_candidates_for_preferred_anthropic_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    cands = candidates_for(
+        Capability.REASONING,
+        preferred="anthropic",
+        preferred_api_key="sk-ant-test",
+    )
+    assert cands
+    assert cands[0].provider_id == "anthropic"
+
+
 def test_plan_and_execute_uses_preferred_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     """Gemini user never calls Anthropic when Anthropic would 404."""
     captured: dict[str, str | None] = {}
@@ -115,7 +186,7 @@ def test_plan_and_execute_uses_preferred_provider(monkeypatch: pytest.MonkeyPatc
         reason_fn(Capability.REASONING, "planner", f"Goal: {goal}")
         return {"ok": True, "summary": "done", "steps": [], "log": []}
 
-    monkeypatch.setattr("actions.agent_task.complete", _fake_complete)
+    monkeypatch.setattr("orchestrator.complete.complete", _fake_complete)
     monkeypatch.setattr("orchestrator.orchestrate", _fake_orchestrate)
 
     plan_and_execute(
@@ -154,8 +225,8 @@ def test_plan_and_execute_reads_provider_context(monkeypatch: pytest.MonkeyPatch
         kwargs["reason_fn"](Capability.REASONING, "planner", "Goal: x")
         return {"ok": True, "summary": "ok", "steps": [], "log": []}
 
-    monkeypatch.setattr("actions.agent_task.candidates_for", _fake_candidates_for)
-    monkeypatch.setattr("actions.agent_task.complete", _fake_complete)
+    monkeypatch.setattr("orchestrator.conductor.candidates_for", _fake_candidates_for)
+    monkeypatch.setattr("orchestrator.complete.complete", _fake_complete)
     monkeypatch.setattr("orchestrator.orchestrate", _fake_orchestrate)
 
     with patch("actions.agent_task.get_provider_context") as mock_ctx:

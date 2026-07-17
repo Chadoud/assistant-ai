@@ -40,7 +40,7 @@ def dispatch_sync(
         logger.warning("[tool] DENIED   %s (approval required)", name)
         return {
             "ok": False,
-            "error": "This action requires explicit user approval in voice mode.",
+            "error": "This action requires explicit user approval.",
         }
 
     raw_params = parameters if isinstance(parameters, dict) else {}
@@ -61,10 +61,19 @@ def dispatch_sync(
     if ok:
         logger.debug("[tool] OK       %s | %.3fs", name, elapsed)
     else:
+        detail = "no detail"
+        if isinstance(result, dict):
+            detail = (
+                str(result.get("error") or "").strip()
+                or str(result.get("summary") or "").strip()
+                or "no detail"
+            )
+        else:
+            detail = result
         logger.warning(
             "[tool] FAIL     %s | %.3fs | %s",
             name,
             elapsed,
-            result.get("error", "no detail") if isinstance(result, dict) else result,
+            detail,
         )
     return result

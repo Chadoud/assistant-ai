@@ -486,16 +486,19 @@ function resetRefreshInFlightForTests() {
 async function login(userData, email, password) {
   const em = String(email || "").trim().toLowerCase();
   const data = await postJson("/auth/login", { email: em, password: String(password || "") });
+  const { accountIdFromAccessToken } = require("./accountProfile");
+  const accountId = accountIdFromAccessToken(data.access_token);
   if (
     !writeSession(userData, {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       email: em,
+      account_id: accountId,
     })
   ) {
     return { ok: false, error: "Secure storage unavailable on this device." };
   }
-  return { ok: true, email: em };
+  return { ok: true, email: em, account_id: accountId };
 }
 
 async function register(userData, email, password, firstName, lastName) {
@@ -509,6 +512,8 @@ async function register(userData, email, password, firstName, lastName) {
     last_name: normalizedLastName,
   });
   if (data.access_token && data.refresh_token) {
+    const { accountIdFromAccessToken } = require("./accountProfile");
+    const accountId = accountIdFromAccessToken(data.access_token);
     if (
       !writeSession(userData, {
         access_token: data.access_token,
@@ -516,11 +521,12 @@ async function register(userData, email, password, firstName, lastName) {
         email: em,
         first_name: normalizedFirstName || null,
         last_name: normalizedLastName || null,
+        account_id: accountId,
       })
     ) {
       return { ok: false, error: "Secure storage unavailable on this device." };
     }
-    return { ok: true, email: em };
+    return { ok: true, email: em, account_id: accountId };
   }
   return login(userData, em, password);
 }
@@ -532,16 +538,19 @@ async function register(userData, email, password, firstName, lastName) {
  */
 async function exchangeSocialCode(userData, code) {
   const data = await postJson("/auth/exchange", { code: String(code || "") });
+  const { accountIdFromAccessToken } = require("./accountProfile");
+  const accountId = accountIdFromAccessToken(data.access_token);
   if (
     !writeSession(userData, {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       email: data.email || null,
+      account_id: accountId,
     })
   ) {
     return { ok: false, error: "Secure storage unavailable on this device." };
   }
-  return { ok: true, email: data.email || null };
+  return { ok: true, email: data.email || null, account_id: accountId };
 }
 
 async function getAuthProviders() {
@@ -560,6 +569,7 @@ function logout(userData) {
     }
     try {
       const { clearCloudSortCredentials } = require("./entitlement/sortCredentials");
+      // Clears profile-scoped meta; pass device root (resolved inside).
       await clearCloudSortCredentials(userData);
     } catch (err) {
       console.warn("[cloudAuth] clear sort credentials failed:", err && err.message);

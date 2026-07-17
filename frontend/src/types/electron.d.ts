@@ -50,9 +50,22 @@ export type UpdateEvent =
 export interface ElectronAPI {
   openFiles: () => Promise<string[]>;
   openFilesOrFolders: () => Promise<string[]>;
-  /** Read a single file or folder as text for the assistant composer. Trusts home/userData paths only. */
+  /** Read a single file/folder/image for the assistant composer (dialog-granted paths only). */
   readComposerAttachment: (filePath: string) => Promise<
     | { ok: true; kind: "file"; basename: string; text: string }
+    | { ok: true; kind: "image"; basename: string; dataUrl: string }
+    | {
+        ok: true;
+        kind: "document";
+        basename: string;
+        text: string;
+        truncated?: boolean;
+        pages?: number | null;
+        source?: string;
+        previewDataUrl?: string;
+      }
+    | { ok: true; kind: "binary"; basename: string; reason?: string }
+    | { ok: true; kind: "video"; basename: string }
     | { ok: true; kind: "file_too_large"; basename: string }
     | { ok: true; kind: "directory"; basename: string; pathText: string }
     | { ok: false; reason?: string }
@@ -107,6 +120,8 @@ export interface ElectronAPI {
   hasSecret?: (key: string) => Promise<boolean>;
   /** Persist a secret in main-process safeStorage. */
   setSecret: (key: string, value: string) => Promise<{ ok: boolean; reason?: string }>;
+  /** Remove a secret from the active profile vault. */
+  clearSecret?: (key: string) => Promise<{ ok: boolean; reason?: string }>;
   openPath: (path: string) => Promise<string>;
   openExternal: (url: string) => Promise<void>;
   /** Opens Google OAuth in an app window; resolves when that window is closed (desktop Gmail connect). */
@@ -174,6 +189,16 @@ export interface ElectronAPI {
   cloudAuthDeleteAccount: () => Promise<{ ok: boolean; error?: string }>;
   privacyWipeElectronFiles: () => Promise<{ ok: boolean; removed?: string[]; reason?: string }>;
   privacyWipeAllLocalData: () => Promise<{ ok: boolean; cleared?: string[]; detail?: string; reason?: string }>;
+  /** Factory-reset: erase every local account vault + device session on this Mac. */
+  privacyWipeAllProfilesOnDevice: () => Promise<{ ok: boolean; cleared?: string[]; detail?: string; reason?: string }>;
+  accountProfileGetState: () => Promise<{
+    ok: boolean;
+    activeId?: string;
+    isGuest?: boolean;
+    profileRoot?: string;
+    deviceRoot?: string;
+    error?: string;
+  }>;
   voicePrimeSession: (payload: {
     sessionId: string;
     provider?: string;
@@ -274,15 +299,6 @@ export interface ElectronAPI {
       /** Infomaniak: true when `EXOSITES_INFOMANIAK_TOKEN` supplies API access (may omit stored OAuth). */
       authViaEnvToken?: boolean;
     }>;
-  }>;
-  /**
-   * @deprecated M2.3 — removed from preload; use integrationRelayAllTokens.
-   */
-  integrationGetToken?: (payload: { providerId: string }) => Promise<{
-    ok: boolean;
-    token?: string;
-    expiresIn?: number;
-    reason?: string;
   }>;
   integrationConnect: (payload: {
     providerId: string;
@@ -707,12 +723,8 @@ export interface ElectronAPI {
   }>;
   syncSetEnabled?: (enabled: boolean) => Promise<{ ok: boolean }>;
   syncRunNow?: () => Promise<{ ok: boolean }>;
-  syncGetPairingPayload?: () => Promise<{
-    v: number;
-    cloud_url: string;
-    master_key_b64: string;
-    issued_at: string;
-  }>;
+  /** Main builds the QR so master_key_b64 never enters the renderer. */
+  syncGetPairingQr?: () => Promise<{ dataUrl: string } | { ok: false; error: string }>;
 
   // ─── Codegen Studio ─────────────────────────────────────────────────────────
   // ─── In-app updates ──────────────────────────────────────────────────────
@@ -728,6 +740,8 @@ export interface ElectronAPI {
   onUpdateEvent: (handler: (event: UpdateEvent) => void) => () => void;
   /** Fired when cloud sign-in state changes (login, logout, expired refresh). */
   onCloudSessionChanged: (handler: (payload: { reason?: string }) => void) => () => void;
+  /** Fired when the active local account vault changes (login, logout, wipe). */
+  onAccountProfileChanged: (handler: (payload: { activeId?: string; profileRoot?: string }) => void) => () => void;
 
   codegenRunInstall: (payload: {
     sessionId: string;

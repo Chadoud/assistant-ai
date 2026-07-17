@@ -1,6 +1,12 @@
 """Tests for voice session error classification (auth vs transient transport)."""
 
-from voice.errors import is_api_key_error, is_quota_exhausted_error, is_transient_connection_error
+from voice.errors import (
+    is_api_key_error,
+    is_live_audio_config_error,
+    is_quota_exhausted_error,
+    is_transient_connection_error,
+)
+from voice.model import GEMINI_VOICE_MODEL_DEFAULT, resolve_gemini_voice_model
 
 
 class _WsCloseError(Exception):
@@ -8,6 +14,14 @@ class _WsCloseError(Exception):
 
     def __init__(self, code: int, message: str = "") -> None:
         super().__init__(message or f"closed with code {code}")
+        self.code = code
+
+
+class _ConnectionClosed(Exception):
+    """Name matches websockets ConnectionClosed so type-name heuristics apply."""
+
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(message)
         self.code = code
 
 
@@ -49,6 +63,23 @@ def test_transient_connection_error_cause_chain():
 
 def test_non_transient_generic_error():
     assert is_transient_connection_error(ValueError("bad tool args")) is False
+
+
+def test_audio_config_1007_is_not_transient_even_when_named_connection_closed():
+    exc = _ConnectionClosed(
+        1007,
+        "1007 None. The audio content type (CONTENT_TYPE_AUDIO) is not supported "
+        "for this model configuration.",
+    )
+    assert is_live_audio_config_error(exc) is True
+    assert is_transient_connection_error(exc) is False
+
+
+def test_resolve_gemini_voice_model_remaps_chat_flash():
+    assert resolve_gemini_voice_model("gemini-2.5-flash") == GEMINI_VOICE_MODEL_DEFAULT
+    assert resolve_gemini_voice_model("models/gemini-2.5-flash-native-audio-latest") == (
+        GEMINI_VOICE_MODEL_DEFAULT
+    )
 
 
 def test_quota_exhausted_error_matches_free_tier_chain():

@@ -1202,6 +1202,16 @@ def google_workspace(parameters: dict[str, Any]) -> dict[str, Any]:
                 ),
                 "needs_reconnect": "google-drive",
             }
+        if op == "create_filter":
+            return {
+                "ok": False,
+                "error": (
+                    "Gmail needs an updated connection for inbox filters. "
+                    "Disconnect and connect Gmail again under Settings → External sources, "
+                    "then try again."
+                ),
+                "needs_reconnect": "google-gmail",
+            }
         return {
             "ok": False,
             "error": (

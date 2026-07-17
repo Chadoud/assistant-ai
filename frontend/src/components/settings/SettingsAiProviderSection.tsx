@@ -14,12 +14,13 @@ import type { AppSettings, ChatProviderConfig, ChatProviderId } from "../../type
 import { desktopClient } from "../../desktopClient";
 import { GEMINI_AI_STUDIO_API_KEY_URL } from "../../constants";
 import { useI18n } from "../../i18n/I18nContext";
-import { isGeminiApiKeyConfigured } from "../../utils/geminiApiKey";
-import { ensureVoiceBackendReady } from "../../voice/ensureVoiceBackendReady";
 import {
-  pushProviderKeyToBackend,
-  resolveGeminiApiKeyFromSettings,
-} from "../../utils/syncGeminiKeyToBackend";
+  isGeminiConnectedInSettings,
+  isProviderApiKeyPresent,
+  resolveProviderApiKeyForPresence,
+} from "../../utils/geminiConnection";
+import { ensureVoiceBackendReady } from "../../voice/ensureVoiceBackendReady";
+import { pushProviderKeyToBackend } from "../../utils/syncGeminiKeyToBackend";
 import ModalShell from "../ModalShell";
 import SelectDropdown, {
   SELECT_DROPDOWN_PANEL_CLASS,
@@ -309,18 +310,22 @@ export default function SettingsAiProviderSection({
     };
   }, [backendOnline, syncState]);
 
-  // Voice and other backend paths read GEMINI_API_KEY from the process env — sync whenever configured.
+  // Voice and other backend paths read GEMINI_API_KEY from the process env — sync whenever connected
+  // (including packaged safeStorage mask; spawn may already have injected the real key).
+  // Key-field deps only: unrelated settings patches must not re-arm the timer. Latest settings
+  // are read via ref so ensureVoiceBackendReady always sees current chatProviders / models.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const geminiApiKey = settings.geminiApiKey;
+  const geminiProviderApiKey = settings.chatProviders?.gemini?.apiKey;
   useEffect(() => {
-    if (!backendOnline || !resolveGeminiApiKeyFromSettings(settings)) return;
+    const latest = settingsRef.current;
+    if (!backendOnline || !isGeminiConnectedInSettings(latest)) return;
     const handle = window.setTimeout(() => {
-      void ensureVoiceBackendReady(settings, { backendOnline }).catch(() => {});
+      void ensureVoiceBackendReady(settingsRef.current, { backendOnline }).catch(() => {});
     }, 700);
     return () => window.clearTimeout(handle);
-  }, [
-    backendOnline,
-    settings.geminiApiKey,
-    settings.chatProviders?.gemini?.apiKey,
-  ]);
+  }, [backendOnline, geminiApiKey, geminiProviderApiKey]);
 
   const defaultModelFor = useCallback(
     (ui: ProviderUi): string => {
@@ -334,12 +339,14 @@ export default function SettingsAiProviderSection({
   const isReady = useCallback(
     (ui: ProviderUi): boolean => {
       if (ui.id === "ollama") return true;
-      const cfg = settings.chatProviders?.[ui.id];
-      if (cfg?.apiKey) return true;
-      if (ui.id === "gemini" && settings.geminiApiKey) return true;
+      // Gemini: same check as chat/voice readiness (includes packaged safeStorage mask).
+      if (ui.id === "gemini") return isGeminiConnectedInSettings(settings);
+      if (isProviderApiKeyPresent(resolveProviderApiKeyForPresence(settings, ui.id))) {
+        return true;
+      }
       return status?.providers?.[ui.id]?.ready ?? false;
     },
-    [settings.chatProviders, settings.geminiApiKey, status],
+    [settings, status],
   );
 
   const openConfig = useCallback(
@@ -432,7 +439,7 @@ export default function SettingsAiProviderSection({
 
   return (
     <>
-      {!isGeminiApiKeyConfigured(resolveGeminiApiKeyFromSettings(settings)) && onOpenGeminiSetup ? (
+      {!isGeminiConnectedInSettings(settings) && onOpenGeminiSetup ? (
         <div
           className="mb-4 rounded-xl border border-accent/40 bg-accent-soft px-4 py-3 space-y-2"
           role="status"

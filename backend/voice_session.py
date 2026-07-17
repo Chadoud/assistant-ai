@@ -19,34 +19,35 @@ Tool calling:
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 from typing import AsyncGenerator
 
 from provider_context import ProviderContextHolder
-from voice.gemini_session import run_gemini_live_session
-from voice.pending_delete_sync import PendingDeleteSyncHolder
-from voice_tool_approval import VoiceToolApprovalWaiter
-
-logger = logging.getLogger(__name__)
-
-# Match Mark-XXXIX's LIVE_MODEL exactly; use -latest alias so the session
-# always runs on the current stable build without requiring a code change when
-# Google rotates preview snapshots.
-GEMINI_VOICE_MODEL_DEFAULT = "models/gemini-2.5-flash-native-audio-latest"
 
 # Re-export tool helpers for tests and backward compatibility.
 from tool_registry import dispatch_sync  # noqa: E402, F401, I001
+from voice.gemini_session import run_gemini_live_session
+from voice.model import resolve_gemini_voice_model
+from voice.pending_delete_sync import PendingDeleteSyncHolder
 from voice.tool_args import (  # noqa: E402, I001
     enrich_voice_tool_args as _enrich_voice_tool_args,  # noqa: F401
+)
+from voice.tool_args import (
     infer_close_browser_args as _infer_close_browser_args,  # noqa: F401
 )
 from voice.tool_dispatch import (  # noqa: E402, I001
     BACKGROUND_VOICE_TOOLS as _BACKGROUND_VOICE_TOOLS,  # noqa: F401
+)
+from voice.tool_dispatch import (
     format_background_completion as _format_background_completion,  # noqa: F401
+)
+from voice.tool_dispatch import (
     queue_background_tool_result as _queue_background_tool_result,  # noqa: F401
+)
+from voice.tool_dispatch import (
     spawn_background_voice_tool as _spawn_background_voice_tool,  # noqa: F401
 )
+from voice_tool_approval import VoiceToolApprovalWaiter
 
 
 async def run_voice_session(
@@ -93,7 +94,7 @@ async def run_voice_session(
 
     set_mirror_loop(asyncio.get_running_loop())
 
-    model = os.environ.get("GEMINI_VOICE_MODEL", GEMINI_VOICE_MODEL_DEFAULT)
+    model = resolve_gemini_voice_model()
 
     try:
         from google import genai  # type: ignore[import]

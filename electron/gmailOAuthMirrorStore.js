@@ -33,7 +33,7 @@ function clearGmailOAuthMirror() {
 
 /**
  * Write decrypted mirror JSON for the backend child (0600).
- * @param {string} userData Electron app.getPath("userData")
+ * @param {string} userData Active profile root (resolveProfileRoot), not device userData
  * @returns {boolean}
  */
 function materializeGmailOAuthMirrorForBackend(userData) {

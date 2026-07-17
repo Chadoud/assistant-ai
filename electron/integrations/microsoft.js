@@ -662,7 +662,7 @@ async function importOneDriveFilesToDirectory(accessToken, items, destDir) {
  */
 function oneDriveStagingDir(jobId) {
   return path.join(
-    app.getPath("userData"),
+    require("../accountProfile").resolveProfileRoot(),
     "onedrive_sort_staging",
     jobId.replace(/[^a-zA-Z0-9_-]/g, "")
   );
@@ -929,7 +929,7 @@ async function importOutlookMessagesToDirectory(accessToken, messageIds, destDir
  */
 function outlookStagingDir(jobId) {
   return path.join(
-    app.getPath("userData"),
+    require("../accountProfile").resolveProfileRoot(),
     "outlook_sort_staging",
     jobId.replace(/[^a-zA-Z0-9_-]/g, "")
   );

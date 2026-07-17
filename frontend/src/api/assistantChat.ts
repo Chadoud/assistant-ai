@@ -3,9 +3,16 @@ import { getApiHeaders, mapFetchFailureToError } from "./client";
 import { desktopClient } from "../desktopClient";
 import { apiKeyForBackendRequest } from "../utils/geminiConnection";
 
+/** Multimodal content part accepted by backend llm.iter_parts. */
+export type ChatContentPart =
+  | { type: "text"; text: string }
+  | { type: "image"; mime_type: string; data: string };
+
+export type ChatMessageContent = string | ChatContentPart[];
+
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
-  content: string;
+  content: ChatMessageContent;
 }
 
 interface StreamAssistantChatOptions {

@@ -47,6 +47,8 @@ export interface PlanState {
   error: string | null;
   /** Shown while planning when the Conductor relays to another provider. */
   relayNotice: string | null;
+  /** Pending APPROVAL-tier tool consent (same payload as voice tool_approval_required). */
+  pendingApproval: { callId: string; tool: string } | null;
 }
 
 type Listener = () => void;
@@ -112,6 +114,7 @@ function initialState(taskId: string): PlanState {
     finalResult: null,
     error: null,
     relayNotice: null,
+    pendingApproval: null,
   };
 }
 
@@ -173,7 +176,8 @@ export function reducePlanEvent(state: PlanState, frame: Record<string, unknown>
       } else {
         // Back-compat: older backend only sends step_count.
         const count = typeof frame.step_count === "number" ? frame.step_count : 0;
-        steps = Array.from({ length: count }, (_, i) => ({
+        const safeCount = Math.max(0, Math.min(48, Math.floor(count)));
+        steps = Array.from({ length: safeCount }, (_, i) => ({
           index: i + 1,
           description: `Step ${i + 1}`,
           status: "pending" as CubeStatus,
@@ -262,6 +266,7 @@ export function reducePlanEvent(state: PlanState, frame: Record<string, unknown>
         finalResult: String(frame.result ?? ""),
         activeStepIndex: null,
         activeSubtaskIndex: null,
+        pendingApproval: null,
       };
 
     case "task_error":
@@ -271,6 +276,7 @@ export function reducePlanEvent(state: PlanState, frame: Record<string, unknown>
         error: String(frame.error ?? "Task failed."),
         activeStepIndex: null,
         activeSubtaskIndex: null,
+        pendingApproval: null,
       };
 
     case "task_cancelled":
@@ -279,7 +285,27 @@ export function reducePlanEvent(state: PlanState, frame: Record<string, unknown>
         phase: "cancelled",
         activeStepIndex: null,
         activeSubtaskIndex: null,
+        pendingApproval: null,
       };
+
+    case "tool_approval_required": {
+      const callId = String(frame.call_id ?? "").trim();
+      const tool = String(frame.tool ?? "").trim();
+      if (!callId || !tool) return state;
+      return { ...state, pendingApproval: { callId, tool } };
+    }
+
+    case "tool_approval_resolved": {
+      const callId = String(frame.call_id ?? "").trim();
+      if (
+        callId &&
+        state.pendingApproval &&
+        state.pendingApproval.callId === callId
+      ) {
+        return { ...state, pendingApproval: null };
+      }
+      return state;
+    }
 
     default:
       // heartbeat and unknown frames: no change.
@@ -540,7 +566,7 @@ export async function cancelPlanTask(taskId: string): Promise<void> {
   if (entry) {
     closeStream(entry);
     if (!isTerminal(entry.state.phase)) {
-      entry.state = { ...entry.state, phase: "cancelled" };
+      entry.state = { ...entry.state, phase: "cancelled", pendingApproval: null };
       notify(entry);
     }
   }
@@ -549,4 +575,13 @@ export async function cancelPlanTask(taskId: string): Promise<void> {
   } catch {
     /* best effort */
   }
+}
+
+/** Clear pending tool consent after the user approves/denies (optimistic UI). */
+export function clearPlanPendingApproval(taskId: string, callId?: string): void {
+  const entry = entries.get(taskId);
+  if (!entry?.state.pendingApproval) return;
+  if (callId && entry.state.pendingApproval.callId !== callId) return;
+  entry.state = { ...entry.state, pendingApproval: null };
+  notify(entry);
 }

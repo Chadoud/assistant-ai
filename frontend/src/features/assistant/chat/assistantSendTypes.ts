@@ -11,6 +11,17 @@ export interface RunAssistantSendMessageParams {
   conversation: Conversation;
   localMessages: ConversationMessage[];
   memoryBlock: string;
+  /** When set, this turn includes a vision image (composer attach). */
+  imageAttachment?: { name: string; dataUrl: string };
+  /** When set, content is document extract; turn message stays a short prompt. */
+  documentAttachment?: {
+    name: string;
+    text: string;
+    pages?: number | null;
+    truncated?: boolean;
+    source?: string;
+    previewDataUrl?: string;
+  };
   setMessages: (
     updater: ConversationMessage[] | ((prev: ConversationMessage[]) => ConversationMessage[]),
   ) => void;
@@ -28,5 +39,5 @@ export interface RunAssistantSendMessageParams {
     userMsg: ConversationMessage;
     priorSessionId?: string;
   }) => void;
-  onAgentTaskStarted: (taskId: string) => void;
+  onAgentTaskStarted: (taskId: string, goal: string) => void;
 }

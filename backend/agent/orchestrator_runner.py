@@ -6,14 +6,21 @@ import asyncio
 import json
 import logging
 import os
+import uuid
 from collections.abc import Callable
 from typing import Any
 
 from orchestrator.capabilities import Capability
 from orchestrator.complete import complete
 from orchestrator.conductor import candidates_for
+from orchestrator.policy import AutonomyPolicy, policy_block_result
+from tool_registry import TOOLS_NEEDING_APPROVAL, dispatch_sync
+from voice_tool_approval import VoiceToolApprovalWaiter
 
 logger = logging.getLogger(__name__)
+
+# Tools the planner must never invoke (same as orchestrator.agents).
+_REENTRANT_TOOLS = frozenset({"plan_and_execute"})
 
 
 def orchestrator_task_queue_enabled() -> bool:
@@ -80,18 +87,85 @@ def _build_reason_fn(
     return _reason
 
 
+def _build_approval_dispatch_fn(
+    task: Any,
+    loop: asyncio.AbstractEventLoop,
+    waiter: VoiceToolApprovalWaiter,
+) -> Callable[[str, dict[str, Any]], dict[str, Any]]:
+    """Same consent order as voice: prepare → emit → wait → policy → dispatch."""
+
+    async def _request_approval(call_id: str, tool: str) -> bool:
+        if task.cancel_event.is_set():
+            return False
+        if tool == "screen_capture" and waiter.screen_capture_session_active():
+            return True
+        fut = waiter.prepare(call_id)
+        await task.events.put(
+            _make_event("tool_approval_required", call_id=call_id, tool=tool)
+        )
+        try:
+            return await asyncio.wait_for(fut, timeout=120.0)
+        except asyncio.TimeoutError:
+            logger.warning(
+                "[orchestrator_runner] approval timed out call_id=%s tool=%s",
+                call_id,
+                tool,
+            )
+            if not fut.done():
+                waiter.resolve(call_id, False)
+            return False
+
+    def _dispatch(tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        if tool in _REENTRANT_TOOLS:
+            return {"ok": False, "error": "nested planning is not allowed"}
+
+        approved_tool = True
+        if tool in TOOLS_NEEDING_APPROVAL:
+            call_id = str(uuid.uuid4())
+            try:
+                approved_tool = asyncio.run_coroutine_threadsafe(
+                    _request_approval(call_id, tool),
+                    loop,
+                ).result(timeout=130)
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "[orchestrator_runner] approval wait failed tool=%s", tool
+                )
+                approved_tool = False
+
+        if not approved_tool:
+            return {"ok": False, "error": "User denied or approval unavailable"}
+
+        if blocked := policy_block_result(
+            tool,
+            args,
+            allow_sensitive=bool(getattr(task, "allow_sensitive", False)),
+            approved_tool=approved_tool,
+        ):
+            return blocked
+
+        approval_ok = (tool not in TOOLS_NEEDING_APPROVAL) or approved_tool
+        return dispatch_sync(tool, args or {}, approval_granted=approval_ok)
+
+    return _dispatch
+
+
 def run_orchestrator_for_task(task: Any, loop: asyncio.AbstractEventLoop) -> dict[str, Any]:
     """
     Synchronous orchestrator run for one AgentTask.
 
-    Emits the same SSE event types the Tesseract visualizer expects.
+    Emits the same SSE event types the Tesseract visualizer expects, plus
+    ``tool_approval_required`` when a voice-parity consent gate is needed.
     """
     from orchestrator import orchestrate
     from orchestrator.audit import default_adapter as audit_adapter
     from orchestrator.budget import Budget
     from orchestrator.memory import default_adapter as memory_adapter
-    from orchestrator.policy import AutonomyPolicy
     from orchestrator.skills import default_adapter as skill_adapter
+
+    waiter: VoiceToolApprovalWaiter = getattr(task, "approval_waiter", None) or VoiceToolApprovalWaiter()
+    task.approval_waiter = waiter
+    allow_sensitive = bool(getattr(task, "allow_sensitive", False))
 
     _emit(loop, task.events, "task_start", goal=task.goal)
 
@@ -105,9 +179,10 @@ def run_orchestrator_for_task(task: Any, loop: asyncio.AbstractEventLoop) -> dic
         task.goal,
         max_steps=8,
         reason_fn=_build_reason_fn(task, loop),
+        dispatch_fn=_build_approval_dispatch_fn(task, loop, waiter),
         memory=memory_adapter(),
         skills=skill_adapter(),
-        policy=AutonomyPolicy(allow_sensitive=False),
+        policy=AutonomyPolicy(allow_sensitive=allow_sensitive),
         budget=Budget(max_tool_calls=8),
         audit=audit_adapter(task.goal),
         progress=_progress,

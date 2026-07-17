@@ -412,12 +412,16 @@ export default function ExoPanel({
     [activeId, updateSummary],
   );
 
-  const handleComposerAttach = useCallback((name: string, content: string) => {
+  const handleComposerAttach = useCallback((name: string, content: string, opts?: { imageDataUrl?: string }) => {
     const fileMsg: ConversationMessage = {
       id: makeId(),
       role: "user",
-      content: `[File uploaded: ${name}]\n\`\`\`\n${content}\n\`\`\``,
+      // Keep a short caption in content for LLM/history; bubble hides it when imageAttachment is set.
+      content: opts?.imageDataUrl ? `[Image uploaded: ${name}]` : `[File uploaded: ${name}]\n\`\`\`\n${content}\n\`\`\``,
       createdAt: new Date().toISOString(),
+      ...(opts?.imageDataUrl
+        ? { imageAttachment: { name, dataUrl: opts.imageDataUrl } }
+        : {}),
     };
     updateMessages(activeId, [...active.messages, fileMsg]);
     setFileKey((k) => k + 1);
@@ -523,7 +527,7 @@ export default function ExoPanel({
                           />
                         ) : (
                         <AssistantChatPanelWithSharedVoice
-                          key={`${activeId}-${fileKey}`}
+                          key={`${activeId}-${fileKey}-${visuallyHidden ? "bg" : "fg"}`}
                           voice={voice}
                           conversation={active}
                           onConversationChange={handleConversationChange}
@@ -538,6 +542,7 @@ export default function ExoPanel({
                           hideInputAccessories
                           collapseSuggestionsInitially
                           acceptQueuedChatDraft={!visuallyHidden}
+                          persistConversationMessages={!visuallyHidden}
                           chatDraftTarget="exo"
                           onComposerInlineAttachment={handleComposerAttach}
                         />

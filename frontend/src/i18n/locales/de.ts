@@ -122,6 +122,8 @@ export default {
     capabilitiesFootnote: "~ = öffnet Ihre App mit vorausgefüllten Details",
     mailNoAccountsConnected: "Es sind noch keine E-Mail-Konten verbunden. Gehen Sie zu Externe Quellen, um Outlook oder Gmail zu verknüpfen.",
     mailNoMessages: "Aus Ihren verbundenen Konten konnten keine E-Mails abgerufen werden. Sie sind möglicherweise leer oder die Verbindung muss unter Externe Quellen erneuert werden.",
+    mailFiltersNeedReconnect:
+      "Gmail braucht eine aktualisierte Verbindung für Posteingangsfilter. Trennen Sie Gmail unter Externe Quellen und verbinden Sie es erneut.",
     mailToolsDisabled: "Assistent-Tools sind deaktiviert. Gehen Sie zu Einstellungen → KI-Assistent und aktivieren Sie 'Assistent-Aktionen', um Ihre E-Mails lesen zu lassen.",
     sendMessageAgentRequired: "Nachrichten senden erfordert den Agenten-Modus. Gehen Sie zu Einstellungen \u2192 KI-Assistent und aktivieren Sie den \"Agenten-Modus\".",
     calendarWriteNotSupported: "Ich kann Ihre Kalender-App mit vorausgefüllten Details öffnen — prüfen und dort speichern.",
@@ -323,7 +325,9 @@ export default {
     googleDisconnectFailed: "Trennen fehlgeschlagen",
     gmailTitle: "Gmail",
     gmailAccountDesc:
-      "Verbinden Sie das Google-Konto für Gmail. Für Google Drive können Sie auf der Drive-Karte ein anderes Konto nutzen. Mails werden nur gelesen, wenn Sie im Tab \"Dateien sortieren\" einen Sortierlauf starten. Tokens bleiben auf diesem Rechner.",
+      "Verbinden Sie das Google-Konto für Gmail. Für Google Drive können Sie auf der Drive-Karte ein anderes Konto nutzen. Mails werden nur gelesen, wenn Sie im Tab \"Dateien sortieren\" einen Sortierlauf starten. Tokens bleiben auf diesem Rechner. Die Freigabe eines Hintergrundplans erlaubt Mail-Verschiebungen und Filter nur für diesen Lauf.",
+    gmailFiltersReconnectHint:
+      "Gmail braucht eine aktualisierte Verbindung für Posteingangsfilter. Trennen Sie Gmail unter Externe Quellen und verbinden Sie es erneut.",
     gmailWebDesktopDriveSeparateNote:
       "Google Drive hat oben eine eigene Schaltfläche. Diese Gmail-Verbindung ändert Drive nicht.",
     gmailNotConfigured:
@@ -1312,6 +1316,9 @@ export default {
     brainMapIncludeMailTitle: "Importierte E-Mails auf der Brain-Map anzeigen",
     brainMapIncludeMailDesc:
       "Wenn aus: nur umsetzbare und manuell hinzugefügte Aufgaben. Belege und FYI-Mails bleiben ausgeblendet.",
+    brainMapIncludeLowValueChatsTitle: "Wenig nützliche Chats auf der Brain-Map anzeigen",
+    brainMapIncludeLowValueChatsDesc:
+      "Wenn aus: nur zusammengefasste, fortsetzbare Gespräche. Wiederholungen, „Was kannst du?“ und leere Chats bleiben ausgeblendet.",
     clearAllMemory: "Gesamtes Gedächtnis löschen",
     confirmClearMemory: "Löschen bestätigen",
     privacyGroupTitle: "Datenschutz & Diagnose",
@@ -1344,13 +1351,22 @@ export default {
     privacyFeedbackThanks: "Danke — Feedback gesendet.",
     privacyFeedbackError:
       "Senden fehlgeschlagen. Prüfen Sie, ob der lokale App-Dienst läuft (Erneut in der Titelleiste).",
-    privacyLocalWipeTitle: "Lokale Assistentendaten löschen",
+    privacyLocalWipeTitle: "Daten dieses Kontos auf diesem Mac löschen",
     privacyLocalWipeHint:
-      "Löscht Erinnerungen, Chats, Aufgaben und Aktivität auf diesem Gerät. Cloud-Konto bleibt — Export/Löschung unter Konto. OAuth-Verbindungen bleiben bis Trennung unter Quellen.",
-    privacyLocalWipeAction: "Lokale Daten löschen",
+      "Löscht den lokalen Tresor dieses Kontos auf diesem Mac — Erinnerungen, Chats, Aufgaben, API-Schlüssel und Integrationen. Andere Konten auf diesem Mac bleiben. Cloud-Konto bleibt — Export/Löschung unter Konto.",
+    privacyLocalWipeAction: "Lokale Daten dieses Kontos löschen",
     privacyLocalWipeConfirm: "Löschen bestätigen",
-    privacyLocalWipeDone: "Lokale Assistentendaten wurden gelöscht.",
+    privacyLocalWipeDone: "Lokale Daten dieses Kontos wurden gelöscht.",
     privacyLocalWipeError: "Lokale Daten konnten nicht gelöscht werden. Läuft der App-Dienst?",
+    privacyWipeAllProfilesTitle: "Alle Konten auf diesem Mac löschen",
+    privacyWipeAllProfilesHint:
+      "Löscht jeden lokalen Kontotresor auf diesem Mac und meldet Sie ab. Vollständiger Reset der Exo-Daten auf diesem Gerät.",
+    privacyWipeAllProfilesAction: "Alle lokalen Konten löschen",
+    privacyWipeAllProfilesConfirm: "Löschen aller Konten bestätigen",
+    privacyWipeAllProfilesDone: "Alle lokalen Kontodaten auf diesem Mac wurden gelöscht.",
+    privacyWipeAllProfilesError: "Lokale Konten konnten nicht gelöscht werden. Läuft der App-Dienst?",
+    accountLocalVaultHint:
+      "API-Schlüssel und Chats bleiben in einem lokalen Tresor für dieses Konto auf diesem Mac. Abmelden sperrt den Tresor — das nächste Konto sieht ihn nicht.",
     voiceGroupTitle: "Sprache",
     voiceGroupSummary: "Mikrofon, Push-to-Talk und gesprochene Unterhaltungen.",
     voiceGroupDesc:
@@ -1622,6 +1638,7 @@ export default {
     accountRegister: "Konto erstellen",
     accountLogin: "Anmelden",
     accountSignOut: "Abmelden",
+    accountSwitching: "Konto wird gewechselt…",
     accountSignedOut: "Abgemeldet.",
     accountRegistered: "Konto erstellt — Sie sind angemeldet.",
     accountLoggedIn: "Angemeldet.",

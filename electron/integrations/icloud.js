@@ -174,7 +174,7 @@ function sanitizeFilename(name) {
 }
 
 function icloudStagingDir(jobId) {
-  return path.join(app.getPath("userData"), "icloud_sort_staging", jobId);
+  return path.join(require("../accountProfile").resolveProfileRoot(), "icloud_sort_staging", jobId);
 }
 
 module.exports = {

@@ -159,6 +159,7 @@ describe("resolvePlanCubeLayout", () => {
       finalResult: null,
       error: null,
       relayNotice: null,
+      pendingApproval: null,
     };
   }
 

@@ -284,7 +284,7 @@ function sanitizeFilename(name) {
 }
 
 function slackStagingDir(jobId) {
-  return path.join(app.getPath("userData"), "slack_sort_staging", jobId);
+  return path.join(require("../accountProfile").resolveProfileRoot(), "slack_sort_staging", jobId);
 }
 
 module.exports = {

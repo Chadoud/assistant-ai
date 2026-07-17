@@ -43,6 +43,12 @@ _AGENT_TASK_RE = re.compile(
     r"then.*and\s+then)\b",
     re.IGNORECASE,
 )
+# Inbox "Retry in Chat" prefills — must win over mail nouns like "invoices".
+# Keep in sync with frontend `AGENT_FAILURE_RETRY_PREFIX`.
+_AGENT_RETRY_RE = re.compile(
+    r"^please\s+retry\s+this(?:\s+autonomously)?\s*:\s*(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
 _CODEGEN_TASK_RE = re.compile(
     r"\b(create|build|make|generate|scaffold|implement|write)\b[\s\S]{0,120}\b"
     r"(app(?:lication)?|project|website|web\s+app|chat\s+app|codebase|program)\b|"
@@ -144,8 +150,23 @@ def is_mail_write_intent(text: str) -> bool:
     return bool(_MAIL_WRITE_RE.search(text.strip()))
 
 
-def classify_intent_from_message_body(text: str) -> AssistantIntent:
-    """Classify one message body without follow-up reuse."""
+def extract_agent_retry_goal(text: str) -> str:
+    """Return the original goal when ``text`` is an Inbox Retry prefill."""
+    cur = text.strip()
+    match = _AGENT_RETRY_RE.match(cur)
+    if not match:
+        return cur
+    goal = match.group(1).strip()
+    return goal or cur
+
+
+def is_agent_retry_prefill(text: str) -> bool:
+    """True when the message is an Inbox agent-failure Retry prefill."""
+    return bool(_AGENT_RETRY_RE.match(text.strip()))
+
+
+def _classify_body_without_retry(text: str) -> AssistantIntent:
+    """Classify a bare user utterance (no Inbox Retry wrapper)."""
     if _CODEGEN_TASK_RE.search(text):
         return "codegen_studio"
     if _AGENT_TASK_RE.search(text):
@@ -169,6 +190,22 @@ def classify_intent_from_message_body(text: str) -> AssistantIntent:
     if _SEND_MESSAGE_RE.search(text) and not _MAIL_WRITE_RE.search(text):
         return "send_message"
     return "generic_chat"
+
+
+def classify_intent_from_message_body(text: str) -> AssistantIntent:
+    """Classify one message body without follow-up reuse.
+
+    Inbox Retry prefills are classified from the *underlying goal* so mail/invoice
+    asks use ``read_mail`` (same as typing the goal). Only fall back to
+    ``agent_task`` when the goal has no specialized route.
+    """
+    if is_agent_retry_prefill(text):
+        goal = extract_agent_retry_goal(text)
+        intent = _classify_body_without_retry(goal)
+        if intent == "generic_chat":
+            return "agent_task"
+        return intent
+    return _classify_body_without_retry(text)
 
 
 def classify_intent(text: str, previous_user_message: str | None = None) -> AssistantIntent:

@@ -7,11 +7,16 @@ export const deSecondBrainLocaleSlice = {
     previewMemoriesOnly: "{n} Erinnerungen wirken wie Werbe-E-Mails.",
     previewTasksOnly: "{n} E-Mail-Aufgaben wirken werblich.",
     previewBoth: "{memories} Erinnerungen und {tasks} E-Mail-Aufgaben wirken werblich.",
+    previewChatsOnly: "{n} wenig nutzvolle Chats können entfernt oder archiviert werden.",
+    previewWithChats:
+      "{memories} Erinnerungen, {tasks} E-Mail-Aufgaben und {conversations} wenig nutzvolle Chats können entfernt werden.",
     confirm: "Entfernen",
     cancel: "Abbrechen",
     removing: "Entferne…",
     toastDone: "{n} Einträge entfernt",
     toastDoneBreakdown: "{memories} Erinnerungen und {tasks} Aufgaben entfernt",
+    toastDoneWithChats:
+      "{memories} Erinnerungen, {tasks} Aufgaben und {conversations} Chats bereinigt",
     toastFailed: "Werbeinhalte konnten nicht entfernt werden",
     actionMemories: "Werbevorschläge verwerfen",
     actionTasks: "Werbe-Aufgaben aus E-Mails entfernen",

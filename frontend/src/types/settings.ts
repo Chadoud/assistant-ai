@@ -127,6 +127,8 @@ export interface AppSettings {
   assistantMemoryEnabled: boolean;
   /** Show Gmail/Outlook-suggested tasks on the brain map (off = curated/actionable only). */
   brainMapIncludeMailTasks: boolean;
+  /** Show low-value chats (FAQ, retries, no summary) on the brain map. Default off. */
+  brainMapIncludeLowValueChats: boolean;
   /** Allow the assistant to plan and execute autonomous multi-step tasks. */
   assistantAgentEnabled: boolean;
   /**

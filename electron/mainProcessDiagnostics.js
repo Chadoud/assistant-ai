@@ -23,6 +23,8 @@ const { appendMainDiagnosticLine, getRendererDiagnosticsLogPath } = require("./r
 const DIALOG_THROTTLE_MS = 10000;
 let lastDialogAt = 0;
 let installed = false;
+/** Prevent console → EPIPE → uncaughtException → console feedback loops. */
+let handling = false;
 
 /** Patterns for expected updater / crypto packaging noise — never surface a dialog. */
 const BENIGN_BACKGROUND_PATTERNS = [
@@ -32,6 +34,10 @@ const BENIGN_BACKGROUND_PATTERNS = [
   /\[updater\].*(sig_reject|crypto|network_error|signature rejected)/i,
   /latest\.json signature rejected/i,
   /electron-updater unavailable/i,
+  // Broken stdout/stderr when Electron is launched without a TTY (e.g. under npm/Cursor).
+  /^write EPIPE$/i,
+  /^write ECONNRESET$/i,
+  /\bEPIPE\b/,
 ];
 
 /**
@@ -110,28 +116,39 @@ function maybeShowDialog(normalized) {
 }
 
 function handle(kind, value) {
-  const normalized = normalizeError(value);
-  const benign = isBenignBackgroundError(normalized.message);
-  appendMainDiagnosticLine({
-    event: kind,
-    message: normalized.message,
-    stack: normalized.stack,
-    benign,
-  });
-  // eslint-disable-next-line no-console
-  console.error(`[main-diagnostics] ${kind}${benign ? " (benign)" : ""}:`, normalized.message);
-  if (benign) {
-    // Safety net only — Phase 1 should prevent updater crypto failures from reaching here.
-    return;
-  }
+  if (handling) return;
+  handling = true;
   try {
-    const { deleteMaterializedGmailOAuthMirror } = require("./gmailOAuthMirrorStore");
-    deleteMaterializedGmailOAuthMirror(app.getPath("userData"));
-  } catch {
-    /* best-effort wipe of ephemeral gmail mirror (M2.4) */
+    const normalized = normalizeError(value);
+    const benign = isBenignBackgroundError(normalized.message);
+    appendMainDiagnosticLine({
+      event: kind,
+      message: normalized.message,
+      stack: normalized.stack,
+      benign,
+    });
+    try {
+      // eslint-disable-next-line no-console
+      console.error(`[main-diagnostics] ${kind}${benign ? " (benign)" : ""}:`, normalized.message);
+    } catch {
+      /* stdout/stderr closed — never rethrow into this handler */
+    }
+    if (benign) {
+      // Safety net only — Phase 1 should prevent updater crypto failures from reaching here.
+      return;
+    }
+    try {
+      const { deleteMaterializedGmailOAuthMirror } = require("./gmailOAuthMirrorStore");
+      const { resolveProfileRoot } = require("./accountProfile");
+      deleteMaterializedGmailOAuthMirror(resolveProfileRoot(app.getPath("userData")));
+    } catch {
+      /* best-effort wipe of ephemeral gmail mirror (M2.4) */
+    }
+    relayToRenderer(kind, normalized, { benign: false });
+    maybeShowDialog(normalized);
+  } finally {
+    handling = false;
   }
-  relayToRenderer(kind, normalized, { benign: false });
-  maybeShowDialog(normalized);
 }
 
 /**

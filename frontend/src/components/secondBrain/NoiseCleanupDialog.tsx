@@ -17,9 +17,24 @@ function previewBody(
   preview: CleanupSecondBrainNoiseResult | null,
 ): string {
   if (!preview) return "";
-  const memoryCount = preview.memories.candidates;
-  const taskCount = preview.tasks.candidates;
-  if (memoryCount === 0 && taskCount === 0) return t("cleanup.previewNone");
+  const memoryCount = preview.memories.candidates ?? 0;
+  const taskCount = preview.tasks.candidates ?? 0;
+  const convCount =
+    (preview.conversations?.candidates_delete ?? 0) +
+    (preview.conversations?.candidates_archive ?? 0);
+  if (memoryCount === 0 && taskCount === 0 && convCount === 0) {
+    return t("cleanup.previewNone");
+  }
+  if (convCount > 0 && memoryCount === 0 && taskCount === 0) {
+    return t("cleanup.previewChatsOnly", { n: convCount });
+  }
+  if (convCount > 0) {
+    return t("cleanup.previewWithChats", {
+      memories: memoryCount,
+      tasks: taskCount,
+      conversations: convCount,
+    });
+  }
   if (memoryCount > 0 && taskCount > 0) {
     return t("cleanup.previewBoth", { memories: memoryCount, tasks: taskCount });
   }

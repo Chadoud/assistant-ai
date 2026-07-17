@@ -33,7 +33,7 @@ export default function BrainMapDetailCard({
   openingLabel,
 }: Props) {
   return (
-    <div className="absolute right-3 top-3 z-10 w-64 rounded-xl border border-border bg-bg-primary/95 p-3 shadow-xl backdrop-blur">
+    <div className="w-64 rounded-xl border border-border bg-bg-primary/95 p-3 shadow-xl backdrop-blur">
       <div className="flex items-start justify-between gap-2">
         <span
           className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white"

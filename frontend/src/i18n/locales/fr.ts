@@ -122,6 +122,8 @@ export default {
     capabilitiesFootnote: "~ = ouvre votre app avec les détails pré-remplis",
     mailNoAccountsConnected: "Aucun compte e-mail n'est encore connecté. Allez dans Sources externes pour lier Outlook ou Gmail.",
     mailNoMessages: "Aucun e-mail n'a été récupéré depuis vos comptes connectés. Ils sont peut-être vides, ou la connexion doit être actualisée dans Sources externes.",
+    mailFiltersNeedReconnect:
+      "Gmail a besoin d’une connexion mise à jour pour les filtres de boîte de réception. Déconnectez puis reconnectez Gmail sous Sources externes.",
     mailToolsDisabled: "Les outils assistant sont désactivés. Allez dans Paramètres → IA Assistant et activez « Actions assistant » pour permettre la lecture de vos e-mails.",
     sendMessageAgentRequired: "L'envoi de messages nécessite le mode Agent. Allez dans Paramètres → IA Assistant et activez « Mode agent ».",
     calendarWriteNotSupported: "Je peux ouvrir votre application calendrier avec ces détails pré-remplis — vérifiez et enregistrez-y.",
@@ -323,7 +325,9 @@ export default {
     googleDisconnectFailed: "Impossible de déconnecter",
     gmailTitle: "Gmail",
     gmailAccountDesc:
-      "Connectez le compte Google utilisé pour Gmail. Vous pouvez utiliser un autre compte pour Google Drive sur la carte Drive. Votre messagerie n’est lue que lorsque vous lancez un tri depuis Trier les fichiers. Les jetons restent sur cet ordinateur.",
+      "Connectez le compte Google utilisé pour Gmail. Vous pouvez utiliser un autre compte pour Google Drive sur la carte Drive. Votre messagerie n’est lue que lorsque vous lancez un tri depuis Trier les fichiers. Les jetons restent sur cet ordinateur. Approuver un plan en arrière-plan autorise les déplacements et filtres mail pour ce seul passage.",
+    gmailFiltersReconnectHint:
+      "Gmail a besoin d’une connexion mise à jour pour les filtres de boîte de réception. Déconnectez puis reconnectez Gmail sous Sources externes.",
     gmailWebDesktopDriveSeparateNote:
       "Google Drive a son propre bouton ci-dessus. Cette connexion Gmail ne modifie pas Drive.",
     gmailNotConfigured:
@@ -1317,6 +1321,9 @@ export default {
     brainMapIncludeMailTitle: "Afficher l’e-mail importé sur la carte mentale",
     brainMapIncludeMailDesc:
       "Désactivé : seules les tâches actionnables et ajoutées à la main apparaissent. Reçus et mails informatifs restent masqués.",
+    brainMapIncludeLowValueChatsTitle: "Afficher les chats peu utiles sur la carte",
+    brainMapIncludeLowValueChatsDesc:
+      "Désactivé : seules les conversations résumées et utiles apparaissent. Relances, « que peux-tu faire ? » et chats vides restent masqués.",
     clearAllMemory: "Effacer toute la mémoire",
     confirmClearMemory: "Confirmer l'effacement",
     privacyGroupTitle: "Confidentialité et diagnostics",
@@ -1349,13 +1356,22 @@ export default {
     privacyFeedbackThanks: "Merci — message envoyé.",
     privacyFeedbackError:
       "Envoi impossible. Vérifiez que le service local de l’app est actif (Réessayer dans la barre de titre).",
-    privacyLocalWipeTitle: "Effacer les données locales de l’assistant",
+    privacyLocalWipeTitle: "Effacer les données de ce compte sur ce Mac",
     privacyLocalWipeHint:
-      "Supprime mémoires, chats, tâches et activité sur cet appareil. Ne supprime pas le compte cloud — voir Compte pour export ou suppression. Les connexions OAuth restent jusqu’à déconnexion dans Sources.",
-    privacyLocalWipeAction: "Effacer les données locales",
+      "Supprime le coffre local de ce compte sur ce Mac — mémoires, chats, tâches, clés API et intégrations. Les autres comptes sur ce Mac restent. Ne supprime pas le compte cloud — voir Compte.",
+    privacyLocalWipeAction: "Effacer les données locales de ce compte",
     privacyLocalWipeConfirm: "Confirmer l’effacement",
-    privacyLocalWipeDone: "Les données locales de l’assistant ont été effacées.",
+    privacyLocalWipeDone: "Les données locales de ce compte ont été effacées.",
     privacyLocalWipeError: "Impossible d’effacer les données locales. Le service local est-il actif ?",
+    privacyWipeAllProfilesTitle: "Effacer tous les comptes sur ce Mac",
+    privacyWipeAllProfilesHint:
+      "Supprime chaque coffre de compte local sur ce Mac et vous déconnecte. Réinitialisation complète des données Exo sur cet appareil.",
+    privacyWipeAllProfilesAction: "Effacer tous les comptes locaux",
+    privacyWipeAllProfilesConfirm: "Confirmer l’effacement de tous les comptes",
+    privacyWipeAllProfilesDone: "Toutes les données de compte locales sur ce Mac ont été effacées.",
+    privacyWipeAllProfilesError: "Impossible d’effacer tous les comptes locaux. Le service local est-il actif ?",
+    accountLocalVaultHint:
+      "Les clés API et les chats restent dans un coffre local pour ce compte sur ce Mac. La déconnexion verrouille ce coffre — le compte suivant ne le verra pas.",
     voiceGroupTitle: "Voix",
     voiceGroupSummary: "Microphone, push-to-talk et conversations parlées.",
     voiceGroupDesc:
@@ -1626,6 +1642,7 @@ export default {
     accountRegister: "Créer un compte",
     accountLogin: "Se connecter",
     accountSignOut: "Se déconnecter",
+    accountSwitching: "Changement de compte…",
     accountSignedOut: "Déconnecté.",
     accountRegistered: "Compte créé — vous êtes connecté.",
     accountLoggedIn: "Connecté.",

@@ -35,12 +35,66 @@ TERMINAL_SAFE_PREFIXES = [
 # prefix allowlist below cannot be bypassed via `ls && rm -rf ~` or `echo $(...)`.
 _FORBIDDEN_SHELL_CHARS = frozenset(";&|`$><(){}\n\r\0")
 
+_APP_SECRET_NAMES = frozenset(
+    {
+        "settings_secrets_v1",
+        "gmail_oauth.json",
+        "sync_master_key.enc",
+    }
+)
+
+
+def _home_sensitive_roots() -> list[Path]:
+    return [
+        HOME / ".ssh",
+        HOME / ".gnupg",
+        HOME / ".aws",
+    ]
+
+
+def _app_data_roots() -> list[Path]:
+    roots: list[Path] = []
+    for env_key in ("EXOSITES_USER_DATA", "EXOSITES_DATA_DIR"):
+        raw = (os.environ.get(env_key) or "").strip()
+        if not raw:
+            continue
+        try:
+            roots.append(Path(raw).expanduser().resolve())
+        except (OSError, ValueError, RuntimeError):
+            continue
+    return roots
+
+
+def _is_blocked_content_path(resolved: Path) -> bool:
+    """Deny home secrets and Electron userData / app secret leaves."""
+    for root in _home_sensitive_roots():
+        try:
+            if resolved == root or resolved.is_relative_to(root):
+                return True
+        except (ValueError, OSError):
+            continue
+    for ud in _app_data_roots():
+        try:
+            if resolved == ud or resolved.is_relative_to(ud):
+                return True
+        except (ValueError, OSError):
+            continue
+        # Also block secret basenames if EXOSITES_* is unset but path looks local.
+    if any(part in _APP_SECRET_NAMES for part in resolved.parts):
+        # Only treat as blocked when under home or absolute app-data style paths.
+        try:
+            if resolved.is_relative_to(HOME):
+                return True
+        except (ValueError, OSError):
+            pass
+    return False
+
 
 def _resolve_under_home(p: str) -> Path | None:
     """Expand ~ and verify the path resolves under the user's home directory."""
     try:
         resolved = Path(p).expanduser().resolve()
-        if resolved.is_relative_to(HOME):
+        if resolved.is_relative_to(HOME) and not _is_blocked_content_path(resolved):
             return resolved
     except (ValueError, OSError):
         pass
@@ -181,14 +235,17 @@ def system_volume(args: dict) -> dict:
 
 def read_file(args: dict) -> dict:
     logger.debug("[action] read_file called path=%r", args.get("path", ""))
-    file_path = str(args.get("path", ""))
-    if not file_path or not _is_under_home(file_path):
+    file_path = str(args.get("path", "")).strip()
+    resolved = _resolve_under_home(file_path) if file_path else None
+    if not resolved:
         return {"ok": False, "error": "Path must be under home directory"}
     try:
-        p = Path(file_path)
-        if p.stat().st_size > MAX_READ_BYTES:
+        if resolved.stat().st_size > MAX_READ_BYTES:
             return {"ok": False, "error": f"File too large (max {MAX_READ_BYTES // 1024} KB)"}
-        return {"ok": True, "data": {"content": p.read_text(errors="replace")[:MAX_READ_BYTES]}}
+        return {
+            "ok": True,
+            "data": {"content": resolved.read_text(errors="replace")[:MAX_READ_BYTES]},
+        }
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
 

@@ -80,7 +80,7 @@ describe("SettingsPrivacySection", () => {
       );
     });
     const wipeBtn = Array.from(container.querySelectorAll("button")).find((b) =>
-      b.textContent?.includes("Erase local data"),
+      b.textContent?.includes("Erase this account"),
     );
     expect(wipeBtn).toBeTruthy();
     await act(async () => {

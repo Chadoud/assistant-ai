@@ -7,7 +7,7 @@ const { app } = require("electron");
 const FILE_NAME = "backend-env-overrides.json";
 
 function overridesPath() {
-  return path.join(app.getPath("userData"), FILE_NAME);
+  return path.join(require("./accountProfile").resolveProfileRoot(), FILE_NAME);
 }
 
 /** Read persisted overrides; values become strings on the backend env. */

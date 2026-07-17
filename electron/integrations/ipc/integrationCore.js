@@ -49,7 +49,8 @@ const PROVIDER_INFOMANIAK_ALL = "infomaniak-all";
 // ─── Paths / environment ──────────────────────────────────────────────────────
 
 function userData() {
-  return app.getPath("userData");
+  // PROFILE vault — integrations, OAuth secrets, and staging live per account.
+  return require("../../accountProfile").resolveProfileRoot();
 }
 
 /** Options for env-file helpers that need to locate .env across dev/packaged builds. */
@@ -58,11 +59,11 @@ function infomaniakEnvOpts() {
     isDev: !app.isPackaged,
     backendDir: path.join(__dirname, "..", "..", "..", "backend"),
     resourcesPath: process.resourcesPath || "",
-    userData: app.getPath("userData"),
+    userData: require("../../accountProfile").resolveProfileRoot(),
   };
 }
 
-/** Top-level dirs under userData where integration imports may write. */
+/** Top-level dirs under profile root where integration imports may write. */
 const INTEGRATION_STAGING_ROOT_DIRS = [
   "drive_sort_staging",
   "dropbox_sort_staging",
@@ -73,6 +74,8 @@ const INTEGRATION_STAGING_ROOT_DIRS = [
   "slack_sort_staging",
   "icloud_sort_staging",
   "infomaniak_sort_staging",
+  "infomaniak_mail_sort_staging",
+  "gmail_imports",
   "browser_uploads",
 ];
 

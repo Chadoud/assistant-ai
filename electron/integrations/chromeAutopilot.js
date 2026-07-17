@@ -71,7 +71,7 @@ async function launchAndDrive(authUrl, { providerId, label, redirectUri }) {
   }
 
   const executablePath = findChromeExecutable();
-  const userDataDir = path.join(app.getPath("userData"), "oauth-chrome-profile");
+  const userDataDir = oauthChromeProfileDir();
 
   const launchOptions = {
     headless: false,
@@ -224,4 +224,37 @@ function waitForUserToAdvance(page, fromUrl, callbackOrigin) {
   });
 }
 
-module.exports = { launchAndDrive, findChromeExecutable };
+/** DEVICE-scoped transient Chrome profile for OAuth autopilot (not per-account vault). */
+function oauthChromeProfileDir(deviceRoot) {
+  let root = deviceRoot;
+  if (!root) {
+    try {
+      root = app.getPath("userData");
+    } catch {
+      root = "";
+    }
+  }
+  return root ? path.join(root, "oauth-chrome-profile") : "";
+}
+
+/**
+ * Clear shared OAuth Chrome profile so cookies/session do not leak across accounts.
+ * @param {string} [deviceRoot]
+ */
+function clearOauthChromeProfile(deviceRoot) {
+  const dir = oauthChromeProfileDir(deviceRoot);
+  if (!dir || !fs.existsSync(dir)) return { ok: true, cleared: false };
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+    return { ok: true, cleared: true };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+module.exports = {
+  launchAndDrive,
+  findChromeExecutable,
+  oauthChromeProfileDir,
+  clearOauthChromeProfile,
+};

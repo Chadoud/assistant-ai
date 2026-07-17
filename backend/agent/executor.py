@@ -1,9 +1,9 @@
 """
 Agent executor — runs a planned step using the tool_registry catalog.
 
-Only commands in SAFE_COMMANDS are allowed. Sensitive tools (screen_capture,
-code_runner) return errors unless called from voice with approval — dispatch_sync
-handles that via approval_granted=False.
+Only commands in SAFE_COMMANDS are allowed. Sensitive APPROVAL-tier tools
+return errors unless ``approval_granted=True`` (chat/voice consent flow).
+The default orchestrator task path wires consent via ``orchestrator_runner``.
 """
 
 from __future__ import annotations

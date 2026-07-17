@@ -8,6 +8,9 @@ import {
   buildMailComposeDeeplinks,
 } from "../../../systemCommands/assistantIntentHelpers";
 import { calendarDeleteDraftFromTurn } from "../../../utils/calendarDeleteConfirm";
+import { extractAgentRetryGoal } from "../../../utils/agentFailureContent";
+import { resolveChatProviderCredentials } from "../../../utils/resolveChatProviderCredentials";
+import { apiKeyForBackendRequest } from "../../../utils/geminiConnection";
 import type { RunAssistantSendMessageParams } from "./assistantSendTypes";
 
 export function applyCompletedTurnMessage(
@@ -90,11 +93,22 @@ export async function handleAgentTaskAction(
   assistantMsgId: string,
   text: string,
 ): Promise<void> {
-  const { setMessages, stampEmission, setIsStreaming, onAgentTaskStarted } = params;
+  const { setMessages, stampEmission, setIsStreaming, onAgentTaskStarted, settings } = params;
   if (turn.action_payload?.relay_tokens) await relayConnectorTokens();
+  const payloadGoal =
+    typeof turn.action_payload?.goal === "string" ? turn.action_payload.goal.trim() : "";
+  const goal = payloadGoal || extractAgentRetryGoal(text);
+  const routing = resolveChatProviderCredentials(settings);
   try {
-    const { task_id } = await startAgentTask({ goal: text });
-    onAgentTaskStarted(task_id);
+    const { task_id } = await startAgentTask({
+      goal,
+      provider: routing.provider,
+      model: routing.model,
+      apiKey: apiKeyForBackendRequest(routing.apiKey),
+      baseUrl: routing.baseUrl,
+      autonomousMode: settings.autonomousMode,
+    });
+    onAgentTaskStarted(task_id, goal);
     setMessages((prev) =>
       prev.map((m) =>
         m.id === assistantMsgId
@@ -102,7 +116,7 @@ export async function handleAgentTaskAction(
               ...m,
               ...stampEmission(m),
               content: "__agent_task__",
-              agentGoal: text.trim(),
+              agentGoal: goal,
               agentTaskId: task_id,
               streaming: false,
               prefetching: false,

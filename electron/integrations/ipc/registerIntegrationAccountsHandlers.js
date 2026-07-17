@@ -1,8 +1,8 @@
 /**
- * IPC handlers: listProviders, getAccounts, getToken, healthCheck.
+ * IPC handlers: listProviders, getAccounts, healthCheck.
  *
- * These handlers deal with reading provider connection state and fetching
- * access tokens. No OAuth flow or file-import side effects here.
+ * These handlers deal with reading provider connection state. Access tokens are
+ * relayed from main via integration:relayAllTokens (never returned to renderer).
  *
  * @param {Electron.IpcMain} ipcMain
  * @param {import('./integrationCore')} core
@@ -19,7 +19,6 @@ const s3 = require("../s3");
 const icloud = require("../icloud");
 const infomaniak = require("../infomaniak");
 const infomaniakTokenStore = require("../infomaniakTokenStore");
-const { resolveIntegrationAccessToken } = require("../accessTokenResolver");
 const { isTrustedSender } = require("../../ipc/senderGuard");
 
 /** @param {import("electron").IpcMainInvokeEvent} event */
@@ -98,17 +97,6 @@ module.exports = function registerIntegrationAccountsHandlers(ipcMain, core) {
         },
       ],
     };
-  });
-
-  /**
-   * Return the current access token for a provider so the frontend can relay
-   * it to the backend credential cache before dispatching an agent task.
-   */
-  ipcMain.handle("integration:getToken", async (event, payload) => {
-    const denied = rejectUntrustedSender(event);
-    if (denied) return denied;
-    const providerId = payload && typeof payload.providerId === "string" ? payload.providerId : "";
-    return resolveIntegrationAccessToken(core.userData(), providerId, core);
   });
 
   ipcMain.handle("integration:healthCheck", async (event, payload) => {

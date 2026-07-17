@@ -1,19 +1,25 @@
 """Preferred AI provider context for orchestrator-backed tool calls.
 
-Text chat and voice relay the user's active provider (Settings → AI Provider) so
-``plan_and_execute`` plans with the same engine as chat, not the hard-coded
-REASONING chain default (Anthropic first).
+Text chat relays the user's active provider (Settings → AI Provider) so
+``plan_and_execute`` plans with the same engine as chat.
+
+Voice is special: Gemini Live handles speech, but heavy ``plan_and_execute``
+work prefers Anthropic when ``ANTHROPIC_API_KEY`` is configured so free Gemini
+RPM is not burned by planner/critic loops. Gemini then speaks a short summary.
 
 Controlled by ``ASSISTANT_PROVIDER_CONTEXT`` (on by default; set to ``0`` to disable).
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -124,6 +130,37 @@ def merge_provider_context(
     )
 
 
+def anthropic_key_available() -> bool:
+    """True when the backend has an Anthropic API key in the environment."""
+    return bool(os.environ.get("ANTHROPIC_API_KEY", "").strip())
+
+
+def anthropic_voice_execution_context() -> ProviderContext | None:
+    """Provider context that routes voice ``plan_and_execute`` onto Anthropic.
+
+    Returns ``None`` when no Anthropic key is configured so callers keep the
+    session (usually Gemini) preferred provider.
+    """
+    key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+    if not key:
+        return None
+    model: str | None = None
+    try:
+        from llm import provider_meta
+
+        models = provider_meta("anthropic").default_models
+        if models:
+            model = models[0]
+    except Exception:  # noqa: BLE001
+        logger.debug("anthropic_voice_execution_context: provider_meta failed", exc_info=True)
+    return ProviderContext(
+        preferred="anthropic",
+        preferred_model=model,
+        preferred_api_key=key,
+        preferred_base_url=None,
+    )
+
+
 def inject_provider_tool_args(
     tool_name: str,
     args: dict[str, Any],
@@ -133,8 +170,13 @@ def inject_provider_tool_args(
     preferred_api_key: str | None = None,
     preferred_base_url: str | None = None,
     holder: ProviderContextHolder | None = None,
+    voice_handoff: bool = False,
 ) -> dict[str, Any]:
-    """Attach preferred provider fields to ``plan_and_execute`` args when enabled."""
+    """Attach preferred provider fields to ``plan_and_execute`` args when enabled.
+
+    When ``voice_handoff`` is True and Anthropic is configured, nested planning
+    uses Claude instead of the Gemini Live session provider.
+    """
     if not provider_context_enabled() or tool_name != "plan_and_execute":
         return args
 
@@ -145,7 +187,17 @@ def inject_provider_tool_args(
         preferred_base_url=preferred_base_url,
     )
     session_ctx = holder.snapshot() if holder is not None else get_provider_context()
-    ctx = merge_provider_context(explicit, session_ctx)
+    if voice_handoff:
+        handoff = anthropic_voice_execution_context()
+        if handoff is not None:
+            ctx = merge_provider_context(explicit, handoff)
+            logger.info(
+                "[provider_context] voice plan_and_execute → anthropic (Gemini speaks summary)"
+            )
+        else:
+            ctx = merge_provider_context(explicit, session_ctx)
+    else:
+        ctx = merge_provider_context(explicit, session_ctx)
     if not any(
         (
             ctx.preferred,

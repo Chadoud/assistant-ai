@@ -87,14 +87,22 @@ interface AssistantChatPanelProps {
    * Defaults to true.
    */
   acceptQueuedChatDraft?: boolean;
+  /**
+   * When false, do not write this panel's messages into the shared conversation store.
+   * Required for the always-mounted Exo rail so it cannot clobber Chat tab updates.
+   */
+  persistConversationMessages?: boolean;
   /** Which chat surface this panel is — must match {@link queueChatDraft} target. */
   chatDraftTarget?: ChatDraftTarget;
   /**
    * When provided, a paperclip attachment button is rendered between the textarea and send/stop.
-   * The callback receives the filename and text content of the chosen file (or a placeholder for
-   * large / binary files and folders). Handled by the parent (e.g. Exo panel) to inject a message.
+   * Optional imageDataUrl shows a preview bubble instead of dumping binary into a code fence.
    */
-  onComposerInlineAttachment?: (filename: string, content: string) => void;
+  onComposerInlineAttachment?: (
+    filename: string,
+    content: string,
+    opts?: { imageDataUrl?: string },
+  ) => void;
   /** Called with a fresh summary string after background summarisation completes. */
   onSummaryUpdate?: (summary: string) => void;
   /** Whether the conversation history sidebar is currently collapsed. */
@@ -138,6 +146,7 @@ export function AssistantChatPanelBody({
   onOpenAiProviderSettings,
   onOpenVoiceInteractionSettings,
   acceptQueuedChatDraft = true,
+  persistConversationMessages = true,
   chatDraftTarget = "assistant",
 }: AssistantChatPanelBodyProps) {
   const { t } = useI18n();
@@ -207,6 +216,7 @@ export function AssistantChatPanelBody({
     backendOnline,
     onSummaryUpdate,
     onDraftClear: useCallback(() => setDraft(""), []),
+    persistConversationMessages,
   });
 
   const showSlashPalette = draft.startsWith("/") && !isStreaming;
@@ -229,6 +239,41 @@ export function AssistantChatPanelBody({
           onComposerInlineAttachment(result.basename, `[Folder attached: ${result.basename}]\n${result.pathText}`);
         } else if (result.kind === "file_too_large") {
           onComposerInlineAttachment(result.basename, `[File too large to inline — ${result.basename}]`);
+        } else if (result.kind === "image") {
+          // Vision turn: send immediately so the model receives multimodal parts (not caption-only).
+          void sendMessage(`Please describe and analyze this image (${result.basename}).`, {
+            imageAttachment: { name: result.basename, dataUrl: result.dataUrl },
+          });
+        } else if (result.kind === "document") {
+          void sendMessage(
+            `Please read and analyze the attached document (${result.basename}). Summarize who it's about, key experience, skills, and notable projects. Be specific.`,
+            {
+              documentAttachment: {
+                name: result.basename,
+                text: result.text,
+                pages: result.pages ?? null,
+                truncated: Boolean(result.truncated),
+                source: result.source,
+                previewDataUrl: result.previewDataUrl,
+              },
+            },
+          );
+        } else if (result.kind === "video") {
+          onComposerInlineAttachment(
+            result.basename,
+            `[Video not supported: ${result.basename}]`,
+          );
+        } else if (result.kind === "binary") {
+          const detail =
+            result.reason === "encrypted"
+              ? "password-protected or encrypted"
+              : result.reason === "no_text_layer"
+                ? "no extractable text (scanned?)"
+                : "preview not available";
+          onComposerInlineAttachment(
+            result.basename,
+            `[Could not read ${result.basename} — ${detail}]`,
+          );
         } else {
           onComposerInlineAttachment(result.basename, result.text.slice(0, 8000));
         }
@@ -238,7 +283,7 @@ export function AssistantChatPanelBody({
 
     // Browser fallback
     attachInputRef.current?.click();
-  }, [onComposerInlineAttachment]);
+  }, [onComposerInlineAttachment, sendMessage]);
 
   const handleAttachInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -246,6 +291,26 @@ export function AssistantChatPanelBody({
       const file = e.target.files?.[0];
       if (!file) return;
       e.target.value = "";
+      if (file.type.startsWith("image/")) {
+        if (file.size > 8 * 1024 * 1024) {
+          onComposerInlineAttachment(file.name, `[File too large to inline — ${(file.size / 1024).toFixed(0)} KB]`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = typeof ev.target?.result === "string" ? ev.target.result : "";
+          if (!dataUrl) {
+            onComposerInlineAttachment(file.name, "[Could not read image]");
+            return;
+          }
+          void sendMessage(`Please describe and analyze this image (${file.name}).`, {
+            imageAttachment: { name: file.name, dataUrl },
+          });
+        };
+        reader.onerror = () => onComposerInlineAttachment(file.name, "[Could not read file content]");
+        reader.readAsDataURL(file);
+        return;
+      }
       if (file.size > 500_000) {
         onComposerInlineAttachment(file.name, `[File too large to inline — ${(file.size / 1024).toFixed(0)} KB]`);
         return;
@@ -258,7 +323,7 @@ export function AssistantChatPanelBody({
       reader.onerror = () => onComposerInlineAttachment(file.name, "[Could not read file content]");
       reader.readAsText(file);
     },
-    [onComposerInlineAttachment],
+    [onComposerInlineAttachment, sendMessage],
   );
 
   const chatBlockReason = getChatBlockReason(settings);
@@ -481,9 +546,26 @@ export function AssistantChatPanelBody({
                       <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-muted" />
                       {msg.content}
                     </p>
-                  ) : msg.content === "__agent_task__" && msg.agentGoal ? (
+                  ) : msg.content === "__agent_task__" ? (
                     msg.agentTaskId ? (
-                      <TaskProgressCard taskId={msg.agentTaskId} goal={msg.agentGoal} />
+                      <TaskProgressCard
+                        taskId={msg.agentTaskId}
+                        goal={msg.agentGoal || "Autonomous task"}
+                        alwaysApprovedTools={settings.voiceToolsAlwaysApproved}
+                        onAlwaysAllowTool={
+                          onSettingsPatch
+                            ? (tool) => {
+                                if (settings.voiceToolsAlwaysApproved.includes(tool)) return;
+                                onSettingsPatch({
+                                  voiceToolsAlwaysApproved: [
+                                    ...settings.voiceToolsAlwaysApproved,
+                                    tool,
+                                  ],
+                                });
+                              }
+                            : undefined
+                        }
+                      />
                     ) : (
                       <p className="text-xs text-muted animate-pulse">Starting task…</p>
                     )

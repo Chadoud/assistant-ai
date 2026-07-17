@@ -17,7 +17,8 @@ interface ScreenConsentModalProps {
 }
 
 /**
- * User consent before sensitive voice tools run (screen capture, code execution).
+ * User consent before sensitive tools run (screen capture, code execution, etc.).
+ * Shared by voice HUD and chat autonomous-task progress.
  */
 export default function ScreenConsentModal({
   open,

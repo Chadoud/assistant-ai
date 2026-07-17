@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "../i18n/I18nContext";
 import { hasElectronBridge } from "../utils/platform";
+import { relayConnectorTokens } from "../assistant/connectorContext";
 import { describeIntegrationConnectFailure } from "../utils/externalSourceConnectUi";
 
 interface UseDesktopOAuthCardStateOptions {
@@ -107,6 +108,9 @@ export function useDesktopOAuthCardState({
       const r = await window.electronAPI.integrationConnect({ providerId });
       if (r.ok) {
         toast.message(i18n.connectSuccess);
+        // Push fresh tokens into the backend cache so voice/tools work on the
+        // next ask without requiring a mic restart / session-prime.
+        await relayConnectorTokens();
         window.dispatchEvent(new CustomEvent(integrationChangedEvent));
         onConnected?.();
       } else {
@@ -147,6 +151,7 @@ export function useDesktopOAuthCardState({
         } else {
           toast.message(i18n.disconnected);
         }
+        await relayConnectorTokens();
       } else {
         toast.error(i18n.disconnectFailed, { description: r?.reason ?? "" });
       }

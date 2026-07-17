@@ -125,7 +125,7 @@ function registerSystemCommandHandlers() {
           command.args && typeof command.args.fileName === "string" ? command.args.fileName : "";
         const content =
           command.args && typeof command.args.content === "string" ? command.args.content : "";
-        const ud = app.getPath("userData");
+        const ud = require("../accountProfile").resolveProfileRoot();
         let secrets = storage.loadProviderSecrets(ud, "microsoft");
         if (!secrets?.access_token) {
           appendAuditLine({
@@ -170,7 +170,7 @@ function registerSystemCommandHandlers() {
           command.args && typeof command.args.fileName === "string" ? command.args.fileName : "";
         const content =
           command.args && typeof command.args.content === "string" ? command.args.content : "";
-        const ud = app.getPath("userData");
+        const ud = require("../accountProfile").resolveProfileRoot();
         migrateLegacyGoogleProvider(ud);
         tryHydrateGoogleGmailFromMirror(ud);
         let secrets = storage.loadProviderSecrets(ud, PROVIDER_GOOGLE_DRIVE);
@@ -240,7 +240,7 @@ function registerSystemCommandHandlers() {
           command.args && typeof command.args.endDateTime === "string" ? command.args.endDateTime : "";
         const maxEv =
           command.args && typeof command.args.maxEvents === "number" ? command.args.maxEvents : 50;
-        const ud = app.getPath("userData");
+        const ud = require("../accountProfile").resolveProfileRoot();
         let secrets = storage.loadProviderSecrets(ud, "microsoft");
         if (!secrets?.access_token) {
           appendAuditLine({ commandId: command.commandId, outcome: "error", detail: "microsoft_not_linked" });
@@ -276,7 +276,7 @@ function registerSystemCommandHandlers() {
         const q = command.args && typeof command.args.query === "string" ? command.args.query : "";
         const maxM =
           command.args && typeof command.args.maxMessages === "number" ? command.args.maxMessages : 25;
-        const ud = app.getPath("userData");
+        const ud = require("../accountProfile").resolveProfileRoot();
         let secrets = storage.loadProviderSecrets(ud, "microsoft");
         if (!secrets?.access_token) {
           appendAuditLine({ commandId: command.commandId, outcome: "error", detail: "microsoft_not_linked" });
@@ -315,7 +315,7 @@ function registerSystemCommandHandlers() {
           command.args && typeof command.args.endDateTime === "string" ? command.args.endDateTime : "";
         const maxEv =
           command.args && typeof command.args.maxEvents === "number" ? command.args.maxEvents : 50;
-        const ud = app.getPath("userData");
+        const ud = require("../accountProfile").resolveProfileRoot();
         migrateLegacyGoogleProvider(ud);
         let secrets = storage.loadProviderSecrets(ud, PROVIDER_GOOGLE_CALENDAR);
         if (!googleSessionLooksUsable(secrets)) {
@@ -412,7 +412,7 @@ function registerSystemCommandHandlers() {
           command.args && typeof command.args.endDateTime === "string" ? command.args.endDateTime : "";
         const maxEv =
           command.args && typeof command.args.maxEvents === "number" ? command.args.maxEvents : 50;
-        const ud = app.getPath("userData");
+        const ud = require("../accountProfile").resolveProfileRoot();
         let secrets = storage.loadProviderSecrets(ud, PROVIDER_INFOMANIAK_CALENDAR);
         if (!infomaniakIntegration.infomaniakSessionLooksUsable(secrets)) {
           appendAuditLine({

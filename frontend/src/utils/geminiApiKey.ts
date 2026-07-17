@@ -1,3 +1,11 @@
+/**
+ * Gemini API key format helpers (paste / save validation only).
+ *
+ * Do NOT use these for UI readiness (“is Gemini set up?”). Use
+ * `isGeminiConnectedInSettings` in geminiConnection.ts — that also accepts the
+ * packaged safeStorage mask.
+ */
+
 /** Legacy standard keys from Google AI Studio. */
 const GEMINI_LEGACY_KEY_PATTERN = /^AIza[0-9A-Za-z_-]{30,}$/;
 
@@ -23,16 +31,10 @@ export function normalizeGeminiApiKey(raw: string | undefined | null): string {
 }
 
 /**
- * Returns true when the string matches Google AI Studio key shape (not a live API check).
+ * True when the string matches Google AI Studio key shape (not a live API check).
+ * Paste/save modals only — not for banners, badges, or chat/voice gates.
  */
-export function isGeminiApiKeyFormatPlausible(apiKey: string | undefined | null): boolean {
+export function isGeminiKeyFormatPlausible(apiKey: string | undefined | null): boolean {
   const key = normalizeGeminiApiKey(apiKey);
   return GEMINI_LEGACY_KEY_PATTERN.test(key) || GEMINI_AUTH_KEY_PATTERN.test(key);
-}
-
-/**
- * Returns true when the user has entered a plausible Gemini API key.
- */
-export function isGeminiApiKeyConfigured(apiKey: string | undefined | null): boolean {
-  return isGeminiApiKeyFormatPlausible(apiKey);
 }

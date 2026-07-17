@@ -25,7 +25,7 @@ export const itWelcomeLocaleSlice = {
     geminiBulletVoice: "Voce in tempo reale",
     geminiBulletFreeTier: "Piano API gratuito",
     providerSelectedBadge: "Voce",
-    geminiFreeKeyCta: "Apri Google AI Studio (chiave API gratuita)",
+    geminiFreeKeyCta: "Apri Google AI Studio",
     geminiFreeKeyStep1: "Apri Google AI Studio e accedi con il tuo account Google.",
     geminiFreeKeyStep2: "Apri « API keys » nella barra laterale, poi fai clic su « Create API key » in alto a destra.",
     geminiFreeKeyStep3: "Copia la chiave e incollala sotto. Resta solo su questo dispositivo.",

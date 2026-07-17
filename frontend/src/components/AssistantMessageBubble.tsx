@@ -184,9 +184,41 @@ export default function AssistantMessageBubble({
                 </span>
               </div>
             )}
-            {typeof msg.content === "string" ? msg.content : String(msg.content ?? "")}
-            {msg.streaming && (
-              <span className={`animate-pulse opacity-70${msg.content ? " ml-0.5" : ""}`}>▍</span>
+            {msg.imageAttachment?.dataUrl ? (
+              <div className="space-y-2">
+                <img
+                  src={msg.imageAttachment.dataUrl}
+                  alt={msg.imageAttachment.name}
+                  title={msg.imageAttachment.name}
+                  className="max-h-64 max-w-full rounded-lg object-contain"
+                />
+              </div>
+            ) : msg.documentAttachment ? (
+              <div className="space-y-2">
+                <p className="text-xs font-medium opacity-90">
+                  {msg.documentAttachment.name}
+                  {msg.documentAttachment.pages != null
+                    ? ` · ${msg.documentAttachment.pages} page${msg.documentAttachment.pages === 1 ? "" : "s"}`
+                    : ""}
+                  {msg.documentAttachment.truncated ? " · truncated" : ""}
+                </p>
+                {msg.documentAttachment.previewDataUrl ? (
+                  <img
+                    src={msg.documentAttachment.previewDataUrl}
+                    alt={`Preview of ${msg.documentAttachment.name}`}
+                    className="max-h-72 max-w-full rounded-lg border border-white/20 object-contain bg-white"
+                  />
+                ) : (
+                  <p className="text-xs opacity-70">Document attached for analysis</p>
+                )}
+              </div>
+            ) : (
+              <>
+                {typeof msg.content === "string" ? msg.content : String(msg.content ?? "")}
+                {msg.streaming && (
+                  <span className={`animate-pulse opacity-70${msg.content ? " ml-0.5" : ""}`}>▍</span>
+                )}
+              </>
             )}
           </>
         )}

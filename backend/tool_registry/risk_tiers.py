@@ -56,6 +56,10 @@ APPROVAL_TOOLS = frozenset({
     "computer_settings",
     "desktop_environment",
     "run_google_drive_workspace_sort",
+    # Connect/disconnect integrations from voice — must go through the same
+    # approval UI as google_workspace; otherwise AutonomyPolicy hard-blocks it
+    # with "needs your confirmation" and never shows the Allow prompt.
+    "manage_connection",
 })
 
 # Never run inside an autonomous plan loop.

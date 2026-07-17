@@ -83,10 +83,10 @@ def scheduler_status() -> dict[str, Any]:
 
 @router.get("/proactive/failures")
 def recent_agent_failures(limit: int = Query(default=10, ge=1, le=50)) -> list[dict[str, Any]]:
-    """Recent agent run failures for the To Do → Inbox panel."""
+    """Open agent failures for To Do → Inbox (one card per normalized goal)."""
     from orchestrator import memory as orch_memory
 
-    rows = orch_memory.recent(limit, kinds=[orch_memory.KIND_FAILURE])
+    rows = orch_memory.recent_open_failures(limit)
     return [
         {
             "id": row.id,

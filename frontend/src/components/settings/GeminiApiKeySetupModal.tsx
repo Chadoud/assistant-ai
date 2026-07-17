@@ -6,7 +6,7 @@ import GeminiApiKeySetupGuide from "./GeminiApiKeySetupGuide";
 import { useI18n } from "../../i18n/I18nContext";
 import { PRIMARY_BTN_CLASS, SECONDARY_BTN_CLASS } from "../../utils/styles";
 import { buildGeminiChatSettingsPatch, commitGeminiChatSetup } from "../../utils/geminiChatSetup";
-import { isGeminiApiKeyConfigured, normalizeGeminiApiKey } from "../../utils/geminiApiKey";
+import { isGeminiKeyFormatPlausible, normalizeGeminiApiKey } from "../../utils/geminiApiKey";
 import { resolveGeminiApiKeyDraftFromSettings } from "../../utils/syncGeminiKeyToBackend";
 
 interface GeminiApiKeySetupModalProps {
@@ -37,7 +37,7 @@ export default function GeminiApiKeySetupModal({
 
   const handleSave = useCallback(async () => {
     const normalized = normalizeGeminiApiKey(draftKey);
-    if (!isGeminiApiKeyConfigured(normalized)) return;
+    if (!isGeminiKeyFormatPlausible(normalized)) return;
 
     setSaving(true);
     try {
@@ -55,7 +55,7 @@ export default function GeminiApiKeySetupModal({
 
   if (!open) return null;
 
-  const keyReady = isGeminiApiKeyConfigured(draftKey);
+  const keyReady = isGeminiKeyFormatPlausible(draftKey);
 
   return (
     <ModalShell title={t("settings.geminiSetupModalTitle")} onClose={onClose} maxWidthClass="max-w-lg">

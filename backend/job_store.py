@@ -5,8 +5,11 @@ Simple disk-backed checkpoint store for long-running jobs.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
+import tempfile
 import threading
+import time
 from typing import Optional
 
 from constants import APP_STATE_DIR
@@ -34,10 +37,36 @@ class JobStore:
             return {}
 
     def save(self, jobs: dict[str, dict]) -> None:
-        tmp_path = self.path.with_suffix(self.path.suffix + ".tmp")
+        """Atomically persist jobs; tolerate missing parent / multi-process races."""
         with self._lock:
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(jobs, f, indent=2, ensure_ascii=False)
-                f.flush()
-            tmp_path.replace(self.path)
-
+            last_err: OSError | None = None
+            for attempt in range(3):
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                fd, tmp_name = tempfile.mkstemp(
+                    prefix=f"{self.path.name}.",
+                    suffix=".tmp",
+                    dir=str(self.path.parent),
+                )
+                tmp_path = pathlib.Path(tmp_name)
+                try:
+                    with os.fdopen(fd, "w", encoding="utf-8") as f:
+                        json.dump(jobs, f, indent=2, ensure_ascii=False)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    os.replace(tmp_path, self.path)
+                    return
+                except FileNotFoundError as e:
+                    last_err = e
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    time.sleep(0.05 * (attempt + 1))
+                except Exception:
+                    try:
+                        tmp_path.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    raise
+            if last_err is not None:
+                raise last_err

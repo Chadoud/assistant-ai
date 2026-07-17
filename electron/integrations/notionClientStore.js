@@ -17,7 +17,7 @@ const ENC_FILE = "notion-oauth-client.enc";
 const PLAIN_FALLBACK_FILE = "notion-oauth-client.b64";
 
 function clientFilePath(suffix) {
-  return path.join(app.getPath("userData"), suffix);
+  return path.join(require("../accountProfile").resolveProfileRoot(), suffix);
 }
 
 /**

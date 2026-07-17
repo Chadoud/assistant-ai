@@ -124,6 +124,8 @@ export default {
     capabilitiesFootnote: "~ = opens your provider app with details pre-filled",
     mailNoAccountsConnected: "No mail accounts are connected yet. Go to External sources to link Outlook or Gmail first.",
     mailNoMessages: "No emails were retrieved from your connected accounts. They may be empty, or the connection may need refreshing under External sources.",
+    mailFiltersNeedReconnect:
+      "Gmail needs an updated connection for inbox filters. Disconnect and connect Gmail again under External sources.",
     mailToolsDisabled: "Assistant tools are turned off. Go to Settings → AI Assistant and enable \"Assistant actions\" to let the assistant read your emails.",
     sendMessageAgentRequired: "Sending messages requires Agent mode. Go to Settings → AI Assistant and turn on \"Agent mode\".",
     calendarWriteNotSupported: "I can open your calendar app with this pre-filled — edit the details and save there.",
@@ -328,7 +330,9 @@ export default {
     googleDisconnectFailed: "Could not disconnect",
     gmailTitle: "Gmail",
     gmailAccountDesc:
-      "Connect the Google account you use for Gmail.",
+      "Connect the Google account you use for Gmail. Approving a background plan allows mail moves and filters for that run only.",
+    gmailFiltersReconnectHint:
+      "Gmail needs an updated connection for inbox filters. Disconnect and connect Gmail again under External sources.",
     gmailWebDesktopDriveSeparateNote:
       "Google Drive has its own Connect button above. This Gmail connection does not change Drive.",
     gmailNotConfigured:
@@ -1461,6 +1465,9 @@ export default {
     brainMapIncludeMailTitle: "Show imported email on brain map",
     brainMapIncludeMailDesc:
       "When off, only actionable tasks and hand-added items appear on the map. Receipts and FYI mail stay hidden.",
+    brainMapIncludeLowValueChatsTitle: "Show low-value chats on brain map",
+    brainMapIncludeLowValueChatsDesc:
+      "When off, only summarized, resume-worthy conversations appear. Retries, “what can you do?”, and empty chats stay hidden.",
     clearAllMemory: "Clear all memory",
     confirmClearMemory: "Confirm clear all",
     privacyGroupTitle: "Privacy & diagnostics",
@@ -1493,13 +1500,22 @@ export default {
     privacyFeedbackThanks: "Thanks — your feedback was sent.",
     privacyFeedbackError:
       "Could not send right now. Check that the local app service is running (Retry in the title bar).",
-    privacyLocalWipeTitle: "Erase local assistant data",
+    privacyLocalWipeTitle: "Erase this account’s data on this Mac",
     privacyLocalWipeHint:
-      "Deletes memories, chats, tasks, and activity stored on this device. Does not remove cloud account data — use Account for export or deletion. OAuth connections stay until you disconnect them in Sources.",
-    privacyLocalWipeAction: "Erase local data",
+      "Deletes this signed-in account’s local vault on this Mac — memories, chats, tasks, API keys, and integrations. Other accounts kept on this Mac are untouched. Does not remove cloud account data — use Account for export or deletion.",
+    privacyLocalWipeAction: "Erase this account’s local data",
     privacyLocalWipeConfirm: "Confirm erase",
-    privacyLocalWipeDone: "Local assistant data was erased.",
+    privacyLocalWipeDone: "This account’s local data was erased.",
     privacyLocalWipeError: "Couldn't erase local data. Is the app service running?",
+    privacyWipeAllProfilesTitle: "Erase all accounts on this Mac",
+    privacyWipeAllProfilesHint:
+      "Deletes every local account vault on this Mac and signs you out. Use this for a full factory reset of Exo data on this device.",
+    privacyWipeAllProfilesAction: "Erase all local accounts",
+    privacyWipeAllProfilesConfirm: "Confirm erase all accounts",
+    privacyWipeAllProfilesDone: "All local account data on this Mac was erased.",
+    privacyWipeAllProfilesError: "Couldn't erase all local accounts. Is the app service running?",
+    accountLocalVaultHint:
+      "API keys and chats stay in a local vault for this account on this Mac. Signing out locks that vault — the next account won’t see it.",
     voiceGroupTitle: "Voice",
     voiceGroupSummary: "Microphone, push-to-talk, and spoken conversations.",
     voiceGroupDesc:
@@ -1796,6 +1812,7 @@ export default {
     accountRegister: "Create account",
     accountLogin: "Sign in",
     accountSignOut: "Sign out",
+    accountSwitching: "Switching account…",
     accountSignedOut: "Signed out.",
     accountRegistered: "Account created — you're signed in.",
     accountLoggedIn: "Signed in.",

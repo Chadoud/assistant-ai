@@ -4,7 +4,6 @@
 
 import type { AppSettings } from "../types/settings";
 import { resolveChatProviderCredentials } from "../utils/resolveChatProviderCredentials";
-import { GEMINI_SECRET_MASK } from "../utils/geminiConnection";
 import { relayConnectorTokens } from "./connectorContext";
 
 /** Provider relay without raw API keys — main session-prime already injected secrets. */
@@ -14,8 +13,8 @@ export function sendProviderRelayOverWebSocket(
 ): void {
   if (ws.readyState !== WebSocket.OPEN) return;
   const routing = resolveChatProviderCredentials(settings);
-  const rawKey = routing.provider === "ollama" ? "" : routing.apiKey;
-  const apiKey = rawKey === GEMINI_SECRET_MASK ? "" : rawKey;
+  // apiKey is already mask-stripped by resolveChatProviderCredentials.
+  const apiKey = routing.provider === "ollama" ? "" : routing.apiKey;
   ws.send(
     JSON.stringify({
       type: "provider_relay",

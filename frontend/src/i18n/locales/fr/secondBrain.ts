@@ -7,11 +7,16 @@ export const frSecondBrainLocaleSlice = {
     previewMemoriesOnly: "{n} souvenirs ressemblent à des e-mails promotionnels.",
     previewTasksOnly: "{n} tâches e-mail semblent promotionnelles.",
     previewBoth: "{memories} souvenirs et {tasks} tâches e-mail semblent promotionnels.",
+    previewChatsOnly: "{n} chats peu utiles peuvent être retirés ou archivés.",
+    previewWithChats:
+      "{memories} souvenirs, {tasks} tâches e-mail et {conversations} chats peu utiles peuvent être retirés.",
     confirm: "Retirer",
     cancel: "Annuler",
     removing: "Suppression…",
     toastDone: "{n} éléments supprimés",
     toastDoneBreakdown: "{memories} souvenirs et {tasks} tâches supprimés",
+    toastDoneWithChats:
+      "{memories} souvenirs, {tasks} tâches et {conversations} chats nettoyés",
     toastFailed: "Impossible de retirer le contenu promotionnel",
     actionMemories: "Ignorer les suggestions promotionnelles",
     actionTasks: "Retirer les tâches promotionnelles issues des e-mails",

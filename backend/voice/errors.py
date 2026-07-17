@@ -12,18 +12,35 @@ import asyncio
 # WinError 121 semaphore timeout) — always a recoverable transport drop.
 TRANSIENT_LIVE_WS_CODES = frozenset({1001, 1006, 1008, 1011, 1012, 1013, 1014})
 
+# Explicit close codes that indicate a permanent client/config problem.
+# 1007 (invalid frame payload) is used by Gemini Live for bad model/modality
+# configs and invalid API keys — never treat as a flaky transport drop.
+NON_TRANSIENT_LIVE_WS_CODES = frozenset({1002, 1003, 1007})
+
+VOICE_AUDIO_CONFIG_USER_MESSAGE = (
+    "Voice could not start: this Gemini model does not support Live audio. "
+    "Use a native-audio Live model (or clear GEMINI_VOICE_MODEL), then turn the mic off and on."
+)
+
+
+def _walk_exception_chain(exc: BaseException) -> list[BaseException]:
+    seen: set[int] = set()
+    out: list[BaseException] = []
+    cursor: BaseException | None = exc
+    while cursor is not None and id(cursor) not in seen:
+        seen.add(id(cursor))
+        out.append(cursor)
+        cursor = cursor.__cause__ or cursor.__context__
+    return out
+
 
 def is_quota_exhausted_error(exc: Exception) -> bool:
     """Return True when the exception chain indicates a free-tier quota cap."""
     from orchestrator.quota_notice import is_free_tier_quota_error
 
-    seen: set[int] = set()
-    cursor: BaseException | None = exc
-    while cursor is not None and id(cursor) not in seen:
-        seen.add(id(cursor))
+    for cursor in _walk_exception_chain(exc):
         if is_free_tier_quota_error(str(cursor)):
             return True
-        cursor = cursor.__cause__ or cursor.__context__
     return False
 
 
@@ -40,6 +57,19 @@ def is_api_key_error(msg: str) -> bool:
     )
 
 
+def is_live_audio_config_error(exc: BaseException | str) -> bool:
+    """Return True when Gemini Live rejected AUDIO for the connected model."""
+    low = str(exc).lower()
+    return (
+        "content_type_audio" in low
+        or "audio content type" in low
+        or (
+            "not supported for this model configuration" in low
+            and "audio" in low
+        )
+    )
+
+
 def is_transient_connection_error(exc: Exception) -> bool:
     """Return True for network/connection failures that should be retried.
 
@@ -52,16 +82,27 @@ def is_transient_connection_error(exc: Exception) -> bool:
 
     The genai SDK raises an ``APIError`` whose ``__cause__`` is the real socket
     error, so the whole cause chain is inspected — not just the outermost wrapper.
-    """
-    seen: set[int] = set()
-    cursor: BaseException | None = exc
-    while cursor is not None and id(cursor) not in seen:
-        seen.add(id(cursor))
 
+    Explicit close codes outside the transient set (notably 1007 for bad Live
+    model/audio config) are never treated as flaky transport, even when the
+    exception type name contains ``websocket`` / ``connectionclosed``.
+    """
+    if is_live_audio_config_error(exc):
+        return False
+
+    chain = _walk_exception_chain(exc)
+
+    for cursor in chain:
         code = getattr(cursor, "code", None)
-        if isinstance(code, int) and code in TRANSIENT_LIVE_WS_CODES:
-            return True
-        # Windows surfaces dead sockets as OSError WinError 121 (semaphore timeout).
+        if isinstance(code, int):
+            if code in NON_TRANSIENT_LIVE_WS_CODES or is_live_audio_config_error(cursor):
+                return False
+            if code in TRANSIENT_LIVE_WS_CODES:
+                return True
+            # Unknown but explicit close code — do not guess via type-name heuristics.
+            return False
+
+    for cursor in chain:
         if isinstance(cursor, (asyncio.TimeoutError, TimeoutError, ConnectionError, OSError)):
             return True
 
@@ -87,7 +128,5 @@ def is_transient_connection_error(exc: Exception) -> bool:
             )
         ):
             return True
-
-        cursor = cursor.__cause__ or cursor.__context__
 
     return False

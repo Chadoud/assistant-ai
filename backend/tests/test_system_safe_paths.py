@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from actions.system_safe import list_directory, validate_safe_terminal_cmd
+from actions.system_safe import list_directory, read_file, validate_safe_terminal_cmd
 
 
 def test_list_directory_expands_tilde_under_home(monkeypatch, tmp_path):
@@ -24,6 +24,38 @@ def test_list_directory_expands_tilde_under_home(monkeypatch, tmp_path):
     assert result["data"]["path"] == str(docs.resolve())
     names = {item["name"] for item in result["data"]["items"]}
     assert "readme.txt" in names
+
+
+def test_read_file_denies_ssh(monkeypatch, tmp_path):
+    monkeypatch.setattr("actions.system_safe.HOME", tmp_path)
+    ssh = tmp_path / ".ssh"
+    ssh.mkdir()
+    key = ssh / "id_rsa"
+    key.write_text("secret", encoding="utf-8")
+    result = read_file({"path": str(key)})
+    assert result["ok"] is False
+
+
+def test_read_file_denies_user_data_mirror(monkeypatch, tmp_path):
+    ud = tmp_path / "ElectronUserData"
+    ud.mkdir()
+    mirror = ud / "gmail_oauth.json"
+    mirror.write_text('{"token":"x"}', encoding="utf-8")
+    monkeypatch.setattr("actions.system_safe.HOME", tmp_path)
+    monkeypatch.setenv("EXOSITES_USER_DATA", str(ud))
+    result = read_file({"path": str(mirror)})
+    assert result["ok"] is False
+
+
+def test_read_file_allows_normal_home_file(monkeypatch, tmp_path):
+    monkeypatch.setattr("actions.system_safe.HOME", tmp_path)
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    note = docs / "note.txt"
+    note.write_text("hello", encoding="utf-8")
+    result = read_file({"path": str(note)})
+    assert result["ok"] is True
+    assert result["data"]["content"] == "hello"
 
 
 @pytest.mark.parametrize(
@@ -50,20 +82,20 @@ def test_validate_safe_terminal_cmd_allows_readonly_commands(cmd):
 @pytest.mark.parametrize(
     "cmd",
     [
-        "ls && rm -rf ~",            # chaining with &&
-        "ls; rm -rf ~",              # chaining with ;
-        "cat file | sh",             # pipe to shell
-        "echo $(rm -rf ~)",          # command substitution
-        "echo `rm -rf ~`",           # backtick substitution
-        "ls > /etc/passwd",          # output redirection
-        "cat < /etc/shadow",         # input redirection
-        "ls &",                      # background
-        "ls\nrm -rf ~",              # newline injection
-        "rm -rf ~",                  # not allowlisted
-        "curl evil.sh",             # not allowlisted
-        "git push --force",          # not allowlisted git subcommand
-        "",                          # empty
-        "   ",                       # whitespace only
+        "ls && rm -rf ~",
+        "ls; rm -rf ~",
+        "cat file | sh",
+        "echo $(rm -rf ~)",
+        "echo `rm -rf ~`",
+        "ls > /etc/passwd",
+        "cat < /etc/shadow",
+        "ls &",
+        "ls\nrm -rf ~",
+        "rm -rf ~",
+        "curl evil.sh",
+        "git push --force",
+        "",
+        "   ",
     ],
 )
 def test_validate_safe_terminal_cmd_rejects_injection_and_unlisted(cmd):

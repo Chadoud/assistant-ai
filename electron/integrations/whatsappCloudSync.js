@@ -15,26 +15,32 @@ const PREFS_FILE = "whatsapp_cloud_sync.json";
 let webhookConfigCache = { userData: "", at: 0, data: null };
 
 let pollTimer = null;
-let pollingUserData = null;
+let pollingActive = false;
 let pollInFlight = false;
 
-async function runPollOnce(userData) {
+/** Session on device root; prefs under active profile vault. */
+function waRoots() {
+  return require("../accountProfile").splitRoots();
+}
+
+async function runPollOnce() {
   if (pollInFlight) return { ok: true, skipped: true };
   pollInFlight = true;
   try {
-    return await pollOnce(userData);
+    return await pollOnce();
   } finally {
     pollInFlight = false;
   }
 }
 
-function prefsPath(userData) {
-  return path.join(userData, PREFS_FILE);
+function prefsPath(profileRoot) {
+  return path.join(profileRoot, PREFS_FILE);
 }
 
-function readPrefs(userData) {
+function readPrefs(_userData) {
+  const { profileRoot } = waRoots();
   try {
-    const raw = fs.readFileSync(prefsPath(userData), "utf8");
+    const raw = fs.readFileSync(prefsPath(profileRoot), "utf8");
     const data = JSON.parse(raw);
     return {
       sinceId: Number(data.sinceId) || 0,
@@ -46,9 +52,10 @@ function readPrefs(userData) {
   }
 }
 
-function writePrefs(userData, prefs) {
-  fs.mkdirSync(userData, { recursive: true });
-  fs.writeFileSync(prefsPath(userData), JSON.stringify(prefs, null, 2), "utf8");
+function writePrefs(_userData, prefs) {
+  const { profileRoot } = waRoots();
+  fs.mkdirSync(profileRoot, { recursive: true });
+  fs.writeFileSync(prefsPath(profileRoot), JSON.stringify(prefs, null, 2), "utf8");
 }
 
 async function relayEventsToBackend(events) {
@@ -71,9 +78,10 @@ async function relayEventsToBackend(events) {
  * @param {object} creds
  * @param {string|null|undefined} displayPhoneNumber
  */
-async function registerPhoneBinding(userData, creds, displayPhoneNumber) {
+async function registerPhoneBinding(_userData, creds, displayPhoneNumber) {
+  const { deviceRoot } = waRoots();
   if (!cloudAuth.isAuthGateEnabled()) return { ok: false, reason: "cloud_auth_disabled" };
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token) return { ok: false, reason: "not_logged_in" };
 
   await cloudAuth.postJsonAuthed("/v1/me/whatsapp/register", sess.access_token, {
@@ -82,7 +90,7 @@ async function registerPhoneBinding(userData, creds, displayPhoneNumber) {
     display_phone_number: displayPhoneNumber || "",
   });
 
-  writePrefs(userData, {
+  writePrefs(null, {
     sinceId: 0,
     phoneNumberId: creds.phone_number_id,
     enabled: true,
@@ -91,12 +99,13 @@ async function registerPhoneBinding(userData, creds, displayPhoneNumber) {
 }
 
 /**
- * @param {string} userData
+ * @param {string} _userData
  * @param {string} phoneNumberId
  */
-async function unregisterPhoneBinding(userData, phoneNumberId) {
+async function unregisterPhoneBinding(_userData, phoneNumberId) {
+  const { deviceRoot } = waRoots();
   if (!cloudAuth.isAuthGateEnabled()) return;
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token || !phoneNumberId) return;
   try {
     await cloudAuth.deleteJson(
@@ -106,18 +115,19 @@ async function unregisterPhoneBinding(userData, phoneNumberId) {
   } catch (err) {
     console.warn("[whatsappCloudSync] unregister failed:", err?.message || err);
   }
-  writePrefs(userData, { sinceId: 0, phoneNumberId: "", enabled: false });
+  writePrefs(null, { sinceId: 0, phoneNumberId: "", enabled: false });
 }
 
 /**
- * @param {string} userData
+ * @param {string} [_userData]
  */
-async function pollOnce(userData) {
-  const prefs = readPrefs(userData);
+async function pollOnce(_userData) {
+  const { deviceRoot } = waRoots();
+  const prefs = readPrefs();
   if (!prefs.enabled) return { ok: true, ingested: 0 };
 
   if (!cloudAuth.isAuthGateEnabled()) return { ok: false, reason: "cloud_auth_disabled" };
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token) return { ok: false, reason: "not_logged_in" };
 
   const data = await cloudAuth.getJson(
@@ -128,7 +138,7 @@ async function pollOnce(userData) {
   if (events.length > 0) {
     await relayEventsToBackend(events);
   }
-  writePrefs(userData, {
+  writePrefs(null, {
     ...prefs,
     sinceId: Number(data.next_since_id) || prefs.sinceId,
   });
@@ -136,17 +146,17 @@ async function pollOnce(userData) {
 }
 
 /**
- * @param {string} userData
+ * @param {string} [_userData]
  */
-function startPolling(userData) {
+function startPolling(_userData) {
   stopPolling();
-  pollingUserData = userData;
-  void runPollOnce(userData).catch((err) => {
+  pollingActive = true;
+  void runPollOnce().catch((err) => {
     console.warn("[whatsappCloudSync] initial poll failed:", err?.message || err);
   });
   pollTimer = setInterval(() => {
-    if (!pollingUserData) return;
-    void runPollOnce(pollingUserData).catch((err) => {
+    if (!pollingActive) return;
+    void runPollOnce().catch((err) => {
       console.warn("[whatsappCloudSync] poll failed:", err?.message || err);
     });
   }, POLL_INTERVAL_MS);
@@ -157,24 +167,25 @@ function stopPolling() {
     clearInterval(pollTimer);
     pollTimer = null;
   }
-  pollingUserData = null;
+  pollingActive = false;
 }
 
 /**
  * Resume polling when WhatsApp Business API was previously configured.
- * @param {string} userData
+ * @param {string} [_userData]
  */
-function resumeIfConfigured(userData) {
-  const prefs = readPrefs(userData);
+function resumeIfConfigured(_userData) {
+  const prefs = readPrefs();
   if (prefs.enabled && prefs.phoneNumberId) {
-    startPolling(userData);
+    startPolling();
   }
 }
 
-async function fetchWebhookConfig(userData) {
+async function fetchWebhookConfig(_userData) {
+  const { deviceRoot } = waRoots();
   const now = Date.now();
   if (
-    webhookConfigCache.userData === userData &&
+    webhookConfigCache.userData === deviceRoot &&
     webhookConfigCache.data &&
     now - webhookConfigCache.at < WEBHOOK_CONFIG_TTL_MS
   ) {
@@ -184,26 +195,27 @@ async function fetchWebhookConfig(userData) {
   if (!cloudAuth.isAuthGateEnabled()) {
     return { ok: false, reason: "cloud_auth_disabled" };
   }
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token) {
     return { ok: false, reason: "not_logged_in" };
   }
   try {
     const data = await cloudAuth.getJson("/v1/me/whatsapp/webhook-config", sess.access_token);
     const result = { ok: true, ...data };
-    webhookConfigCache = { userData, at: now, data: result };
+    webhookConfigCache = { userData: deviceRoot, at: now, data: result };
     return result;
   } catch (err) {
     return { ok: false, reason: err instanceof Error ? err.message : String(err) };
   }
 }
 
-async function fetchConnectConfig(userData) {
+async function fetchConnectConfig(_userData) {
+  const { deviceRoot } = waRoots();
   if (!cloudAuth.isAuthGateEnabled()) {
     return { ok: false, reason: "cloud_auth_disabled", embedded_signup_available: false };
   }
-  cloudAuth.migrateLegacyCloudSession(userData);
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  cloudAuth.migrateLegacyCloudSession(deviceRoot);
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token) {
     return { ok: false, reason: "not_logged_in", embedded_signup_available: false };
   }
@@ -221,14 +233,15 @@ async function fetchConnectConfig(userData) {
 
 /**
  * Exchange Meta Embedded Signup code for Cloud API credentials via cloud-node.
- * @param {string} userData
+ * @param {string} _userData
  * @param {object} payload
  */
-async function exchangeEmbeddedSignup(userData, payload) {
+async function exchangeEmbeddedSignup(_userData, payload) {
+  const { deviceRoot } = waRoots();
   if (!cloudAuth.isAuthGateEnabled()) {
     return { ok: false, reason: "cloud_auth_disabled" };
   }
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token) {
     return { ok: false, reason: "not_logged_in" };
   }

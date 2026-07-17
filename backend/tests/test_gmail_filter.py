@@ -43,3 +43,27 @@ def test_create_filter_posts_criteria(mock_headers: MagicMock, mock_post: MagicM
 def test_create_filter_requires_criteria() -> None:
     result = _gmail_create_filter({})
     assert result["ok"] is False
+
+
+@patch("actions.google_workspace_tool.httpx.post")
+@patch("actions.google_workspace_tool._gmail_headers")
+def test_create_filter_scope_error_needs_reconnect(
+    mock_headers: MagicMock, mock_post: MagicMock
+) -> None:
+    import httpx
+
+    from actions.google_workspace_tool import google_workspace
+
+    mock_headers.return_value = {"Authorization": "Bearer test"}
+    response = MagicMock()
+    response.status_code = 403
+    response.text = '{"error":{"status":"PERMISSION_DENIED","message":"insufficientPermissions"}}'
+    response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "403", request=MagicMock(), response=response
+    )
+    mock_post.return_value = response
+
+    result = google_workspace({"operation": "create_filter", "from": "promo@example.com"})
+    assert result["ok"] is False
+    assert result.get("needs_reconnect") == "google-gmail"
+    assert "inbox filters" in result["error"].lower() or "filters" in result["error"].lower()

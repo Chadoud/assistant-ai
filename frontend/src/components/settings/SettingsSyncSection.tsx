@@ -2,7 +2,6 @@
  * Settings → Sync — E2E encrypted multi-device sync (GO SYNC).
  */
 
-import QRCode from "qrcode";
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "../../i18n/I18nContext";
 import ProUpgradeCard from "../ProUpgradeCard";
@@ -45,15 +44,18 @@ export default function SettingsSyncSection({ canUseSync, onUpgrade }: Props) {
       return;
     }
     const api = window.electronAPI;
-    if (!api?.syncGetPairingPayload) return;
-    const getPairingPayload = api.syncGetPairingPayload;
+    if (!api?.syncGetPairingQr) return;
+    const getPairingQr = api.syncGetPairingQr;
     void (async () => {
       try {
-        const payload = await getPairingPayload();
-        const json = JSON.stringify(payload);
-        const url = await QRCode.toDataURL(json, { margin: 1, width: 220 });
-        setPairQrDataUrl(url);
-        setPairError(null);
+        const result = await getPairingQr();
+        if (result && "dataUrl" in result && typeof result.dataUrl === "string") {
+          setPairQrDataUrl(result.dataUrl);
+          setPairError(null);
+          return;
+        }
+        setPairQrDataUrl(null);
+        setPairError("Could not generate pairing QR. Check cloud URL and sync settings.");
       } catch {
         setPairQrDataUrl(null);
         setPairError("Could not generate pairing QR. Check cloud URL and sync settings.");

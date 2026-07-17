@@ -140,12 +140,12 @@ function AgentActivityRoster({ agents }: { agents: AgentActivity[] }) {
             }`}
           />
           <span className="min-w-0 truncate font-medium text-white/80">
-            {agent.goal || "Agent"}
+            {String(agent.goal || "Agent")}
           </span>
           {agent.activity ? (
             <>
               <span className="text-white/30" aria-hidden>·</span>
-              <span className="min-w-0 truncate text-white/55">{agent.activity}</span>
+              <span className="min-w-0 truncate text-white/55">{String(agent.activity)}</span>
             </>
           ) : null}
         </p>

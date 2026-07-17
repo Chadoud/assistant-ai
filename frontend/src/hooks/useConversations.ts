@@ -63,6 +63,17 @@ export interface ConversationMessage {
   briefingRunId?: string | null;
   /** Assistant reply explaining that the local app service is required for this request. */
   localAppServiceHint?: boolean;
+  /** Inline image from composer attach (preview only; content stays a short caption). */
+  imageAttachment?: { name: string; dataUrl: string };
+  /** Document attach meta (extracted text lives in content for the model). */
+  documentAttachment?: {
+    name: string;
+    pages?: number | null;
+    truncated?: boolean;
+    source?: string;
+    /** First-page preview when available (PDF). */
+    previewDataUrl?: string;
+  };
 }
 
 /** Hidden tool results kept for memory origin linking (not shown in chat UI). */
@@ -372,6 +383,33 @@ function setActiveConversation(id: string): void {
     maybeDistill(state.conversations.find((c) => c.id === state.activeId));
     return { ...state, activeId: id };
   });
+}
+
+/**
+ * Drop in-memory + localStorage chat state when the account vault remounts.
+ * Clearing localStorage alone is not enough — the module store would rewrite prior chats.
+ */
+export function resetConversationsStore(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  const blank = makeBlankConversation();
+  storeState = { conversations: [blank], activeId: blank.id };
+  for (const listener of listeners) listener();
+}
+
+/** Test helper — inspect shared store without mounting React. */
+export function getConversationsStoreSnapshotForTests(): ConversationsState {
+  return getState();
+}
+
+/** Test helper — seed shared store + localStorage. */
+export function seedConversationsStoreForTests(state: ConversationsState): void {
+  storeState = state;
+  saveToStorage(state.conversations);
+  for (const listener of listeners) listener();
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────

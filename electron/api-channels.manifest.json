@@ -1,8 +1,6 @@
 {
   "description": "IPC invoke channels exposed on window.electronAPI (preload.js). Validated bidirectionally by scripts/validate-electron-ipc-manifest.cjs.",
-  "mainOnly": [
-    "integration:getToken"
-  ],
+  "mainOnly": [],
   "channels": [
     "app:appendRendererDiagnostic",
     "app:getBackendToken",
@@ -48,8 +46,10 @@
     "entitlement:clearLicense",
     "entitlement:getState",
     "entitlement:syncSortCredentials",
+    "accountProfile:getState",
     "privacy:wipeElectronFiles",
     "privacy:wipeAllLocalData",
+    "privacy:wipeAllProfilesOnDevice",
     "integration:clearInfomaniakApiToken",
     "integration:clearNotionOAuthClient",
     "integration:clearSlackOAuthClient",
@@ -99,13 +99,14 @@
     "secrets:get",
     "secrets:has",
     "secrets:set",
+    "secrets:clear",
     "ptt:setConfig",
     "shell:openExternal",
     "shell:openGmailOAuthWindow",
     "shell:openPath",
     "shell:showInFolder",
     "sync:getStatus",
-    "sync:getPairingPayload",
+    "sync:getPairingQr",
     "sync:runNow",
     "sync:setEnabled",
     "systemCommand:audit",

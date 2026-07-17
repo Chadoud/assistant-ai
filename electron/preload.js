@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getSecret: (key) => ipcRenderer.invoke("secrets:get", key),
   hasSecret: (key) => ipcRenderer.invoke("secrets:has", key),
   setSecret: (key, value) => ipcRenderer.invoke("secrets:set", key, value),
+  clearSecret: (key) => ipcRenderer.invoke("secrets:clear", key),
   openPath: (path) => ipcRenderer.invoke("shell:openPath", path),
   openExternal: (url) => ipcRenderer.invoke("shell:openExternal", url),
   openGmailOAuthWindow: (url) => ipcRenderer.invoke("shell:openGmailOAuthWindow", url),
@@ -81,12 +82,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
   cloudAuthDeleteAccount: () => ipcRenderer.invoke("cloudAuth:deleteAccount"),
   privacyWipeElectronFiles: () => ipcRenderer.invoke("privacy:wipeElectronFiles"),
   privacyWipeAllLocalData: () => ipcRenderer.invoke("privacy:wipeAllLocalData"),
+  privacyWipeAllProfilesOnDevice: () => ipcRenderer.invoke("privacy:wipeAllProfilesOnDevice"),
+  accountProfileGetState: () => ipcRenderer.invoke("accountProfile:getState"),
   voicePrimeSession: (payload) => ipcRenderer.invoke("voice:primeSession", payload),
   integrationRelayAllTokens: () => ipcRenderer.invoke("integration:relayAllTokens"),
   syncGetStatus: () => ipcRenderer.invoke("sync:getStatus"),
   syncSetEnabled: (enabled) => ipcRenderer.invoke("sync:setEnabled", enabled),
   syncRunNow: () => ipcRenderer.invoke("sync:runNow"),
-  syncGetPairingPayload: () => ipcRenderer.invoke("sync:getPairingPayload"),
+  syncGetPairingQr: () => ipcRenderer.invoke("sync:getPairingQr"),
   getRememberDevice: () => ipcRenderer.invoke("cloudSessionPrefs:getRememberDevice"),
   setRememberDevice: (value) => ipcRenderer.invoke("cloudSessionPrefs:setRememberDevice", value),
   telemetrySendBatch: (url, bodyStr) =>
@@ -272,6 +275,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
         handler(payload);
       } catch (e) {
         console.error("[preload] onCloudSessionChanged", e);
+      }
+    };
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  },
+  onAccountProfileChanged: (handler) => {
+    const channel = "account-profile:changed";
+    const listener = (_event, payload) => {
+      try {
+        handler(payload);
+      } catch (e) {
+        console.error("[preload] onAccountProfileChanged", e);
       }
     };
     ipcRenderer.on(channel, listener);

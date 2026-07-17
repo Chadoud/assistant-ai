@@ -8,16 +8,18 @@ const os = require("os");
 const { app } = require("electron");
 const { APP_NAME } = require("./constants");
 
-/** Subdirs under userData used for cloud-import staging (must stay in sync with backend). */
+/** Subdirs under profile/userData used for cloud-import staging (sync with PROFILE_STAGING_DIRS). */
 const STAGING_DIR_NAMES = new Set([
   "drive_sort_staging",
   "dropbox_sort_staging",
   "onedrive_sort_staging",
   "outlook_sort_staging",
+  "box_sort_staging",
   "s3_sort_staging",
   "slack_sort_staging",
   "icloud_sort_staging",
   "infomaniak_sort_staging",
+  "infomaniak_mail_sort_staging",
   "gmail_imports",
   "browser_uploads",
 ]);

@@ -300,7 +300,7 @@ async function listInfomaniakMailMessagesForMerge(accessToken, filters) {
 
 function infomaniakMailStagingDir(jobIdRaw) {
   const jobId = String(jobIdRaw || "").replace(/[^a-zA-Z0-9_-]/g, "");
-  return path.join(app.getPath("userData"), "infomaniak_mail_sort_staging", jobId || "staging");
+  return path.join(require("../accountProfile").resolveProfileRoot(), "infomaniak_mail_sort_staging", jobId || "staging");
 }
 
 /**

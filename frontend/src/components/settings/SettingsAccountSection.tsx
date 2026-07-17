@@ -71,7 +71,9 @@ export default function SettingsAccountSection({
       const ok = await performCloudLogout();
       if (ok) {
         trackAccountSignedOut(telemetryOptIn, uiLocale);
-        toast.message(t("settings.accountSignedOut"));
+        toast.message(t("settings.accountSignedOut"), {
+          description: t("settings.accountLocalVaultHint"),
+        });
         onSessionChange();
       }
     } finally {
@@ -86,6 +88,7 @@ export default function SettingsAccountSection({
           <div>
             <p className="text-sm font-medium text-text-primary">{t("settings.accountProfileTitle")}</p>
             <p className="text-xs text-muted mt-1">{t("settings.accountProfileDesc")}</p>
+            <p className="text-2xs text-muted mt-1.5 leading-relaxed">{t("settings.accountLocalVaultHint")}</p>
           </div>
           <div className="space-y-2">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -165,7 +168,7 @@ export default function SettingsAccountSection({
               disabled={busy}
               className="px-4 py-2 rounded-lg text-sm font-semibold bg-button-primary text-white hover:bg-button-hover disabled:opacity-40"
             >
-              {t("settings.accountRegister")}
+              {busy ? t("settings.accountSwitching") : t("settings.accountRegister")}
             </button>
             <button
               type="button"
@@ -173,7 +176,7 @@ export default function SettingsAccountSection({
               disabled={busy}
               className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:border-accent-line disabled:opacity-40"
             >
-              {t("settings.accountLogin")}
+              {busy ? t("settings.accountSwitching") : t("settings.accountLogin")}
             </button>
           </div>
         </div>
@@ -207,6 +210,7 @@ export default function SettingsAccountSection({
                 {t("settings.accountPlanFree")}
               </span>
             )}
+            <p className="text-2xs text-muted pt-1 leading-relaxed">{t("settings.accountLocalVaultHint")}</p>
           </div>
           <button
             type="button"
@@ -214,7 +218,7 @@ export default function SettingsAccountSection({
             disabled={busy}
             className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-muted hover:text-text-primary disabled:opacity-40 shrink-0"
           >
-            {t("settings.accountSignOut")}
+            {busy ? t("settings.accountSwitching") : t("settings.accountSignOut")}
           </button>
         </div>
 

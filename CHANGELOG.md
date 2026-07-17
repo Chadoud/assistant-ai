@@ -6,6 +6,21 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.51] - 2026-07-17
+
+### Fixed
+
+- **Voice Live:** Reject non–native-audio Gemini models; treat Live audio-config close (1007) as fatal instead of endless reconnect; surface a clear mic error/toast.
+- **Voice tools:** Nested `plan_and_execute` approvals pass through; failed plans speak the summary (not "no detail"); Gemini Live hands heavy plans to Anthropic when configured.
+- **Google Calendar after connect:** Relay OAuth tokens to the backend immediately after Settings/Electron connect so the next calendar ask uses the new scopes (not a stale Gmail-only cache).
+- **manage_connection:** Included in approval tools so voice can reconnect Google with the Allow prompt.
+- **JobStore / backend spawn:** Harden jobs.json atomic save; free port 7799 before respawn to stop address-in-use thrash.
+- **Diagnostics:** Benign EPIPE/ECONNRESET no longer loop as background errors.
+
+### Added
+
+- Composer attachment classify/extract path; account profile helpers; calendar-token-after-reconnect and manage_connection approval tests.
+
 ## [1.1.50] - 2026-07-16
 
 ### Added

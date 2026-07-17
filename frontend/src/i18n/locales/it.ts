@@ -122,6 +122,8 @@ export default {
     capabilitiesFootnote: "~ = apre la tua app con i dettagli pre-compilati",
     mailNoAccountsConnected: "Nessun account email Ã¨ ancora collegato. Vai in Fonti esterne per collegare Outlook o Gmail.",
     mailNoMessages: "Nessuna email Ã¨ stata recuperata dagli account collegati. Potrebbero essere vuoti o la connessione potrebbe dover essere aggiornata in Fonti esterne.",
+    mailFiltersNeedReconnect:
+      "Gmail richiede una connessione aggiornata per i filtri della posta in arrivo. Disconnetti e riconnetti Gmail in Fonti esterne.",
     mailToolsDisabled: "Gli strumenti assistente sono disattivati. Vai in Impostazioni â†’ Assistente IA e attiva \"Azioni assistente\" per consentire la lettura delle tue email.",
     sendMessageAgentRequired: "L'invio di messaggi richiede la modalitÃ  Agente. Vai in Impostazioni â†’ Assistente IA e attiva \"ModalitÃ  agente\".",
     calendarWriteNotSupported: "Posso aprire la tua app calendario con i dettagli pre-compilati â€” verifica e salva lÃ¬.",
@@ -323,7 +325,9 @@ export default {
     googleDisconnectFailed: "Impossibile disconnettere",
     gmailTitle: "Gmail",
     gmailAccountDesc:
-      "Collega lâ€™account Google che usi per Gmail. Puoi usare un altro account per Google Drive nella scheda Drive. La posta viene letta solo quando avvii un ordinamento dalla scheda Ordina file. I token restano su questo computer.",
+      "Collega lâ€™account Google che usi per Gmail. Puoi usare un altro account per Google Drive nella scheda Drive. La posta viene letta solo quando avvii un ordinamento dalla scheda Ordina file. I token restano su questo computer. Approvare un piano in background consente spostamenti e filtri della posta solo per quella esecuzione.",
+    gmailFiltersReconnectHint:
+      "Gmail richiede una connessione aggiornata per i filtri della posta in arrivo. Disconnetti e riconnetti Gmail in Fonti esterne.",
     gmailWebDesktopDriveSeparateNote:
       "Google Drive ha sopra un pulsante dedicato. Questa connessione Gmail non modifica Drive.",
     gmailNotConfigured:
@@ -1318,6 +1322,9 @@ export default {
     brainMapIncludeMailTitle: "Mostra e-mail importate sulla mappa mentale",
     brainMapIncludeMailDesc:
       "Disattivato: solo attività azionabili e aggiunte a mano. Ricevute e mail informative restano nascoste.",
+    brainMapIncludeLowValueChatsTitle: "Mostra chat poco utili sulla mappa",
+    brainMapIncludeLowValueChatsDesc:
+      "Disattivato: solo conversazioni riassunte e utili. Retry, «cosa puoi fare?» e chat vuote restano nascoste.",
     clearAllMemory: "Cancella tutta la memoria",
     confirmClearMemory: "Conferma cancellazione",
     privacyGroupTitle: "Privacy e diagnostica",
@@ -1350,13 +1357,22 @@ export default {
     privacyFeedbackThanks: "Grazie â€” feedback inviato.",
     privacyFeedbackError:
       "Invio non riuscito. Verifica che il servizio locale dellâ€™app sia attivo (Riprova nella barra del titolo).",
-    privacyLocalWipeTitle: "Cancella dati locali dell’assistente",
+    privacyLocalWipeTitle: "Cancella i dati di questo account su questo Mac",
     privacyLocalWipeHint:
-      "Elimina memorie, chat, attività e attività su questo dispositivo. Non rimuove l’account cloud — usa Account per export o eliminazione. Le connessioni OAuth restano finché non le disconnetti in Fonti.",
-    privacyLocalWipeAction: "Cancella dati locali",
+      "Elimina il vault locale di questo account su questo Mac — memorie, chat, attività, chiavi API e integrazioni. Gli altri account su questo Mac restano. Non rimuove l’account cloud — usa Account.",
+    privacyLocalWipeAction: "Cancella i dati locali di questo account",
     privacyLocalWipeConfirm: "Conferma cancellazione",
-    privacyLocalWipeDone: "I dati locali dell’assistente sono stati cancellati.",
+    privacyLocalWipeDone: "I dati locali di questo account sono stati cancellati.",
     privacyLocalWipeError: "Impossibile cancellare i dati locali. Il servizio locale è attivo?",
+    privacyWipeAllProfilesTitle: "Cancella tutti gli account su questo Mac",
+    privacyWipeAllProfilesHint:
+      "Elimina ogni vault di account locale su questo Mac e ti disconnette. Reset completo dei dati Exo su questo dispositivo.",
+    privacyWipeAllProfilesAction: "Cancella tutti gli account locali",
+    privacyWipeAllProfilesConfirm: "Conferma cancellazione di tutti gli account",
+    privacyWipeAllProfilesDone: "Tutti i dati account locali su questo Mac sono stati cancellati.",
+    privacyWipeAllProfilesError: "Impossibile cancellare tutti gli account locali. Il servizio locale è attivo?",
+    accountLocalVaultHint:
+      "Chiavi API e chat restano in un vault locale per questo account su questo Mac. La disconnessione blocca il vault — l’account successivo non lo vedrà.",
     voiceGroupTitle: "Voce",
     voiceGroupSummary: "Microfono, push-to-talk e conversazioni vocali.",
     voiceGroupDesc:
@@ -1627,6 +1643,7 @@ export default {
     accountRegister: "Crea account",
     accountLogin: "Accedi",
     accountSignOut: "Esci",
+    accountSwitching: "Cambio account…",
     accountSignedOut: "Disconnesso.",
     accountRegistered: "Account creato — accesso effettuato.",
     accountLoggedIn: "Accesso effettuato.",

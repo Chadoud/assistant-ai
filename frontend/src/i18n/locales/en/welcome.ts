@@ -25,7 +25,7 @@ export const enWelcomeLocaleSlice = {
     geminiBulletVoice: "Real-time voice",
     geminiBulletFreeTier: "Free API tier",
     providerSelectedBadge: "Voice",
-    geminiFreeKeyCta: "Open Google AI Studio (free API key)",
+    geminiFreeKeyCta: "Open Google AI Studio ",
     geminiFreeKeyStep1: "Open Google AI Studio and sign in with your Google account.",
     geminiFreeKeyStep2: "Open API keys in the left sidebar, then click Create API key (top right).",
     geminiFreeKeyStep3: "Copy the key and paste it below. It stays on this device only.",
@@ -86,7 +86,7 @@ export const enWelcomeLocaleSlice = {
     leaveSave: "Keep changes & close",
     localServiceStartingTitle: "Starting Exo on this computer",
     localServiceStartingBody:
-      "First launch prepares Exo in the background — this usually takes one to four minutes. The app opens when ready; you don't need to install anything else.",
+      "First launch prepares Exo in the background — this usually takes one to four minutes.",
     localServiceOfflineTitle: "Exo couldn't start on this computer",
     localServiceOfflineBody:
       "Everything is bundled with the app. Quit Exo (Cmd+Q), reopen it from Applications, and wait a few minutes. If this keeps happening, contact support.",

@@ -6,16 +6,27 @@
  * SSE connection per task — see planStore for why a single consumer is required)
  * and progressively shows the planning phase, each step + subtask with status
  * icons, and the final result summary.
+ *
+ * APPROVAL-tier tools use the same ScreenConsentModal as voice.
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePlanStream } from "../features/assistant/plan/usePlanStream";
-import { cancelPlanTask } from "../features/assistant/plan/planStore";
+import {
+  cancelPlanTask,
+  clearPlanPendingApproval,
+} from "../features/assistant/plan/planStore";
 import type { CubeStatus } from "../features/assistant/plan/planStore";
+import { approveAgentTaskTool, denyAgentTaskTool } from "../api/agentTask";
+import ScreenConsentModal from "./ScreenConsentModal";
 
 interface Props {
   taskId: string;
   goal: string;
+  /** Same list as voice — auto-approve without showing the modal. */
+  alwaysApprovedTools?: string[];
+  /** Persist a tool into alwaysApprovedTools (Always allow). */
+  onAlwaysAllowTool?: (tool: string) => void;
 }
 
 /** Plain-language summary for common planner failures (raw API dumps are hard to read). */
@@ -30,13 +41,57 @@ function formatTaskError(error: string): string {
   return error;
 }
 
-export default function TaskProgressCard({ taskId, goal }: Props) {
+export default function TaskProgressCard({
+  taskId,
+  goal,
+  alwaysApprovedTools = [],
+  onAlwaysAllowTool,
+}: Props) {
   const plan = usePlanStream(taskId);
   const [copied, setCopied] = useState(false);
+  const autoApprovedRef = useRef<string | null>(null);
 
   const cancel = useCallback(() => {
     void cancelPlanTask(taskId);
   }, [taskId]);
+
+  const pending = plan?.pendingApproval ?? null;
+
+  // Auto-approve tools the user already permanently allowed (voice + chat share the list).
+  useEffect(() => {
+    if (!pending) {
+      autoApprovedRef.current = null;
+      return;
+    }
+    if (!alwaysApprovedTools.includes(pending.tool)) return;
+    if (autoApprovedRef.current === pending.callId) return;
+    autoApprovedRef.current = pending.callId;
+    clearPlanPendingApproval(taskId, pending.callId);
+    void approveAgentTaskTool(taskId, pending.callId, "once").catch(() => {
+      /* waiter may already be gone */
+    });
+  }, [pending, alwaysApprovedTools, taskId]);
+
+  const approve = useCallback(
+    (scope: "once" | "session") => {
+      if (!pending) return;
+      const { callId } = pending;
+      clearPlanPendingApproval(taskId, callId);
+      void approveAgentTaskTool(taskId, callId, scope).catch(() => {
+        /* best effort */
+      });
+    },
+    [pending, taskId],
+  );
+
+  const deny = useCallback(() => {
+    if (!pending) return;
+    const { callId } = pending;
+    clearPlanPendingApproval(taskId, callId);
+    void denyAgentTaskTool(taskId, callId).catch(() => {
+      /* best effort */
+    });
+  }, [pending, taskId]);
 
   const phase = plan?.phase ?? "planning";
   const steps = plan?.steps ?? [];
@@ -54,120 +109,149 @@ export default function TaskProgressCard({ taskId, goal }: Props) {
     });
   }, [finalResult]);
 
+  const showConsent = pending !== null && !alwaysApprovedTools.includes(pending.tool);
+
   return (
-    <div className="w-full min-w-0 max-w-full rounded-2xl border border-zinc-700/60 bg-zinc-900/70 p-4 space-y-3">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-accent uppercase tracking-wide mb-0.5">
-            Autonomous task
-          </p>
-          <p className="text-sm text-zinc-200 leading-snug line-clamp-2">{goal}</p>
-        </div>
-        {!isDone && (
-          <button
-            onClick={cancel}
-            className="shrink-0 text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-zinc-800"
-          >
-            Cancel
-          </button>
-        )}
-      </div>
+    <>
+      <ScreenConsentModal
+        open={showConsent}
+        tool={pending?.tool ?? null}
+        onAllow={() => approve("once")}
+        onAllowSession={
+          pending?.tool === "screen_capture" ? () => approve("session") : undefined
+        }
+        onAlwaysAllow={
+          onAlwaysAllowTool && pending?.tool
+            ? () => {
+                const tool = pending.tool;
+                onAlwaysAllowTool(tool);
+                approve("once");
+              }
+            : undefined
+        }
+        onDeny={deny}
+      />
 
-      {/* Planning */}
-      {planning && (
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
-            <SpinnerIcon />
-            {plan?.relayNotice ?? "Planning steps…"}
+      <div className="w-full min-w-0 max-w-full rounded-2xl border border-zinc-700/60 bg-zinc-900/70 p-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-accent uppercase tracking-wide mb-0.5">
+              Autonomous task
+            </p>
+            <p className="text-sm text-zinc-200 leading-snug line-clamp-2">{goal}</p>
           </div>
+          {!isDone && (
+            <button
+              onClick={cancel}
+              className="shrink-0 text-xs text-zinc-500 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-zinc-800"
+            >
+              Cancel
+            </button>
+          )}
         </div>
-      )}
 
-      {/* Step list */}
-      {steps.length > 0 && (
-        <div className="space-y-1.5">
-          {steps.map((step) => (
-            <div key={step.index} className="space-y-1">
-              <div className="flex items-start gap-2.5">
-                <div className="mt-0.5 shrink-0">
-                  <StatusIcon status={step.status} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`text-xs leading-snug ${
-                      step.status === "pending" ? "text-zinc-500" : "text-zinc-300"
-                    }`}
-                  >
-                    {step.description}
-                  </p>
-                </div>
-              </div>
-              {step.subtasks.length > 0 && (
-                <div className="ml-6 space-y-1 border-l border-zinc-800 pl-2.5">
-                  {step.subtasks.map((sub) => (
-                    <div key={sub.index} className="flex items-start gap-2">
-                      <div className="mt-0.5 shrink-0">
-                        <StatusIcon status={sub.status} small />
-                      </div>
-                      <p
-                        className={`text-[11px] leading-snug ${
-                          sub.status === "pending" ? "text-zinc-600" : "text-zinc-400"
-                        }`}
-                      >
-                        {sub.description}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Final result */}
-      {finalResult && (
-        <div className="rounded-xl bg-zinc-800/60 px-3 py-2.5 space-y-2">
-          <p className="text-xs text-zinc-300 whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]">
-            {finalResult}
+        {showConsent && (
+          <p className="text-xs text-amber-300/90">
+            Waiting for your approval to continue…
           </p>
-          <button
-            onClick={copyResult}
-            className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors flex items-center gap-1"
+        )}
+
+        {/* Planning */}
+        {planning && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-xs text-zinc-400">
+              <SpinnerIcon />
+              {plan?.relayNotice ?? "Planning steps…"}
+            </div>
+          </div>
+        )}
+
+        {/* Step list */}
+        {steps.length > 0 && (
+          <div className="space-y-1.5">
+            {steps.map((step) => (
+              <div key={step.index} className="space-y-1">
+                <div className="flex items-start gap-2.5">
+                  <div className="mt-0.5 shrink-0">
+                    <StatusIcon status={step.status} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-xs leading-snug ${
+                        step.status === "pending" ? "text-zinc-500" : "text-zinc-300"
+                      }`}
+                    >
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+                {step.subtasks.length > 0 && (
+                  <div className="ml-6 space-y-1 border-l border-zinc-800 pl-2.5">
+                    {step.subtasks.map((sub) => (
+                      <div key={sub.index} className="flex items-start gap-2">
+                        <div className="mt-0.5 shrink-0">
+                          <StatusIcon status={sub.status} small />
+                        </div>
+                        <p
+                          className={`text-[11px] leading-snug ${
+                            sub.status === "pending" ? "text-zinc-600" : "text-zinc-400"
+                          }`}
+                        >
+                          {sub.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Final result */}
+        {finalResult && (
+          <div className="rounded-xl bg-zinc-800/60 px-3 py-2.5 space-y-2">
+            <p className="text-xs text-zinc-300 whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]">
+              {finalResult}
+            </p>
+            <button
+              onClick={copyResult}
+              className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors flex items-center gap-1"
+            >
+              {copied ? (
+                <>
+                  <CheckIcon /> Copied
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                  Copy result
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {taskError && (
+          <p
+            className="text-xs text-red-400 bg-red-950/40 px-3 py-2 rounded-lg break-words [overflow-wrap:anywhere]"
+            title={taskError.length > 120 ? taskError : undefined}
           >
-            {copied ? (
-              <>
-                <CheckIcon /> Copied
-              </>
-            ) : (
-              <>
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
-                Copy result
-              </>
-            )}
-          </button>
-        </div>
-      )}
+            {formatTaskError(taskError)}
+          </p>
+        )}
 
-      {taskError && (
-        <p
-          className="text-xs text-red-400 bg-red-950/40 px-3 py-2 rounded-lg break-words [overflow-wrap:anywhere]"
-          title={taskError.length > 120 ? taskError : undefined}
-        >
-          {formatTaskError(taskError)}
-        </p>
-      )}
-
-      {cancelled && <p className="text-xs text-zinc-500">Task cancelled.</p>}
-    </div>
+        {cancelled && <p className="text-xs text-zinc-500">Task cancelled.</p>}
+      </div>
+    </>
   );
 }
 

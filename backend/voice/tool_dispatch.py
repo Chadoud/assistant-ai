@@ -13,7 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable
 
-from orchestrator.policy import AutonomyPolicy
+from orchestrator.policy import policy_block_result
 from provider_context import ProviderContextHolder, inject_provider_tool_args
 from services.calendar import (
     CalendarConfirmActionKind,
@@ -60,12 +60,9 @@ def _policy_block_result(
     approved_tool: bool,
 ) -> dict[str, Any] | None:
     """Block sensitive tools unless autonomous mode is on or the user approved this call."""
-    if name in TOOLS_NEEDING_APPROVAL and approved_tool:
-        return None
-    decision = AutonomyPolicy(allow_sensitive=allow_sensitive).check(name, args)
-    if decision.allowed:
-        return None
-    return {"ok": False, "error": decision.reason}
+    return policy_block_result(
+        name, args, allow_sensitive=allow_sensitive, approved_tool=approved_tool
+    )
 
 
 def _briefing_tool_block_result(
@@ -127,6 +124,9 @@ BACKGROUND_VOICE_TOOLS: frozenset[str] = frozenset(
 )
 
 
+_SPEAKABLE_SUMMARY_MAX = 1100
+
+
 def queue_background_tool_result(pending: list[str], tool_name: str, text: str) -> None:
     """Append a follow-up turn for the model; coalesce duplicate web_agent outcomes."""
     if not text:
@@ -136,6 +136,22 @@ def queue_background_tool_result(pending: list[str], tool_name: str, text: str) 
     pending.append(text)
 
 
+def shape_speakable_plan_summary(text: str) -> str:
+    """Compress orchestrator output into a short spoken brief for Gemini Live."""
+    cleaned = " ".join(str(text or "").split()).strip()
+    if not cleaned:
+        return ""
+    low = cleaned.lower()
+    if "resource_exhausted" in low or ("429" in low and "quota" in low):
+        return (
+            "The AI rate limit was hit while working on that. "
+            "Ask the user to try again in about a minute."
+        )
+    if len(cleaned) > _SPEAKABLE_SUMMARY_MAX:
+        cleaned = cleaned[: _SPEAKABLE_SUMMARY_MAX - 1].rstrip() + "…"
+    return cleaned
+
+
 def format_background_completion(name: str, result: Any) -> str:
     """Turn a finished background tool result into a follow-up turn for the model."""
     if not isinstance(result, dict):
@@ -143,10 +159,16 @@ def format_background_completion(name: str, result: Any) -> str:
 
     data = result.get("data") if isinstance(result.get("data"), dict) else {}
     if not result.get("ok", False):
-        err = str(result.get("error") or "it didn't work").strip()
+        raw_err = (
+            str(result.get("error") or "").strip()
+            or str(result.get("summary") or "").strip()
+            or "it didn't work"
+        )
+        err = shape_speakable_plan_summary(raw_err)
         return (
             f"[TOOL_RESULT {name}] FAILED: {err} "
-            "Tell the user now, in one short sentence, that it didn't work and the reason."
+            "Speak this to the user in one or two short sentences. "
+            "Do NOT call plan_and_execute again."
         )
 
     status = str(data.get("status") or "").strip().lower()
@@ -160,12 +182,18 @@ def format_background_completion(name: str, result: Any) -> str:
         detail = reason or "your input is needed to continue."
         return f"[TOOL_RESULT {name}] NEEDS THE USER: {detail} Tell the user exactly this now."
     if status in ("failed", "incomplete"):
-        detail = reason or "it couldn't be completed."
+        detail = shape_speakable_plan_summary(reason or "it couldn't be completed.")
         return (
             f"[TOOL_RESULT {name}] DID NOT COMPLETE: {detail} "
-            "Tell the user now, in one short sentence, what blocked it."
+            "Tell the user now, in one short sentence, what blocked it. "
+            "Do NOT call plan_and_execute again."
         )
-    detail = answer or summary or reason or "Done."
+    detail = shape_speakable_plan_summary(answer or summary or reason or "Done.")
+    if name == "plan_and_execute":
+        return (
+            f"[TOOL_RESULT {name}] DONE — speak this summary in your own words "
+            f"(do not re-plan, do not call more tools): {detail}"
+        )
     return (
         f"[TOOL_RESULT {name}] DONE: {detail} "
         "Tell the user this result now, in one short sentence."
@@ -180,7 +208,9 @@ def spawn_background_voice_tool(
     provider_holder: ProviderContextHolder | None = None,
 ) -> None:
     """Run a long tool off the realtime turn so it can't blow the Live API deadline."""
-    dispatch_args = inject_provider_tool_args(name, args, holder=provider_holder)
+    dispatch_args = inject_provider_tool_args(
+        name, args, holder=provider_holder, voice_handoff=True
+    )
 
     def _run() -> None:
         try:
@@ -652,7 +682,9 @@ async def handle_voice_tool_calls(
                 routed.reason,
             )
         args = enrich_voice_tool_args(name, args, enrich_source, dispatch_state.last_open_tasks)
-        args = inject_provider_tool_args(name, args, holder=provider_holder)
+        args = inject_provider_tool_args(
+            name, args, holder=provider_holder, voice_handoff=True
+        )
         args, plan_task_id, plan_goal = attach_plan_visualizer(name, args)
         prepared.append((fc, call_id, name, args, plan_task_id, plan_goal, routed))
         if is_mutating_voice_tool(name, args):
@@ -757,7 +789,9 @@ async def handle_voice_tool_calls(
                 approval_ok = (name not in TOOLS_NEEDING_APPROVAL) or approved_tool
                 tool_timeout = TOOL_TIMEOUTS.get(name, DEFAULT_TOOL_TIMEOUT_S)
                 try:
-                    sync_args = inject_provider_tool_args(name, args, holder=provider_holder)
+                    sync_args = inject_provider_tool_args(
+                        name, args, holder=provider_holder, voice_handoff=True
+                    )
                     result = await asyncio.wait_for(
                         asyncio.to_thread(
                             dispatch_sync,
@@ -918,7 +952,9 @@ async def handle_voice_tool_calls(
             approval_ok = (name not in TOOLS_NEEDING_APPROVAL) or approved_tool
             tool_timeout = TOOL_TIMEOUTS.get(name, DEFAULT_TOOL_TIMEOUT_S)
             try:
-                sync_args = inject_provider_tool_args(name, args, holder=provider_holder)
+                sync_args = inject_provider_tool_args(
+                    name, args, holder=provider_holder, voice_handoff=True
+                )
                 result = await asyncio.wait_for(
                     asyncio.to_thread(
                         dispatch_sync,

@@ -28,6 +28,10 @@ function conversation(overrides: Partial<ConversationSummary> = {}): Conversatio
     action_items: [],
     created_at: "2026-06-10T09:00:00Z",
     updated_at: "2026-06-10T09:30:00Z",
+    retain_tier: "working",
+    retain_score: 0.7,
+    ephemeral: false,
+    pinned: false,
     ...overrides,
   };
 }
@@ -143,6 +147,30 @@ describe("buildBrainGraph", () => {
       expect.objectContaining({ source: "hub:conversations", target: "convo:c1" }),
     );
     expect(graph.links.some((l) => l.source === "root:you" && l.target === "convo:c1")).toBe(false);
+  });
+
+  it("orders conversation nodes by retain_score before updated_at", () => {
+    const graph = buildBrainGraph({
+      memories: [],
+      conversations: [
+        conversation({
+          id: "low",
+          title: "Older mid",
+          retain_score: 0.56,
+          updated_at: "2026-06-12T09:00:00Z",
+        }),
+        conversation({
+          id: "high",
+          title: "Newer high",
+          retain_score: 0.9,
+          updated_at: "2026-06-11T09:00:00Z",
+        }),
+      ],
+      tasks: [],
+    });
+    const convoNodes = graph.nodes.filter((n) => n.kind === "conversation");
+    expect(convoNodes[0]?.id).toBe("convo:high");
+    expect(convoNodes[1]?.id).toBe("convo:low");
   });
 
   it("stores taskId and memoryId on leaf nodes", () => {

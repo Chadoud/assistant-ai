@@ -1,9 +1,11 @@
 """
 Autonomous agent routes.
 
-POST   /agent/task            — { goal: str } → { task_id: str }
+POST   /agent/task            — { goal: str, autonomous_mode?: bool } → { task_id: str }
 GET    /agent/task/{id}       — SSE stream of step events
 GET    /agent/task/{id}/status
+POST   /agent/task/{id}/approve — { call_id, scope? } resolve tool consent
+POST   /agent/task/{id}/deny    — { call_id } deny tool consent
 DELETE /agent/task/{id}       — cancel
 """
 
@@ -36,6 +38,17 @@ class AgentTaskRequest(BaseModel):
     model: str | None = Field(default=None, max_length=200)
     api_key: str | None = Field(default=None, max_length=2048)
     base_url: str | None = Field(default=None, max_length=512)
+    # Same meaning as voice WS ?autonomous_mode=1 — lifts AutonomyPolicy for SENSITIVE tools.
+    autonomous_mode: bool = False
+
+
+class AgentToolApprovalRequest(BaseModel):
+    call_id: str = Field(..., min_length=1, max_length=128)
+    scope: str = Field(default="once", max_length=16)
+
+
+class AgentToolDenyRequest(BaseModel):
+    call_id: str = Field(..., min_length=1, max_length=128)
 
 
 @router.post("/task")
@@ -47,6 +60,7 @@ async def start_task(body: AgentTaskRequest, background_tasks: BackgroundTasks) 
         model=(body.model or "").strip() or None,
         api_key=api_key,
         base_url=base_url,
+        allow_sensitive=bool(body.autonomous_mode),
     )
     background_tasks.add_task(_run_task_bg, task)
     return {"task_id": task.task_id}
@@ -87,6 +101,33 @@ async def task_status(task_id: str) -> dict:
         "result": task.result,
         "error": task.error,
     }
+
+
+@router.post("/task/{task_id}/approve")
+async def approve_task_tool(task_id: str, body: AgentToolApprovalRequest) -> dict:
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="task_not_found")
+    call_id = body.call_id.strip()
+    if not call_id:
+        raise HTTPException(status_code=400, detail="call_id_required")
+    scope = (body.scope or "once").strip().lower()
+    if scope == "session":
+        task.approval_waiter.grant_screen_capture_session()
+    task.approval_waiter.resolve(call_id, True)
+    return {"ok": True}
+
+
+@router.post("/task/{task_id}/deny")
+async def deny_task_tool(task_id: str, body: AgentToolDenyRequest) -> dict:
+    task = get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="task_not_found")
+    call_id = body.call_id.strip()
+    if not call_id:
+        raise HTTPException(status_code=400, detail="call_id_required")
+    task.approval_waiter.resolve(call_id, False)
+    return {"ok": True}
 
 
 @router.delete("/task/{task_id}")

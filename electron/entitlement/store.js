@@ -13,7 +13,12 @@ const {
 
 const SORT_CREDENTIALS_REFRESH_SKEW_MS = 5 * 60 * 1000;
 
+function profileRootFor(deviceRoot) {
+  return require("../accountProfile").resolveProfileRoot(deviceRoot);
+}
+
 function sortCredentialsNeedRefresh(userData) {
+  // getSortServiceSurface resolves the active profile root from the device root.
   const surface = getSortServiceSurface(userData);
   if (!surface.sortServiceConfigured) return true;
   if (!surface.sortCredentialsConfigRevision) return true;
@@ -51,16 +56,17 @@ function readJsonSafe(p, fallback) {
 async function syncTrialFromCloudSession(userData) {
   const profile = await cloudAuth.fetchProfile(userData);
   if (profile?.trial_ends_at) {
-    syncCloudTrialEndsAt(userData, profile.trial_ends_at);
+    syncCloudTrialEndsAt(profileRootFor(userData), profile.trial_ends_at);
   }
   return profile;
 }
 
 /**
- * @param {string} userData app.getPath("userData")
+ * @param {string} userData device userData root (cloud session); profile files use profiles/<id>/
  */
 async function getEntitlementState(userData) {
   syncGoogleOauthClientIdForElectronMain();
+  const dataRoot = profileRootFor(userData);
 
   if (isUnlimitedEntitlementBuild()) {
     let cloudAuthRequired = false;
@@ -132,7 +138,7 @@ async function getEntitlementState(userData) {
     };
   }
 
-  const ent = readJsonSafe(entitlementPath(userData), { v: 1, licenseKey: null });
+  const ent = readJsonSafe(entitlementPath(dataRoot), { v: 1, licenseKey: null });
   const key = typeof ent.licenseKey === "string" ? ent.licenseKey.trim() : "";
   let licensed = false;
   let licenseReason = null;
@@ -185,7 +191,7 @@ async function getEntitlementState(userData) {
     }
   }
 
-  const trial = getTrialStatus(userData);
+  const trial = getTrialStatus(dataRoot);
   const bypass = devEntitlementBypassEnabled();
   const trialActive = bypass || licensed || trial.trialActive;
   let canAnalyze = trialActive;
@@ -243,7 +249,7 @@ function entitlementGateFallback() {
 }
 
 function saveLicenseKey(userData, licenseKey) {
-  const p = entitlementPath(userData);
+  const p = entitlementPath(profileRootFor(userData));
   const prev = readJsonSafe(p, { v: 1, licenseKey: null });
   const next = { ...prev, v: 1, licenseKey: licenseKey || null };
   fs.mkdirSync(path.dirname(p), { recursive: true });

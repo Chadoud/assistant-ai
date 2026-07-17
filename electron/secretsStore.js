@@ -92,7 +92,7 @@ function writeSecretWithDeps(deps, key, value) {
 
 function defaultDeps() {
   return {
-    userDataRoot: app.getPath("userData"),
+    userDataRoot: require("./accountProfile").resolveProfileRoot(),
     safeStorageApi: safeStorage,
     fsApi: fs,
   };

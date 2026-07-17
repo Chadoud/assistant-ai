@@ -134,6 +134,9 @@ async function finalizeWhatsAppCloudSave(core, ud, creds, displayPhoneFallback =
   return { ok: true, displayPhoneNumber: displayPhone };
 }
 
+
+const { relayTokensAfterConnectSave } = require("../postConnectTokenRelay");
+
 function registerIntegrationOAuthHandlers(ipcMain, core) {
   ipcMain.handle("integration:connect", async (event, payload) => {
     const denied = rejectUntrustedSender(event);
@@ -154,7 +157,9 @@ function registerIntegrationOAuthHandlers(ipcMain, core) {
       if (!driveSave.ok) return driveSave;
       const calSave = saveIntegrationSecrets(ud, core.PROVIDER_GOOGLE_CALENDAR, r.tokens);
       if (!calSave.ok) return calSave;
-      return _verifyGoogleTokens(id, r.tokens);
+      const verifiedAll = await _verifyGoogleTokens(id, r.tokens);
+      await relayTokensAfterConnectSave();
+      return verifiedAll;
     }
 
     if (id === core.PROVIDER_GOOGLE_GMAIL) {
@@ -162,7 +167,9 @@ function registerIntegrationOAuthHandlers(ipcMain, core) {
       if (!r.ok || !r.tokens) return { ok: false, reason: r.reason || "connect_failed" };
       const gmailSave = core.saveGmailIntegrationSecrets(core.userData(), r.tokens);
       if (!gmailSave.ok) return gmailSave;
-      return _verifyGoogleTokens(id, r.tokens);
+      const verifiedGmail = await _verifyGoogleTokens(id, r.tokens);
+      await relayTokensAfterConnectSave();
+      return verifiedGmail;
     }
 
     if (id === core.PROVIDER_GOOGLE_DRIVE) {
@@ -170,7 +177,9 @@ function registerIntegrationOAuthHandlers(ipcMain, core) {
       if (!r.ok || !r.tokens) return { ok: false, reason: r.reason || "connect_failed" };
       const driveSave = core.saveDriveIntegrationSecrets(core.userData(), r.tokens);
       if (!driveSave.ok) return driveSave;
-      return _verifyGoogleTokens(id, r.tokens);
+      const verifiedDrive = await _verifyGoogleTokens(id, r.tokens);
+      await relayTokensAfterConnectSave();
+      return verifiedDrive;
     }
 
     if (id === core.PROVIDER_GOOGLE_CALENDAR) {
@@ -178,7 +187,9 @@ function registerIntegrationOAuthHandlers(ipcMain, core) {
       if (!r.ok || !r.tokens) return { ok: false, reason: r.reason || "connect_failed" };
       const calSave = saveIntegrationSecrets(core.userData(), core.PROVIDER_GOOGLE_CALENDAR, r.tokens);
       if (!calSave.ok) return calSave;
-      return _verifyGoogleTokens(id, r.tokens);
+      const verifiedCal = await _verifyGoogleTokens(id, r.tokens);
+      await relayTokensAfterConnectSave();
+      return verifiedCal;
     }
 
     if (id === core.PROVIDER_MICROSOFT || id === core.PROVIDER_ONEDRIVE || id === core.PROVIDER_OUTLOOK) {

@@ -30,7 +30,7 @@ from conversation_origin_catalog import (
     merge_origin_catalogs,
     resolve_origin_for_memory_text,
 )
-from conversation_store import upsert_conversation
+from conversation_store import apply_retain_score, upsert_conversation
 from llm.complete import complete
 from signal_quality import (
     PROMO_DENSITY_SKIP_THRESHOLD,
@@ -361,10 +361,22 @@ def extract_and_store(
         emoji=emoji,
         messages=messages,
         action_items=action_items,
+        memory_link_count=0,
     )
 
     memories_stored = _store_memories(memories, conversation_id, origin_catalog=origin_catalog)
     tasks_stored = _store_tasks(action_items, conversation_id)
+
+    # Re-score with memory/task link counts (and optional mid-band LLM judge).
+    retain_fields = _finalize_retain_score(
+        conversation_id,
+        title=title,
+        summary=overview,
+        action_items=action_items,
+        messages=messages,
+        memories_stored=memories_stored,
+        tasks_stored=tasks_stored,
+    )
 
     report: dict[str, Any] = {
         "ok": True,
@@ -376,6 +388,76 @@ def extract_and_store(
         "tasks_stored": tasks_stored,
         "action_items": action_items,
     }
+    if retain_fields:
+        report["retain_tier"] = retain_fields.get("retain_tier")
+        report["retain_score"] = retain_fields.get("retain_score")
     if memories_skip_reason:
         report["memories_skipped_reason"] = memories_skip_reason
     return report
+
+
+def _finalize_retain_score(
+    conversation_id: str,
+    *,
+    title: str,
+    summary: str,
+    action_items: list[str],
+    messages: list[dict[str, Any]],
+    memories_stored: int,
+    tasks_stored: int,
+) -> dict[str, Any] | None:
+    """Apply rule score (+ optional LLM mid-band) after distill writes."""
+    from signal_quality.retain_policy import (
+        LLM_MID_BAND_HIGH,
+        LLM_MID_BAND_LOW,
+        is_retain_llm_enabled,
+        is_retain_policy_enabled,
+        score_conversation,
+    )
+
+    if not is_retain_policy_enabled():
+        return apply_retain_score(
+            conversation_id,
+            memory_link_count=memories_stored + tasks_stored,
+        )
+
+    link_count = max(0, int(memories_stored) + int(tasks_stored))
+    rule = score_conversation(
+        title,
+        summary,
+        action_item_count=len(action_items),
+        memory_link_count=link_count,
+        message_count=len(messages),
+    )
+
+    retain_override = None
+    if (
+        is_retain_llm_enabled()
+        and LLM_MID_BAND_LOW <= rule.score <= LLM_MID_BAND_HIGH
+        and not rule.ephemeral
+    ):
+        try:
+            from signal_quality.retain_llm import judge_conversation_retain
+
+            llm_verdict = judge_conversation_retain(
+                title=title,
+                summary=summary,
+                action_items=action_items,
+                rule=rule,
+            )
+            if llm_verdict is not None:
+                from datetime import UTC, datetime
+
+                retain_override = llm_verdict.as_dict()
+                retain_override["last_judged_at"] = datetime.now(UTC).isoformat()
+        except Exception:
+            logger.debug("retain LLM judge skipped", exc_info=True)
+
+    if retain_override:
+        return apply_retain_score(
+            conversation_id,
+            memory_link_count=link_count,
+            retain_override=retain_override,
+        )
+
+    return apply_retain_score(conversation_id, memory_link_count=link_count)

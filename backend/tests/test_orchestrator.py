@@ -408,6 +408,46 @@ def test_forget_removes_episode_by_id(_temp_memory):
     assert _temp_memory.forget(row.id) is False
 
 
+def test_failure_upsert_one_open_card_per_goal(_temp_memory):
+    adapter = _temp_memory.EpisodicAdapter()
+    adapter.remember_outcome("find my latest invoices", "missing list_invoices", False)
+    adapter.remember_outcome("find my latest invoices", "approval timed out", False)
+    open_rows = _temp_memory.recent_open_failures(10)
+    assert len(open_rows) == 1
+    assert "approval timed out" in open_rows[0].content
+    # Raw table may still briefly have only the latest after upsert.
+    assert len(_temp_memory.recent(10, kinds=[_temp_memory.KIND_FAILURE])) == 1
+
+
+def test_success_clears_open_failures_for_goal(_temp_memory):
+    adapter = _temp_memory.EpisodicAdapter()
+    adapter.remember_outcome("find my latest invoices", "blocked", False)
+    adapter.remember_outcome("find my latest invoices", "Found 3 invoices.", True)
+    assert _temp_memory.recent_open_failures(10) == []
+    episodes = _temp_memory.recent(5, kinds=[_temp_memory.KIND_EPISODE])
+    assert episodes and "Found 3 invoices" in episodes[0].content
+
+
+def test_recent_open_failures_dedupes_legacy_duplicates(_temp_memory):
+    _temp_memory.remember(
+        "Goal: find my latest invoices\nOutcome: old",
+        kind=_temp_memory.KIND_FAILURE,
+    )
+    _temp_memory.remember(
+        "Goal: find my latest invoices\nOutcome: new",
+        kind=_temp_memory.KIND_FAILURE,
+    )
+    _temp_memory.remember(
+        "Goal: deploy demo\nOutcome: boom",
+        kind=_temp_memory.KIND_FAILURE,
+    )
+    open_rows = _temp_memory.recent_open_failures(10)
+    goals = {_temp_memory.goal_from_failure_content(r.content) for r in open_rows}
+    assert goals == {"find my latest invoices", "deploy demo"}
+    invoice = next(r for r in open_rows if "invoices" in r.content)
+    assert "new" in invoice.content
+
+
 def test_eviction_keeps_store_bounded(_temp_memory, monkeypatch):
     monkeypatch.setattr(_temp_memory, "_MAX_ENTRIES", 3)
     for index in range(6):
@@ -559,7 +599,41 @@ def test_policy_gate_withholds_sensitive_unless_allowed():
 
 
 def test_orchestrate_blocks_sensitive_tool_without_dispatch():
-    """A sensitive step is withheld (never dispatched) under a restrictive policy."""
+    """A sensitive non-APPROVAL step is withheld (never dispatched) under a restrictive policy."""
+    from orchestrator.policy import AutonomyPolicy
+
+    dispatched: list[str] = []
+
+    def reason(capability, system, user):
+        if "planner" in system:
+            return json.dumps({"steps": [
+                {"id": 1, "kind": "tool", "tool": "save_memory",
+                 "args": {"key": "k", "value": "v"},
+                 "description": "remember something", "success_check": "saved"},
+            ]})
+        if "verify one step" in system:
+            return '{"ok": true, "feedback": ""}'
+        if "Summarize" in system:
+            return "Withheld a sensitive action."
+        return "x"
+
+    def dispatch(tool, args):
+        dispatched.append(tool)
+        return {"ok": True}
+
+    result = agents.orchestrate(
+        "remember something",
+        reason_fn=reason,
+        dispatch_fn=dispatch,
+        policy=AutonomyPolicy(allow_sensitive=False),
+    )
+    assert dispatched == []  # never ran the sensitive tool
+    assert result["ok"] is False
+    assert "blocked by policy" in result["steps"][0]["output"]
+
+
+def test_orchestrate_lets_approval_tools_reach_dispatch():
+    """APPROVAL-tier tools skip the hard gate so chat/voice can show consent at dispatch."""
     from orchestrator.policy import AutonomyPolicy
 
     dispatched: list[str] = []
@@ -574,12 +648,12 @@ def test_orchestrate_blocks_sensitive_tool_without_dispatch():
         if "verify one step" in system:
             return '{"ok": true, "feedback": ""}'
         if "Summarize" in system:
-            return "Withheld a sensitive action."
+            return "Asked for approval."
         return "x"
 
     def dispatch(tool, args):
         dispatched.append(tool)
-        return {"ok": True}
+        return {"ok": False, "error": "User denied or approval unavailable"}
 
     result = agents.orchestrate(
         "message bob",
@@ -587,9 +661,9 @@ def test_orchestrate_blocks_sensitive_tool_without_dispatch():
         dispatch_fn=dispatch,
         policy=AutonomyPolicy(allow_sensitive=False),
     )
-    assert dispatched == []  # never ran the sensitive tool
+    assert dispatched[0] == "send_message"
+    assert "send_message" in dispatched
     assert result["ok"] is False
-    assert "blocked by policy" in result["steps"][0]["output"]
 
 
 # ── budget ────────────────────────────────────────────────────────────────────

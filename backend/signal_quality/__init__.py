@@ -37,6 +37,20 @@ from signal_quality.memory_shape import (
     looks_like_inbox_recap,
     transcript_promo_density,
 )
+from signal_quality.retain_policy import (
+    MAP_SCORE_THRESHOLD,
+    JudgedBy,
+    RetainTier,
+    RetainVerdict,
+    conversation_map_eligible,
+    is_retain_llm_enabled,
+    is_retain_policy_enabled,
+    map_visible,
+    memory_entry_to_retain_verdict,
+    prompt_eligible,
+    score_conversation,
+    working_days_threshold,
+)
 
 __all__ = [
     "AUTO_MEMORY_HIDDEN_NOISE_THRESHOLD",
@@ -68,4 +82,16 @@ __all__ = [
     "folder_allowed_on_brain_map",
     "file_allowed_on_brain_map",
     "task_map_eligible",
+    "MAP_SCORE_THRESHOLD",
+    "JudgedBy",
+    "RetainTier",
+    "RetainVerdict",
+    "conversation_map_eligible",
+    "is_retain_llm_enabled",
+    "is_retain_policy_enabled",
+    "map_visible",
+    "memory_entry_to_retain_verdict",
+    "prompt_eligible",
+    "score_conversation",
+    "working_days_threshold",
 ]

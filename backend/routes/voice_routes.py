@@ -51,7 +51,7 @@ from voice_briefing_gate import (
     clear_voice_briefing_gate,
 )
 from voice_instructions import CORE_PROTOCOL
-from voice_session import GEMINI_VOICE_MODEL_DEFAULT, run_voice_session
+from voice_session import GEMINI_VOICE_MODEL_DEFAULT, resolve_gemini_voice_model, run_voice_session
 from voice_session_bootstrap import consume_voice_session_provider, prime_voice_session_provider
 from voice_tool_approval import VoiceToolApprovalWaiter
 from voice_ws_auth import authenticate_voice_websocket
@@ -83,10 +83,11 @@ def _build_system_instruction(include_memory: bool = True) -> str:
 async def voice_status() -> JSONResponse:
     """Returns whether voice is ready to use (API key present)."""
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    model = os.environ.get("GEMINI_VOICE_MODEL", GEMINI_VOICE_MODEL_DEFAULT)
+    model = resolve_gemini_voice_model()
     return JSONResponse({
         "ready": bool(api_key),
         "model": model,
+        "default_model": GEMINI_VOICE_MODEL_DEFAULT,
         "missing": [] if api_key else ["GEMINI_API_KEY"],
     })
 

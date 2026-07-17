@@ -275,7 +275,7 @@ function sanitizeFilename(name) {
 }
 
 function s3StagingDir(jobId) {
-  return path.join(app.getPath("userData"), "s3_sort_staging", jobId);
+  return path.join(require("../accountProfile").resolveProfileRoot(), "s3_sort_staging", jobId);
 }
 
 module.exports = {

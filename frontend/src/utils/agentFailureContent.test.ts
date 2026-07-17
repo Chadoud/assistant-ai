@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentFailureRetryPrompt, parseAgentFailureContent } from "./agentFailureContent";
+import {
+  AGENT_FAILURE_RETRY_PREFIX,
+  buildAgentFailureRetryPrompt,
+  extractAgentRetryGoal,
+  parseAgentFailureContent,
+} from "./agentFailureContent";
 
 describe("parseAgentFailureContent", () => {
   it("splits goal and outcome", () => {
@@ -18,13 +23,37 @@ describe("parseAgentFailureContent", () => {
 });
 
 describe("buildAgentFailureRetryPrompt", () => {
-  it("includes goal and outcome when both exist", () => {
+  it("prefills only the original goal with the retry prefix", () => {
     const prompt = buildAgentFailureRetryPrompt({
-      goal: "Send the report",
-      outcome: "Gmail was not connected.",
+      goal: "find my latest invoices",
+      outcome: 'tool "list_invoices" isn\'t available',
       raw: "",
     });
-    expect(prompt).toContain("Send the report");
-    expect(prompt).toContain("Gmail was not connected.");
+    expect(prompt).toBe(`${AGENT_FAILURE_RETRY_PREFIX} find my latest invoices`);
+    expect(prompt).not.toContain("list_invoices");
+  });
+
+  it("falls back to raw when goal is empty", () => {
+    const prompt = buildAgentFailureRetryPrompt({
+      goal: "",
+      outcome: "",
+      raw: "Something unexpected happened.",
+    });
+    expect(prompt).toBe(`${AGENT_FAILURE_RETRY_PREFIX} Something unexpected happened.`);
+  });
+});
+
+describe("extractAgentRetryGoal", () => {
+  it("strips the retry prefix (legacy autonomously form too)", () => {
+    expect(
+      extractAgentRetryGoal(`${AGENT_FAILURE_RETRY_PREFIX} find my latest invoices`),
+    ).toBe("find my latest invoices");
+    expect(
+      extractAgentRetryGoal("Please retry this autonomously: find my latest invoices"),
+    ).toBe("find my latest invoices");
+  });
+
+  it("returns plain text unchanged", () => {
+    expect(extractAgentRetryGoal("deploy on Vercel")).toBe("deploy on Vercel");
   });
 });

@@ -23,15 +23,64 @@ const cloudAuth = require("../cloudAuth");
 const { syncSortCredentialsFromCloud } = require("../entitlement/sortCredentials");
 const { getManualRemoteLlmApiKey, setManualRemoteLlmApiKey } = require("../backendAiSecrets");
 const syncWorker = require("../syncWorker");
-const { wipeElectronUserDataFiles } = require("../localDataWipe");
+const { wipeElectronUserDataFiles, wipeAllElectronProfiles } = require("../localDataWipe");
 const { backendFetch } = require("../backendHttp");
 const { deleteMaterializedGmailOAuthMirror } = require("../gmailOAuthMirrorStore");
 const cloudSessionPrefs = require("../cloudSessionPrefs");
+const {
+  alignProfileWithSession,
+  activateGuestProfile,
+  getActiveProfileId,
+  getProfileState,
+  resolveProfileRoot,
+} = require("../accountProfile");
 const {
   getRendererDiagnosticsLogPath,
   appendRendererDiagnosticLine,
 } = require("../rendererDiagnostics");
 const { isTrustedSender } = require("./senderGuard");
+
+/**
+ * After login/logout/wipe: point workers at the active profile and restart backend when the vault changes.
+ * @param {string} deviceRoot
+ * @param {{ restartBackend?: boolean }} [opts]
+ */
+async function remountProfileRuntime(deviceRoot, opts = {}) {
+  const profileRoot = resolveProfileRoot(deviceRoot);
+  try {
+    const { clearOauthChromeProfile } = require("../integrations/chromeAutopilot");
+    clearOauthChromeProfile(deviceRoot);
+  } catch (err) {
+    console.warn("[main] oauth-chrome-profile clear skipped:", err?.message || err);
+  }
+  syncWorker.startSyncWorker(deviceRoot);
+  try {
+    const whatsappCloudSync = require("../integrations/whatsappCloudSync");
+    whatsappCloudSync.resumeIfConfigured(profileRoot);
+  } catch (err) {
+    console.warn("[main] WhatsApp cloud sync remount skipped:", err?.message || err);
+  }
+  if (opts.restartBackend !== false) {
+    try {
+      await restartBackend();
+    } catch (err) {
+      console.warn("[main] backend restart after profile remount failed:", err?.message || err);
+    }
+  }
+  return profileRoot;
+}
+
+/**
+ * @param {string} deviceRoot
+ */
+async function applySessionProfile(deviceRoot) {
+  const prevId = getActiveProfileId(deviceRoot);
+  const session = cloudAuth.readSession(deviceRoot);
+  const aligned = alignProfileWithSession(deviceRoot, session);
+  const nextId = aligned.activeId || getActiveProfileId(deviceRoot);
+  await remountProfileRuntime(deviceRoot, { restartBackend: prevId !== nextId });
+  return aligned;
+}
 
 /** @param {import("electron").IpcMainInvokeEvent} event */
 function rejectUntrustedSender(event) {
@@ -148,11 +197,23 @@ function stripLegacySensitiveKeysFromDisk(existing) {
 
 function registerAppHandlers() {
   const { app } = require("electron");
-  const userData = app.getPath("userData");
-  syncWorker.startSyncWorker(userData);
+  const deviceRoot = app.getPath("userData");
+  // Align vault with cached session (or guest) before workers/backend see paths.
+  try {
+    const session = cloudAuth.readSession(deviceRoot);
+    alignProfileWithSession(deviceRoot, session);
+  } catch (err) {
+    console.warn("[main] profile align on startup failed:", err?.message || err);
+    try {
+      activateGuestProfile(deviceRoot);
+    } catch {
+      /* ignore */
+    }
+  }
+  syncWorker.startSyncWorker(deviceRoot);
   try {
     const whatsappCloudSync = require("../integrations/whatsappCloudSync");
-    whatsappCloudSync.resumeIfConfigured(userData);
+    whatsappCloudSync.resumeIfConfigured();
   } catch (err) {
     console.warn("[main] WhatsApp cloud sync resume skipped:", err?.message || err);
   }
@@ -244,7 +305,9 @@ function registerAppHandlers() {
     const denied = rejectUntrustedSender(event);
     if (denied) return denied;
     try {
-      await cloudAuth.register(ud(), email, password, firstName, lastName);
+      const result = await cloudAuth.register(ud(), email, password, firstName, lastName);
+      if (result && result.ok === false) return result;
+      await applySessionProfile(ud());
       try {
         await syncSortCredentialsFromCloud(ud());
       } catch (syncErr) {
@@ -260,7 +323,9 @@ function registerAppHandlers() {
     const denied = rejectUntrustedSender(event);
     if (denied) return denied;
     try {
-      await cloudAuth.login(ud(), email, password);
+      const result = await cloudAuth.login(ud(), email, password);
+      if (result && result.ok === false) return result;
+      await applySessionProfile(ud());
       try {
         await syncSortCredentialsFromCloud(ud());
       } catch (syncErr) {
@@ -272,10 +337,12 @@ function registerAppHandlers() {
     }
   });
 
-  ipcMain.handle("cloudAuth:logout", (event) => {
+  ipcMain.handle("cloudAuth:logout", async (event) => {
     const denied = rejectUntrustedSender(event);
     if (denied) return denied;
     cloudAuth.logout(ud());
+    activateGuestProfile(ud());
+    await remountProfileRuntime(ud(), { restartBackend: true });
     return { ok: true };
   });
 
@@ -299,12 +366,14 @@ function registerAppHandlers() {
       return result;
     }
     try {
-      await cloudAuth.exchangeSocialCode(ud(), result.code);
+      const exchanged = await cloudAuth.exchangeSocialCode(ud(), result.code);
+      if (exchanged && exchanged.ok === false) return exchanged;
       const session = cloudAuth.readSession(ud());
       if (!session?.access_token) {
         console.error("[cloudAuth] social exchange ok but session missing on disk");
         return { ok: false, error: "session_not_saved" };
       }
+      await applySessionProfile(ud());
       try {
         await syncSortCredentialsFromCloud(ud());
       } catch (syncErr) {
@@ -445,9 +514,21 @@ function registerAppHandlers() {
     const userData = app.getPath("userData");
     return syncWorker.runSyncOnce(userData);
   });
-  ipcMain.handle("sync:getPairingPayload", () => {
+  ipcMain.handle("sync:getPairingQr", async (event) => {
+    const denied = rejectUntrustedSender(event);
+    if (denied) return denied;
     const userData = app.getPath("userData");
-    return syncWorker.getPairingPayload(userData);
+    try {
+      return await syncWorker.getPairingQrDataUrl(userData);
+    } catch (err) {
+      return { ok: false, error: String(err?.message ?? err) };
+    }
+  });
+
+  ipcMain.handle("accountProfile:getState", (event) => {
+    const denied = rejectUntrustedSender(event);
+    if (denied) return denied;
+    return { ok: true, ...getProfileState(app.getPath("userData")) };
   });
 
   ipcMain.handle("privacy:wipeElectronFiles", (event) => {
@@ -481,13 +562,45 @@ function registerAppHandlers() {
       cleared.push(...backend.data.cleared);
     }
 
-    deleteMaterializedGmailOAuthMirror(userData);
+    deleteMaterializedGmailOAuthMirror(resolveProfileRoot(userData));
     const electron = wipeElectronUserDataFiles(userData);
     if (!electron.ok) {
       return { ok: false, detail: electron.reason || "electron_wipe_failed" };
     }
     cleared.push(...electron.removed.map((name) => `electron:${name}`));
+    await remountProfileRuntime(userData, { restartBackend: true });
 
+    return { ok: true, cleared };
+  });
+
+  ipcMain.handle("privacy:wipeAllProfilesOnDevice", async (event) => {
+    const denied = rejectUntrustedSender(event);
+    if (denied) return denied;
+
+    const userData = app.getPath("userData");
+    const cleared = [];
+
+    const backend = await backendFetch("/v1/privacy/wipe-local", {
+      method: "POST",
+      body: { confirmed: true },
+    });
+    if (backend.ok && backend.data && typeof backend.data === "object" && Array.isArray(backend.data.cleared)) {
+      cleared.push(...backend.data.cleared);
+    }
+
+    try {
+      deleteMaterializedGmailOAuthMirror(resolveProfileRoot(userData));
+    } catch {
+      /* ignore */
+    }
+    cloudAuth.logout(userData);
+    const electron = wipeAllElectronProfiles(userData);
+    if (!electron.ok) {
+      return { ok: false, detail: electron.reason || "electron_wipe_all_failed", cleared };
+    }
+    cleared.push(...electron.removed.map((name) => `electron:${name}`));
+    activateGuestProfile(userData);
+    await remountProfileRuntime(userData, { restartBackend: true });
     return { ok: true, cleared };
   });
 
@@ -505,8 +618,14 @@ function registerAppHandlers() {
   ipcMain.handle("cloudAuth:deleteAccount", async (event) => {
     const denied = rejectUntrustedSender(event);
     if (denied) return denied;
+    const userData = app.getPath("userData");
     try {
-      return await cloudAuth.deleteCloudAccount(app.getPath("userData"));
+      const result = await cloudAuth.deleteCloudAccount(userData);
+      if (result && result.ok !== false) {
+        activateGuestProfile(userData);
+        await remountProfileRuntime(userData, { restartBackend: true });
+      }
+      return result;
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : String(e) };
     }

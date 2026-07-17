@@ -16,6 +16,8 @@ const SYNC_LOG = "sync_runs.jsonl";
 const INTERVAL_MS = 5 * 60 * 1000;
 
 let timer = null;
+/** Device userData root (session); prefs/key resolve under active profile. */
+let activeDeviceRoot = null;
 let lastStatus = {
   enabled: false,
   lastRunAt: null,
@@ -24,6 +26,11 @@ let lastStatus = {
   conflictCount: 0,
   lastBlobCount: 0,
 };
+
+function syncRoots(deviceRootHint) {
+  const { splitRoots } = require("./accountProfile");
+  return splitRoots(deviceRootHint || activeDeviceRoot);
+}
 
 function prefsPath(userData) {
   return path.join(userData, SYNC_PREFS);
@@ -80,27 +87,28 @@ function ensureMasterKey(userData) {
   return keyB64;
 }
 
-async function runSyncOnce(userData) {
+async function runSyncOnce(deviceRootHint) {
+  const { deviceRoot, profileRoot } = syncRoots(deviceRootHint);
   const base = cloudUrl();
   if (!base) {
     lastStatus = { ...lastStatus, lastError: "cloud_url_not_configured" };
     return lastStatus;
   }
-  const prefs = readPrefs(userData);
+  const prefs = readPrefs(profileRoot);
   if (!prefs.enabled) {
     lastStatus = { ...lastStatus, enabled: false };
     return lastStatus;
   }
-  const session = cloudAuth.readSession(userData);
+  const session = cloudAuth.readSession(deviceRoot);
   if (!session?.access_token) {
     lastStatus = { ...lastStatus, lastError: "not_logged_in" };
     return lastStatus;
   }
-  const masterKeyB64 = ensureMasterKey(userData);
+  const masterKeyB64 = ensureMasterKey(profileRoot);
   const deviceId = prefs.deviceId || crypto.randomUUID();
   if (!prefs.deviceId) {
     prefs.deviceId = deviceId;
-    writePrefs(userData, prefs);
+    writePrefs(profileRoot, prefs);
   }
   const token = state.appToken || "";
   const headers = { "Content-Type": "application/json" };
@@ -124,7 +132,7 @@ async function runSyncOnce(userData) {
     }
     if (data.ok && data.finished_at) {
       prefs.lastSyncedAt = data.finished_at;
-      writePrefs(userData, prefs);
+      writePrefs(profileRoot, prefs);
     }
     lastStatus = {
       enabled: true,
@@ -134,7 +142,7 @@ async function runSyncOnce(userData) {
       conflictCount: 0,
       lastBlobCount: data.blob_count ?? data.pushed ?? 0,
     };
-    appendRunLog(userData, { ok: data.ok !== false, sync_run_id: data.sync_run_id, ...data });
+    appendRunLog(profileRoot, { ok: data.ok !== false, sync_run_id: data.sync_run_id, ...data });
   } catch (err) {
     lastStatus = {
       ...lastStatus,
@@ -142,15 +150,16 @@ async function runSyncOnce(userData) {
       lastRunAt: new Date().toISOString(),
       lastError: err instanceof Error ? err.message : String(err),
     };
-    appendRunLog(userData, { ok: false, error: lastStatus.lastError });
+    appendRunLog(profileRoot, { ok: false, error: lastStatus.lastError });
   }
   return lastStatus;
 }
 
-function startSyncWorker(userData) {
+function startSyncWorker(deviceRoot) {
+  activeDeviceRoot = deviceRoot || activeDeviceRoot;
   if (timer) return;
   timer = setInterval(() => {
-    void runSyncOnce(userData);
+    void runSyncOnce(activeDeviceRoot);
   }, INTERVAL_MS);
 }
 
@@ -163,32 +172,46 @@ function getSyncStatus() {
   return { ...lastStatus };
 }
 
-function setSyncEnabled(userData, enabled) {
-  const prefs = readPrefs(userData);
+function setSyncEnabled(deviceRootHint, enabled) {
+  const { profileRoot } = syncRoots(deviceRootHint);
+  const prefs = readPrefs(profileRoot);
   prefs.enabled = Boolean(enabled);
   if (!prefs.deviceId) prefs.deviceId = crypto.randomUUID();
-  if (prefs.enabled) ensureMasterKey(userData);
-  writePrefs(userData, prefs);
+  if (prefs.enabled) ensureMasterKey(profileRoot);
+  writePrefs(profileRoot, prefs);
   lastStatus.enabled = prefs.enabled;
   return prefs;
 }
 
-function getPairingPayload(userData) {
+function getPairingPayload(deviceRootHint) {
+  const { profileRoot } = syncRoots(deviceRootHint);
   const base = cloudUrl();
   if (!base) {
     throw new Error("cloud_url_not_configured");
   }
-  const prefs = readPrefs(userData);
+  const prefs = readPrefs(profileRoot);
   if (!prefs.enabled) {
     throw new Error("sync_not_enabled");
   }
-  const masterKeyB64 = ensureMasterKey(userData);
+  const masterKeyB64 = ensureMasterKey(profileRoot);
   return {
     v: 1,
     cloud_url: base,
     master_key_b64: masterKeyB64,
     issued_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Build pairing QR in main so the renderer never receives master_key_b64.
+ * @param {string} userData
+ * @returns {Promise<{ dataUrl: string }>}
+ */
+async function getPairingQrDataUrl(userData) {
+  const QRCode = require("qrcode");
+  const payload = getPairingPayload(userData);
+  const dataUrl = await QRCode.toDataURL(JSON.stringify(payload), { margin: 1, width: 220 });
+  return { dataUrl };
 }
 
 module.exports = {
@@ -199,4 +222,5 @@ module.exports = {
   setSyncEnabled,
   readPrefs,
   getPairingPayload,
+  getPairingQrDataUrl,
 };

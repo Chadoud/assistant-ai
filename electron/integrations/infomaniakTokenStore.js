@@ -16,7 +16,7 @@ const ENC_FILE = "infomaniak-api-token.enc";
 const PLAIN_FALLBACK_FILE = "infomaniak-api-token.b64";
 
 function tokenFilePath(suffix) {
-  return path.join(app.getPath("userData"), suffix);
+  return path.join(require("../accountProfile").resolveProfileRoot(), suffix);
 }
 
 /**

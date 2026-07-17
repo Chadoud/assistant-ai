@@ -4,6 +4,7 @@ import {
   EXOSITES_GOOGLE_INTEGRATION_CHANGED_EVENT,
   hasElectronBridge,
 } from "../../utils/platform";
+import { relayConnectorTokens } from "../../assistant/connectorContext";
 import { describeIntegrationConnectFailure } from "../../utils/externalSourceConnectUi";
 import { useI18n } from "../../i18n/I18nContext";
 
@@ -63,6 +64,7 @@ export default function GoogleConnectAllButton() {
       const r = await window.electronAPI.integrationConnect({ providerId: PROVIDER_GOOGLE_ALL });
       if (r.ok) {
         toast.message(t("sources.googleConnectAllSuccess"));
+        await relayConnectorTokens();
         window.dispatchEvent(new CustomEvent(EXOSITES_GOOGLE_INTEGRATION_CHANGED_EVENT));
       } else {
         const reason = r.reason ?? "";

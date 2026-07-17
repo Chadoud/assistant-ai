@@ -157,29 +157,39 @@ export async function restoreMemorySnapshots(
 
 const CleanupDomainResultSchema = z.object({
   ok: z.boolean().optional(),
-  candidates: z.number(),
+  candidates: z.number().optional(),
   removed: z.number().optional(),
-  ids: z.array(z.number()).optional(),
+  ids: z.array(z.union([z.number(), z.string()])).optional(),
+  skipped: z.string().optional(),
+  candidates_delete: z.number().optional(),
+  candidates_archive: z.number().optional(),
+  deleted: z.number().optional(),
+  archived: z.number().optional(),
+  delete_ids: z.array(z.string()).optional(),
+  archive_ids: z.array(z.string()).optional(),
 });
 
 const CleanupSecondBrainNoiseResultSchema = z.object({
   ok: z.boolean(),
   dry_run: z.boolean().optional(),
   include_stale: z.boolean().optional(),
+  include_conversations: z.boolean().optional(),
   memories: CleanupDomainResultSchema,
   memories_stale: CleanupDomainResultSchema.optional(),
   tasks: CleanupDomainResultSchema,
+  conversations: CleanupDomainResultSchema.optional(),
   total_removed: z.number().optional(),
   total_candidates: z.number(),
 });
 
 export type CleanupSecondBrainNoiseResult = z.infer<typeof CleanupSecondBrainNoiseResultSchema>;
 
-/** Remove promotional auto-memories and mail-sourced tasks. */
+/** Remove promotional auto-memories, mail tasks, and optional low-value chats. */
 export async function cleanupSecondBrainNoise(options?: {
   dryRun?: boolean;
   delete?: boolean;
   includeStale?: boolean;
+  includeConversations?: boolean;
 }): Promise<CleanupSecondBrainNoiseResult> {
   return requestValidated("/memory/cleanup-noise", CleanupSecondBrainNoiseResultSchema, {
     method: "POST",
@@ -187,6 +197,7 @@ export async function cleanupSecondBrainNoise(options?: {
       dry_run: options?.dryRun ?? false,
       delete: options?.delete ?? true,
       include_stale: options?.includeStale ?? false,
+      include_conversations: options?.includeConversations ?? false,
     }),
   });
 }

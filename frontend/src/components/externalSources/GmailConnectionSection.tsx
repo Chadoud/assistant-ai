@@ -20,6 +20,7 @@ import ExternalSourceCard from "./ExternalSourceCard";
 import ExternalSourceConnectionButton from "./ExternalSourceConnectionButton";
 import { externalSourceConnectionPill } from "./externalSourceConnectionPill";
 import { externalSourceConnectDisabled } from "../../utils/externalSourceConnectUi";
+import { relayConnectorTokens } from "../../assistant/connectorContext";
 import { useI18n } from "../../i18n/I18nContext";
 
 const PROVIDER_ID = "google-gmail";
@@ -97,6 +98,7 @@ export default function GmailConnectionSection({
       try {
         const r = await window.electronAPI.integrationConnect({ providerId: PROVIDER_ID });
         if (r.ok) {
+          await relayConnectorTokens();
           toast.message(t("sources.gmailConnectSuccess"));
           notifyGoogleIntegrationChanged();
         } else {
@@ -232,6 +234,10 @@ export default function GmailConnectionSection({
           onDisconnect={() => void disconnect()}
         />
       }
-    />
+    >
+      {connected && !compact ? (
+        <p className="text-2xs leading-snug text-muted">{t("sources.gmailFiltersReconnectHint")}</p>
+      ) : null}
+    </ExternalSourceCard>
   );
 }

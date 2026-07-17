@@ -2,9 +2,13 @@ name: Sort staging gate
 
 on:
   schedule:
-    # 07:00 UTC — after nightly unit tests; probes live VPS + broker.
-    - cron: "0 7 * * *"
+    # Monday 07:00 UTC — live VPS / broker probes (not on every PR).
+    - cron: "0 7 * * 1"
   workflow_dispatch:
+
+concurrency:
+  group: sort-staging-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
   staging-readiness:

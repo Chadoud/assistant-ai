@@ -1,6 +1,6 @@
 # Security threat model — EXO desktop
 
-**Last updated:** 2026-07-15  
+**Last updated:** 2026-07-16  
 **Scope:** Local Electron app + Python backend on loopback. Cloud relay and mobile sync have additional surfaces documented in ADR-001–003.  
 **Hardening epic:** [SECURITY_HARDENING_PLAN.md](./SECURITY_HARDENING_PLAN.md). Agent tool tiers: [AGENT_TOOL_THREAT_MODEL.md](./AGENT_TOOL_THREAT_MODEL.md).
 
@@ -37,6 +37,9 @@ The UI is a React renderer with `contextIsolation` and a narrow preload bridge (
 |------|------------|
 | Stored XSS in chat / markdown | Sanitize user-generated HTML; avoid `dangerouslySetInnerHTML` without a vetted pipeline |
 | XSS → steal provider keys / app token | **M2.3:** renderer does **not** receive the durable app token or raw secrets. `secrets:get` returns a mask only; HTTP uses main-process `backend:http`; voice uses short-lived tickets (`voiceMintWsAuthTicket`) |
+| XSS → read arbitrary `$HOME` files | Content reads (`dialog:readComposerAttachment`, Electron `read_file` / `list_directory`) require a prior native-dialog grant via `isSafeUserContentPath`; Electron `userData` and app secret leaves are denied |
+| XSS → sync master key | Pairing QR is built in main (`sync:getPairingQr`); renderer receives image data URL only |
+| Composer documents | PDF/Office/text extracted via authenticated `/assistant/extract-attachment` (path-gated); videos rejected; raw binary never inlined into chat |
 | XSS → call `window.electronAPI` | Preload exposes fixed IPC methods only; no arbitrary Node access |
 
 Provider keys and OAuth material live in Electron **safeStorage** (main process), not in renderer `localStorage` as durable secret storage.
@@ -47,17 +50,18 @@ Provider keys and OAuth material live in Electron **safeStorage** (main process)
 
 | Secret | Storage today | Notes |
 |--------|---------------|-------|
-| Gemini / OpenAI / other provider keys | Electron `safeStorage` via IPC; backend may receive mirrored env for the child process | Renderer sees masked status only |
+| Gemini / OpenAI / other provider keys | Electron `safeStorage` via IPC; backend may receive mirrored env for the child process | Renderer sees masked status only. **Voice:** Gemini Live handles speech; when `ANTHROPIC_API_KEY` is set, voice `plan_and_execute` runs on Anthropic and Gemini only speaks a short summary (avoids burning free Gemini RPM on planner/critic). |
 | `EXOSITES_APP_TOKEN` | Electron main process memory only | Not returned to renderer; HTTP proxied via `backend:http` |
 | Voice WS auth | Short-lived tickets minted in main | First-frame `app_auth`; no query token |
-| Gmail / integration OAuth tokens | Electron secure storage + backend connector store | Fail closed when `safeStorage` unavailable; see [INTEGRATIONS.md](./INTEGRATIONS.md) |
+| Gmail / integration OAuth tokens | Electron secure storage + backend connector store | Fail closed when `safeStorage` unavailable; see [INTEGRATIONS.md](./INTEGRATIONS.md). Gmail scopes include `gmail.modify`, `gmail.send`, and `gmail.settings.basic` (inbox filters). After a scope upgrade, users must disconnect and reconnect Gmail. Approving `plan_and_execute` once grants nested approval-tier tools for **that orchestrate run only** (same as chat autonomous/`allow_sensitive`), not a global always-allow. |
 | Sync master key | Derived from password; ciphertext on relay | [ADR-001](./adr/001-sync-crypto.md) |
 
 **Operational guidance:**
 
 - Do not commit `backend/.env` or paste keys into logs.
 - Rotate keys in Settings if a machine is shared or imaged.
-- Path allowlists do not grant the entire `$HOME`; `userData` / `settings_secrets_*` are blocked as sort output roots.
+- Path allowlists do not grant the entire `$HOME`; content reads require a dialog grant (`isSafeUserContentPath`). `userData` / `settings_secrets_*` / `gmail_oauth.json` are blocked as content-read and sort-output roots. Gmail OAuth may still exist as plaintext under the active profile for the backend process lifetime (wiped on exit).
+- **Per-account local profiles:** secrets, DBs (`EXOSITES_USER_DATA` / `EXOSITES_DATA_DIR`), integrations, and sync keys live under `userData/profiles/<accountId>/` (or `profiles/guest/` when signed out). `cloud_session.json` stays at the device `userData` root. Login/logout remounts the active profile and restarts the backend so vaults do not leak across accounts offline.
 
 Voice credential sync is documented in [ADR-004](./adr/004-voice-credentials.md).
 

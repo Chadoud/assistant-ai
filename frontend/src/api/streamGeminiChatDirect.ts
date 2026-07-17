@@ -1,4 +1,4 @@
-import type { ChatMessage } from "./assistantChat";
+import type { ChatMessage, ChatMessageContent } from "./assistantChat";
 
 type StreamGeminiChatDirectOptions = {
   apiKey: string;
@@ -14,6 +14,14 @@ function geminiModelId(model: string): string {
   const trimmed = model.trim();
   if (!trimmed) return "gemini-2.5-flash";
   return trimmed.replace(/^models\//, "");
+}
+
+/** Flatten multimodal content to plain text for the offline Gemini path. */
+function chatContentToPlainText(content: ChatMessageContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .map((part) => (part.type === "text" ? part.text : ""))
+    .join("");
 }
 
 function extractGeminiStreamText(payload: unknown): string {
@@ -48,12 +56,13 @@ export async function streamGeminiChatDirect({
   const turns = messages.filter((message) => message.role !== "system");
   const contents = turns.map((message) => ({
     role: message.role === "assistant" ? "model" : "user",
-    parts: [{ text: message.content }],
+    parts: [{ text: chatContentToPlainText(message.content) }],
   }));
 
   const requestBody: Record<string, unknown> = { contents };
-  if (systemMessage?.content.trim()) {
-    requestBody.systemInstruction = { parts: [{ text: systemMessage.content }] };
+  const systemText = systemMessage ? chatContentToPlainText(systemMessage.content).trim() : "";
+  if (systemText) {
+    requestBody.systemInstruction = { parts: [{ text: systemText }] };
   }
 
   const modelId = geminiModelId(model);

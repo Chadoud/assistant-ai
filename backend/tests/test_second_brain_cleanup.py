@@ -78,3 +78,35 @@ def test_cleanup_second_brain_combined(tmp_path, monkeypatch):
 
     done = cleanup_second_brain_noise(dry_run=False)
     assert done["total_removed"] >= 2
+
+
+def test_cleanup_includes_l0_conversations(tmp_path, monkeypatch):
+    monkeypatch.setenv("EXOSITES_DATA_DIR", str(tmp_path))
+    import conversation_store
+
+    importlib.reload(conversation_store)
+    importlib.reload(tasks_store)
+    importlib.reload(assistant_memory)
+
+    conversation_store.upsert_conversation(
+        "noise1",
+        title="Please retry this autonomously: find invoices",
+        summary="",
+    )
+    # Age the row past the 7-day L0 gate
+    old = "2026-01-01T00:00:00+00:00"
+    with conversation_store._conn() as conn:  # noqa: SLF001
+        conn.execute(
+            "UPDATE conversations SET updated_at=?, created_at=? WHERE id=?",
+            (old, old, "noise1"),
+        )
+        conn.commit()
+
+    from second_brain_cleanup import cleanup_second_brain_noise
+
+    preview = cleanup_second_brain_noise(dry_run=True, include_conversations=True)
+    assert preview["conversations"]["candidates_delete"] >= 1
+
+    done = cleanup_second_brain_noise(dry_run=False, include_conversations=True)
+    assert done["conversations"]["deleted"] >= 1
+    assert conversation_store.get_conversation("noise1") is None

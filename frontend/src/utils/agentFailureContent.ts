@@ -6,6 +6,15 @@ export type ParsedAgentFailure = {
 };
 
 /**
+ * Soft wrapper so Inbox Retry stays distinguishable in logs / turn classification.
+ * The server classifies the *underlying goal* (mail → read_mail, etc.).
+ * Keep in sync with `services.assistant.intent._AGENT_RETRY_RE`.
+ */
+export const AGENT_FAILURE_RETRY_PREFIX = "Please retry this:";
+
+const AGENT_RETRY_PREFIX_RE = /^please\s+retry\s+this(?:\s+autonomously)?\s*:\s*/i;
+
+/**
  * Split orchestrator failure text into goal and outcome for inbox cards.
  * Falls back to the full string when the format is unexpected.
  */
@@ -27,11 +36,19 @@ export function parseAgentFailureContent(content: string): ParsedAgentFailure {
   return { goal: raw, outcome: "", raw };
 }
 
-/** Prefill for Chat when the user taps Retry on a failed agent run. */
+/**
+ * Prefill for Chat when the user taps Retry on a failed agent run.
+ * Sends the original goal only — never the failure outcome.
+ */
 export function buildAgentFailureRetryPrompt(parsed: ParsedAgentFailure): string {
-  if (parsed.goal && parsed.outcome) {
-    return `Please retry this: ${parsed.goal}\n\nLast time it failed because: ${parsed.outcome}`;
-  }
-  if (parsed.goal) return `Please retry this: ${parsed.goal}`;
-  return `Please retry this task:\n\n${parsed.raw}`;
+  const goal = (parsed.goal || parsed.raw).trim();
+  if (!goal) return "";
+  return `${AGENT_FAILURE_RETRY_PREFIX} ${goal}`;
+}
+
+/** Strip the Inbox Retry prefix so the agent goal is the original ask. */
+export function extractAgentRetryGoal(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  return trimmed.replace(AGENT_RETRY_PREFIX_RE, "").trim() || trimmed;
 }

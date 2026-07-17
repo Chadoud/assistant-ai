@@ -2,10 +2,7 @@ import { useState } from "react";
 import { GEMINI_AI_STUDIO_API_KEY_URL } from "../../constants";
 import { useI18n } from "../../i18n/I18nContext";
 import { PRIMARY_BTN_CLASS } from "../../utils/styles";
-import {
-  isGeminiApiKeyFormatPlausible,
-  normalizeGeminiApiKey,
-} from "../../utils/geminiApiKey";
+import { isGeminiKeyFormatPlausible, normalizeGeminiApiKey } from "../../utils/geminiApiKey";
 
 /** Public onboarding asset (Vite `base` + `public/onboarding/`). */
 const GEMINI_ONBOARDING_IMG_SRC = `${import.meta.env.BASE_URL}onboarding/gemini-ai-studio-api-keys.png`;
@@ -28,7 +25,7 @@ export default function GeminiApiKeySetupGuide({
   const { t } = useI18n();
   const [keyVisible, setKeyVisible] = useState(false);
   const trimmed = apiKey.trim();
-  const formatOk = isGeminiApiKeyFormatPlausible(apiKey);
+  const formatOk = isGeminiKeyFormatPlausible(apiKey);
 
   return (
     <div className="space-y-5">

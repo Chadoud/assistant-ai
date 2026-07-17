@@ -16,7 +16,13 @@ function toastMessage(
 ): string {
   const memories = result.memories.removed ?? 0;
   const tasks = result.tasks.removed ?? 0;
-  const total = result.total_removed ?? memories + tasks;
+  const convDeleted = result.conversations?.deleted ?? 0;
+  const convArchived = result.conversations?.archived ?? 0;
+  const conversations = convDeleted + convArchived;
+  const total = result.total_removed ?? memories + tasks + conversations;
+  if (conversations > 0 && (memories > 0 || tasks > 0)) {
+    return t("cleanup.toastDoneWithChats", { memories, tasks, conversations });
+  }
   if (memories > 0 && tasks > 0) {
     return t("cleanup.toastDoneBreakdown", { memories, tasks });
   }
@@ -44,7 +50,10 @@ export function useSecondBrainNoiseCleanup(options: UseSecondBrainNoiseCleanupOp
     setIsPreviewing(true);
     setPreview(null);
     try {
-      const result = await cleanupSecondBrainNoise({ dryRun: true });
+      const result = await cleanupSecondBrainNoise({
+        dryRun: true,
+        includeConversations: true,
+      });
       setPreview(result);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("cleanup.toastFailed"));
@@ -57,7 +66,11 @@ export function useSecondBrainNoiseCleanup(options: UseSecondBrainNoiseCleanupOp
   const execute = useCallback(async () => {
     setIsRunning(true);
     try {
-      const result = await cleanupSecondBrainNoise({ dryRun: false, delete: true });
+      const result = await cleanupSecondBrainNoise({
+        dryRun: false,
+        delete: true,
+        includeConversations: true,
+      });
       await options.onSuccess?.(result);
       toast.success(toastMessage(t, result));
       setDialogOpen(false);

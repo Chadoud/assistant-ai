@@ -16,19 +16,13 @@
  */
 
 const path = require("path");
-const os = require("os");
 const fsp = require("fs").promises;
 const { shell, Notification, desktopCapturer } = require("electron");
 const { spawn, exec } = require("child_process");
 const { validateTerminalCommand } = require("../systemCommandsV1/terminalSafe");
+const { isSafeUserContentPath } = require("../authorizedPaths");
 
-const HOME = os.homedir();
 const MAX_READ_FILE_BYTES = 100 * 1024; // 100 KB
-
-function isUnderHome(filePath) {
-  const resolved = path.resolve(filePath);
-  return resolved.startsWith(HOME);
-}
 
 function runCommand(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
@@ -78,8 +72,8 @@ async function _runSystemControl(commandId, args = {}) {
 
     case "list_directory": {
       const dir = String(args.path ?? "");
-      if (!dir || !isUnderHome(dir)) {
-        return { ok: false, error: "Path must be under your home directory" };
+      if (!dir || !isSafeUserContentPath(dir)) {
+        return { ok: false, error: "Path not authorized — pick the folder in the app first" };
       }
       try {
         const entries = await fsp.readdir(path.resolve(dir), { withFileTypes: true });
@@ -95,8 +89,8 @@ async function _runSystemControl(commandId, args = {}) {
 
     case "read_file": {
       const filePath = String(args.path ?? "");
-      if (!filePath || !isUnderHome(filePath)) {
-        return { ok: false, error: "Path must be under your home directory" };
+      if (!filePath || !isSafeUserContentPath(filePath)) {
+        return { ok: false, error: "Path not authorized — pick the folder in the app first" };
       }
       try {
         const resolved = path.resolve(filePath);

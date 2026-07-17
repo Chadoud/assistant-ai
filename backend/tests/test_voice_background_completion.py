@@ -48,12 +48,36 @@ def test_format_error_reports_failure():
     assert "browser crashed" in text
 
 
+def test_format_failure_uses_summary_when_error_missing():
+    text = vs._format_background_completion(
+        "plan_and_execute",
+        {"ok": False, "summary": "Could not list mail: token missing."},
+    )
+    assert "FAILED" in text
+    assert "Could not list mail" in text
+
+
 def test_format_prefers_summary_when_no_answer():
     text = vs._format_background_completion(
         "plan_and_execute",
         {"ok": True, "summary": "Drafted and sent the email.", "data": {}},
     )
     assert "Drafted and sent the email." in text
+    assert "do not re-plan" in text.lower() or "speak this summary" in text.lower()
+
+
+def test_shape_speakable_plan_summary_truncates_and_maps_quota():
+    from voice.tool_dispatch import shape_speakable_plan_summary
+
+    long = "word " * 500
+    out = shape_speakable_plan_summary(long)
+    assert len(out) <= 1100
+    assert out.endswith("…")
+
+    quota = shape_speakable_plan_summary(
+        "Done — 429 RESOURCE_EXHAUSTED quota exceeded for generate_content_free_tier"
+    )
+    assert "rate limit" in quota.lower()
 
 
 def test_spawn_invokes_on_complete_with_result(monkeypatch):

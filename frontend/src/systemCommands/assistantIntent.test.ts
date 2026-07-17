@@ -19,6 +19,16 @@ describe("classifyIntent — UI hints and IPC prefetch fallback (server routes v
     expect(classifyIntent("what are my latest invoices")).toBe("read_mail");
   });
 
+  it("classifies Inbox Retry from the underlying goal (not forced agent_task)", () => {
+    expect(classifyIntent("Please retry this: find my latest invoices")).toBe("read_mail");
+    expect(classifyIntent("Please retry this autonomously: find my latest invoices")).toBe(
+      "read_mail",
+    );
+    expect(classifyIntent("Please retry this: deploy the Exo AI Demo App on Vercel")).toBe(
+      "agent_task",
+    );
+  });
+
   it("routes combined calendar + mail to read_both", () => {
     expect(classifyIntent("summarize my calendar and emails")).toBe("read_both");
   });

@@ -79,7 +79,7 @@ export function electronAPIStubE2E(): void {
     // ADR-006: secrets live in main process — return test keys so chat/voice E2E can hydrate.
     getSecret: async (key: string) => {
       if (key === "geminiApiKey" || key === "chatProvider.gemini.apiKey") {
-        // Must satisfy isGeminiApiKeyConfigured (AIza + 30+ chars) or chat composer stays gated.
+        // Must satisfy isGeminiKeyFormatPlausible (AIza + 30+ chars) or chat composer stays gated.
         return "AIzaSy0123456789012345678901234567890";
       }
       return null;

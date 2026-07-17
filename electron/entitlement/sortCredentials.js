@@ -88,6 +88,11 @@ function metaPath(userData) {
   return path.join(userData, META_FILE);
 }
 
+/** Meta/secrets live under the active profile; `deviceRoot` is app userData. */
+function profileDataRoot(deviceRoot) {
+  return require("../accountProfile").resolveProfileRoot(deviceRoot);
+}
+
 function readMeta(userData) {
   try {
     const raw = fs.readFileSync(metaPath(userData), "utf8");
@@ -127,7 +132,7 @@ function clearSyncFailure(userData) {
  * @returns {string | null}
  */
 function getSortSyncLastError(userData) {
-  const meta = readMeta(userData);
+  const meta = readMeta(profileDataRoot(userData));
   return typeof meta?.last_sync_error === "string" ? meta.last_sync_error : null;
 }
 
@@ -181,6 +186,8 @@ function resolveSortServiceModeDetail(raw, meta) {
 }
 
 async function sortConfigRevisionStale(userData, meta) {
+  const deviceRoot = userData;
+  const dataRoot = profileDataRoot(deviceRoot);
   const localRev = String(meta?.credentials_config_revision || "").trim();
   if (!localRev) return true;
 
@@ -191,7 +198,7 @@ async function sortConfigRevisionStale(userData, meta) {
 
   let remote;
   try {
-    remote = await cloudAuth.fetchSortCredentialsConfig(userData);
+    remote = await cloudAuth.fetchSortCredentialsConfig(deviceRoot);
   } catch (err) {
     console.warn(
       "[sortCredentials] config probe failed:",
@@ -200,8 +207,8 @@ async function sortConfigRevisionStale(userData, meta) {
     return false;
   }
 
-  const prev = readMeta(userData) || {};
-  writeMeta(userData, {
+  const prev = readMeta(dataRoot) || {};
+  writeMeta(dataRoot, {
     ...prev,
     config_probed_at: Date.now(),
   });
@@ -213,10 +220,10 @@ async function sortConfigRevisionStale(userData, meta) {
 
 /**
  * Remove cloud-managed sort credentials from backend overrides (logout / entitlement loss).
- * @param {string} userData
+ * @param {string} userData device userData root
  */
 async function clearCloudSortCredentials(userData) {
-  clearMeta(userData);
+  clearMeta(profileDataRoot(userData));
   clearCloudSortLlmApiKey();
   const raw = readBackendEnvOverridesRaw();
   if (raw.EXOSITES_SORT_CREDENTIALS_MANAGED !== "1" && raw.EXOSITES_SORT_CREDENTIALS_MANAGED !== 1) {
@@ -249,13 +256,17 @@ async function syncSortCredentialsFromCloud(userData, options = {}) {
     return { skipped: "gate_disabled" };
   }
 
-  const sess = await cloudAuth.ensureFreshSession(userData);
+  // Auth session is on device root; meta/secrets live under the active profile.
+  const deviceRoot = userData;
+  const dataRoot = profileDataRoot(deviceRoot);
+
+  const sess = await cloudAuth.ensureFreshSession(deviceRoot);
   if (!sess?.access_token) {
-    clearCloudSortCredentials(userData);
+    clearCloudSortCredentials(dataRoot);
     return { skipped: "not_logged_in" };
   }
 
-  const meta = readMeta(userData);
+  const meta = readMeta(dataRoot);
   const raw = readBackendEnvOverridesRaw();
   const existingHost = String(raw.OLLAMA_HOST || "").trim();
   const existingKey = resolveSortLlmApiKey(raw, meta);
@@ -276,7 +287,7 @@ async function syncSortCredentialsFromCloud(userData, options = {}) {
     const works = await remoteSortTokenWorks(existingHost, existingKey);
     let configRevisionStale = false;
     if (!force && works) {
-      configRevisionStale = await sortConfigRevisionStale(userData, meta);
+      configRevisionStale = await sortConfigRevisionStale(deviceRoot, meta);
     }
     if (shouldUseCachedCredentials({ force, meta, tokenWorks: works, configRevisionStale })) {
       return { ok: true, skipped: "still_valid", expires_at: meta.expires_at };
@@ -290,16 +301,16 @@ async function syncSortCredentialsFromCloud(userData, options = {}) {
 
   let creds;
   try {
-    creds = await cloudAuth.fetchSortCredentials(userData);
+    creds = await cloudAuth.fetchSortCredentials(deviceRoot);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn("[sortCredentials] cloud fetch failed:", message);
-    recordSyncFailure(userData, message);
+    recordSyncFailure(dataRoot, message);
     return { failed: message };
   }
 
   if (!creds?.endpoint || !creds?.token) {
-    recordSyncFailure(userData, "invalid_credentials_payload");
+    recordSyncFailure(dataRoot, "invalid_credentials_payload");
     return { failed: "invalid_credentials_payload" };
   }
 
@@ -364,7 +375,7 @@ async function syncSortCredentialsFromCloud(userData, options = {}) {
     prevSortMode !== nextSortMode;
 
   writeBackendEnvOverrides(next);
-  writeMeta(userData, {
+  writeMeta(dataRoot, {
     expires_at: expiresAt,
     endpoint: next.OLLAMA_HOST,
     managed: true,
@@ -377,7 +388,7 @@ async function syncSortCredentialsFromCloud(userData, options = {}) {
       ? creds.models.filter((m) => typeof m === "string" && m.trim())
       : [],
   });
-  clearSyncFailure(userData);
+  clearSyncFailure(dataRoot);
 
   if (changed) {
     await restartBackend();
@@ -393,7 +404,7 @@ async function syncSortCredentialsFromCloud(userData, options = {}) {
 function getSortServiceSurface(userData) {
   const raw = readBackendEnvOverridesRaw();
   const spawnEnv = readRemoteLlmEnvForBackendSpawn();
-  const meta = readMeta(userData);
+  const meta = readMeta(profileDataRoot(userData));
   const managed =
     raw.EXOSITES_SORT_CREDENTIALS_MANAGED === "1" ||
     raw.EXOSITES_SORT_CREDENTIALS_MANAGED === 1 ||

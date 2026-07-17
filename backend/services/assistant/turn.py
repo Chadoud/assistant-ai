@@ -9,6 +9,8 @@ from typing import Any, Literal
 
 from services.assistant.intent import (
     classify_intent,
+    extract_agent_retry_goal,
+    is_agent_retry_prefill,
     is_mail_write_intent,
     merge_calendar_write_context,
 )
@@ -361,7 +363,10 @@ def handle_assistant_turn(
             if confirmed is not None:
                 return confirmed
 
+    # Classify before stripping Retry wrapper so generic goals can fall back to agent_task.
     intent = classify_intent(text, previous_user_message)
+    if is_agent_retry_prefill(text):
+        text = extract_agent_retry_goal(text)
 
     if intent == "codegen_studio":
         return AssistantTurnResult(

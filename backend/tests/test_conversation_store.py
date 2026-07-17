@@ -95,3 +95,39 @@ def test_search_embeddings_can_reorder(store, monkeypatch):
     monkeypatch.setattr(semantic_rerank, "_embed", fake_embed)
     results = store.search_conversations("what did we say about shipping", limit=5)
     assert results[0]["id"] == "c1"
+
+
+def test_upsert_scores_agent_retry_as_forget(store):
+    row = store.upsert_conversation(
+        "c1",
+        title="Please retry this autonomously: find my latest invoices",
+        summary="",
+    )
+    assert row["retain_tier"] == "forget"
+    assert row["ephemeral"] is True
+    assert row["last_judged_at"]
+
+
+def test_map_eligible_filters_noise(store):
+    store.upsert_conversation("noise", title="What can Exo do?", summary="")
+    store.upsert_conversation(
+        "keep",
+        title="CV Review",
+        summary="User shared a detailed CV for a software engineer role in Geneva.",
+        action_items=["Update LinkedIn"],
+        memory_link_count=2,
+    )
+    mapped = store.list_conversations(limit=20, map_eligible=True)
+    ids = {r["id"] for r in mapped}
+    assert "keep" in ids
+    assert "noise" not in ids
+
+
+def test_pin_makes_map_eligible(store):
+    store.upsert_conversation("c1", title="Can you hear me?", summary="")
+    assert store.list_conversations(map_eligible=True) == []
+    pinned = store.set_conversation_pinned("c1", True)
+    assert pinned is not None
+    assert pinned["pinned"] is True
+    assert pinned["retain_tier"] == "durable"
+    assert any(r["id"] == "c1" for r in store.list_conversations(map_eligible=True))

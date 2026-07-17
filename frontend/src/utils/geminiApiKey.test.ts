@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  isGeminiApiKeyConfigured,
-  isGeminiApiKeyFormatPlausible,
-  normalizeGeminiApiKey,
-} from "./geminiApiKey";
+import { GEMINI_SECRET_MASK } from "./geminiConnection";
+import { isGeminiKeyFormatPlausible, normalizeGeminiApiKey } from "./geminiApiKey";
 
 const LEGACY_KEY = "AIzaSy0123456789012345678901234567890";
 const AUTH_KEY = "AQ.Ab8RN6Jy1Y6Ms0cfruHo_hKeCbGrWxUmGWv9Sy";
@@ -19,28 +16,22 @@ describe("normalizeGeminiApiKey", () => {
   });
 });
 
-describe("isGeminiApiKeyConfigured", () => {
+describe("isGeminiKeyFormatPlausible", () => {
   it("returns false for empty, short, or non-Google keys", () => {
-    expect(isGeminiApiKeyConfigured("")).toBe(false);
-    expect(isGeminiApiKeyConfigured("   ")).toBe(false);
-    expect(isGeminiApiKeyConfigured("AIza123")).toBe(false);
-    expect(isGeminiApiKeyConfigured("AQ.short")).toBe(false);
-    expect(isGeminiApiKeyConfigured("sk-not-google")).toBe(false);
+    expect(isGeminiKeyFormatPlausible("")).toBe(false);
+    expect(isGeminiKeyFormatPlausible("   ")).toBe(false);
+    expect(isGeminiKeyFormatPlausible("AIza123")).toBe(false);
+    expect(isGeminiKeyFormatPlausible("AQ.short")).toBe(false);
+    expect(isGeminiKeyFormatPlausible("sk-not-google")).toBe(false);
+    expect(isGeminiKeyFormatPlausible(GEMINI_SECRET_MASK)).toBe(false);
   });
 
   it("returns true for AIza-prefixed keys", () => {
-    expect(isGeminiApiKeyConfigured(LEGACY_KEY)).toBe(true);
+    expect(isGeminiKeyFormatPlausible(LEGACY_KEY)).toBe(true);
   });
 
   it("returns true for AQ. auth keys from AI Studio", () => {
-    expect(isGeminiApiKeyConfigured(AUTH_KEY)).toBe(true);
-    expect(isGeminiApiKeyConfigured(`=${AUTH_KEY}`)).toBe(true);
-  });
-});
-
-describe("isGeminiApiKeyFormatPlausible", () => {
-  it("accepts normalized legacy and auth keys", () => {
-    expect(isGeminiApiKeyFormatPlausible(`=${LEGACY_KEY}`)).toBe(true);
-    expect(isGeminiApiKeyFormatPlausible(AUTH_KEY)).toBe(true);
+    expect(isGeminiKeyFormatPlausible(AUTH_KEY)).toBe(true);
+    expect(isGeminiKeyFormatPlausible(`=${AUTH_KEY}`)).toBe(true);
   });
 });

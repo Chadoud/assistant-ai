@@ -79,6 +79,7 @@ class MemoryCleanupBody(BaseModel):
     dry_run: bool = False
     delete: bool = True
     include_stale: bool = False
+    include_conversations: bool = False
 
 
 class MemoryBatchBody(BaseModel):
@@ -175,11 +176,12 @@ def edit_memory(row_id: int, body: MemoryEditBody) -> dict[str, Any]:
 
 @router.post("/cleanup-noise")
 def cleanup_noise(body: MemoryCleanupBody) -> dict[str, Any]:
-    """Remove or preview promotional/spam auto-memories, optional stale memories, and mail tasks."""
+    """Remove or preview promotional/spam auto-memories, optional stale memories, mail tasks, chats."""
     return cleanup_second_brain_noise(
         dry_run=body.dry_run,
         delete=body.delete,
         include_stale=body.include_stale,
+        include_conversations=body.include_conversations,
     )
 
 

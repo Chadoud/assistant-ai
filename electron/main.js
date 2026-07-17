@@ -114,14 +114,46 @@ app.whenReady().then(async () => {
   // Bundled cloud URL + OAuth client IDs must be in process.env before any window IPC.
   syncGoogleOauthClientIdForElectronMain();
 
-  // Lift plaintext AI keys into safeStorage before the renderer hydrates Settings.
-  // Chat and voice both require Settings/safeStorage — orphan backend/.env alone must not unlock voice.
+  // Align local vault with cached session (or guest) before secrets/backend paths resolve.
   try {
-    migrateAiKeysFromWritableEnv(app.getPath("userData"), {
-      extraEnvPaths: IS_DEV ? [path.join(__dirname, "..", "backend", ".env")] : [],
+    const {
+      alignProfileWithSession,
+      setProfileChangeListener,
+      resolveProfileRoot,
+    } = require("./accountProfile");
+    const deviceRoot = app.getPath("userData");
+    const session = cloudAuth.readSession(deviceRoot);
+    alignProfileWithSession(deviceRoot, session);
+
+    setProfileChangeListener(({ activeId, profileRoot }) => {
+      try {
+        const { BrowserWindow } = require("electron");
+        const payload = { activeId, profileRoot };
+        for (const win of BrowserWindow.getAllWindows()) {
+          if (!win.isDestroyed()) {
+            win.webContents.send("account-profile:changed", payload);
+          }
+        }
+      } catch (err) {
+        console.warn("[main] account-profile broadcast failed:", err && err.message);
+      }
+    });
+
+    // Lift plaintext AI keys into safeStorage (profile vault + legacy flat userData).
+    const profileRoot = resolveProfileRoot(deviceRoot);
+    migrateAiKeysFromWritableEnv(profileRoot, {
+      extraEnvPaths: [
+        path.join(deviceRoot, ".env"),
+        ...(IS_DEV ? [path.join(__dirname, "..", "backend", ".env")] : []),
+      ],
     });
   } catch (err) {
-    console.warn("[main] AI key migration failed:", err && err.message);
+    console.warn("[main] profile/AI key startup failed:", err && err.message);
+    try {
+      require("./accountProfile").activateGuestProfile(app.getPath("userData"));
+    } catch {
+      /* ignore */
+    }
   }
 
   try {
@@ -322,7 +354,8 @@ app.on("before-quit", () => {
   }
   try {
     const { deleteMaterializedGmailOAuthMirror } = require("./gmailOAuthMirrorStore");
-    deleteMaterializedGmailOAuthMirror(app.getPath("userData"));
+    const { resolveProfileRoot } = require("./accountProfile");
+    deleteMaterializedGmailOAuthMirror(resolveProfileRoot(app.getPath("userData")));
   } catch (_) {
     /* ignore */
   }

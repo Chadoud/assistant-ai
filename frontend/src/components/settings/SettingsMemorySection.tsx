@@ -91,6 +91,35 @@ export default function SettingsMemorySection({
             </button>
           </div>
 
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-text-primary">
+                {t("settings.brainMapIncludeLowValueChatsTitle")}
+              </p>
+              <p className="mt-0.5 text-xs text-muted">
+                {t("settings.brainMapIncludeLowValueChatsDesc")}
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={settings.brainMapIncludeLowValueChats}
+              onClick={() =>
+                onSettingsPatch({
+                  brainMapIncludeLowValueChats: !settings.brainMapIncludeLowValueChats,
+                })
+              }
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+                settings.brainMapIncludeLowValueChats ? "bg-accent" : "bg-border"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  settings.brainMapIncludeLowValueChats ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
           {onOpenMemoriesTab ? (
             <button
               type="button"

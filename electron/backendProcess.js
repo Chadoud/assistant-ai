@@ -180,10 +180,15 @@ function syncRemoteLlmEnvForMainProcess() {
   if (apiKey) process.env.OLLAMA_API_KEY = apiKey;
 }
 
-/** Same userData path as the renderer entitlement store — backend reads `EXOSITES_USER_DATA`. */
+/**
+ * Active account profile root — backend `EXOSITES_USER_DATA` + `EXOSITES_DATA_DIR`.
+ * Not the device userData root (cloud session lives there).
+ */
 function exositesUserDataEnv() {
   try {
-    return require("electron").app.getPath("userData");
+    const { resolveProfileRoot } = require("./accountProfile");
+    const root = resolveProfileRoot();
+    return root || undefined;
   } catch {
     return undefined;
   }
@@ -553,6 +558,20 @@ function startBackend() {
   }
   if (state.backendProcess && !state.backendProcess.killed) {
     return;
+  }
+
+  // Orphan / prior failed-bind listeners keep 7799 busy while Electron thinks
+  // there is no managed child — free the port before spawning so we do not
+  // pile up "address already in use" uvicorn processes.
+  const busyPids = findPortListeners();
+  if (busyPids.length > 0) {
+    console.warn(
+      "[backend] port",
+      BACKEND_PORT,
+      "already in use before spawn — freeing listeners",
+      busyPids.join(","),
+    );
+    freeBackendPort();
   }
 
   // Generate a per-run secret shared only between Electron and the backend process.

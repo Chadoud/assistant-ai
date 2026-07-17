@@ -210,8 +210,14 @@ export function buildBrainGraph(
     radius: 9,
   });
 
-  const conversations = input.conversations
+  // Backend map_eligible is authoritative; keep a defensive client sort/cap.
+  const conversations = [...input.conversations]
     .filter((c) => (c.title || c.summary || "").trim().length > 0)
+    .sort((a, b) => {
+      const scoreDiff = (b.retain_score ?? 0) - (a.retain_score ?? 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      return (b.updated_at || "").localeCompare(a.updated_at || "");
+    })
     .slice(0, MAX_CONVERSATIONS);
   const conversationIds = new Set(conversations.map((c) => c.id));
   if (conversations.length > 0) {

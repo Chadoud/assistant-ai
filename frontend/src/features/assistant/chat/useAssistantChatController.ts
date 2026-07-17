@@ -60,6 +60,11 @@ interface UseAssistantChatControllerParams {
   backendOnline: boolean;
   onSummaryUpdate?: (summary: string) => void;
   onDraftClear: () => void;
+  /**
+   * When false, this controller must not write local messages back to the shared
+   * conversation store (Exo rail while another workspace tab owns the chat).
+   */
+  persistConversationMessages?: boolean;
 }
 
 export function useAssistantChatController({
@@ -71,6 +76,7 @@ export function useAssistantChatController({
   backendOnline,
   onSummaryUpdate,
   onDraftClear,
+  persistConversationMessages = true,
 }: UseAssistantChatControllerParams) {
   const { t } = useI18n();
   const [localMessages, setLocalMessages] = useState<ConversationMessage[]>(() =>
@@ -224,10 +230,11 @@ export function useAssistantChatController({
 
 
   useEffect(() => {
+    if (!persistConversationMessages) return;
     const persisted = localMessages.filter((m) => !m.streaming && !m.prefetching);
     if (conversationPersistedMessagesEqual(conversation.messages, persisted)) return;
     onConversationChangeRef.current(persisted);
-  }, [localMessages, conversation.messages]);
+  }, [localMessages, conversation.messages, persistConversationMessages]);
 
   const { approveCodegenConsent, denyCodegenConsent } = useCodegenConsentHandlers(
     settings,
@@ -238,8 +245,23 @@ export function useAssistantChatController({
   );
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      opts?: {
+        imageAttachment?: { name: string; dataUrl: string };
+        documentAttachment?: {
+          name: string;
+          text: string;
+          pages?: number | null;
+          truncated?: boolean;
+          source?: string;
+          previewDataUrl?: string;
+        };
+      },
+    ) => {
       if (!text.trim() || !isChatReady(settings)) return;
+      const imageAttachment = opts?.imageAttachment;
+      const documentAttachment = opts?.documentAttachment;
 
       const pendingDelete = pendingCalendarDeleteDraftUi(localMessages);
       if (pendingDelete) {
@@ -257,7 +279,8 @@ export function useAssistantChatController({
         return;
       }
 
-      if (voice.isListening) {
+      // Voice live session is text-only; image turns use the normal chat path.
+      if (voice.isListening && !imageAttachment) {
         const trimmed = text.trim();
         voice.sendText(trimmed);
         onDraftClear();
@@ -276,15 +299,31 @@ export function useAssistantChatController({
       }
       if (!backendOnline) {
         voice.interruptBriefing();
-        if (messageNeedsLocalAppService(text, settings)) {
+        if (imageAttachment || documentAttachment || messageNeedsLocalAppService(text, settings)) {
           const turnId = makeId();
           setMessages((prev) =>
             prev.concat(
               {
                 id: `${turnId}-user`,
                 role: "user",
-                content: text.trim(),
+                content: documentAttachment
+                  ? `[Document: ${documentAttachment.name}]\n\n${documentAttachment.text}`
+                  : text.trim(),
                 createdAt: new Date().toISOString(),
+                ...(imageAttachment ? { imageAttachment } : {}),
+                ...(documentAttachment
+                  ? {
+                      documentAttachment: {
+                        name: documentAttachment.name,
+                        pages: documentAttachment.pages ?? null,
+                        truncated: Boolean(documentAttachment.truncated),
+                        source: documentAttachment.source,
+                        ...(documentAttachment.previewDataUrl
+                          ? { previewDataUrl: documentAttachment.previewDataUrl }
+                          : {}),
+                      },
+                    }
+                  : {}),
               },
               {
                 id: `${turnId}-assistant`,
@@ -319,67 +358,82 @@ export function useAssistantChatController({
       const abort = new AbortController();
       abortRef.current = abort;
 
-      const result = await runAssistantSendMessage({
-        text,
-        settings,
-        conversation,
-        localMessages,
-        memoryBlock,
-        setMessages,
-        setIsStreaming,
-        onDraftClear,
-        onToolContext,
-        onSummaryUpdate,
-        outboundRingRef,
-        stampEmission,
-        t,
-        signal: abort.signal,
-        onCodegenStudio: ({ text: goal, turnId }) => {
-          void launchCodegenFromTurn({
-            text: goal,
-            turnId,
-            settings,
-            t,
-            priorSessionId: [...localMessages]
-              .reverse()
-              .map((m) => m.codegenSessionId)
-              .find((id): id is string => Boolean(id) && isResumableCodegenSession(id!)),
-            setMessages,
-            pendingRef: pendingCodegenRef,
-            setConsentOpen: setCodegenConsentOpen,
-          });
-        },
-        onAgentTaskStarted: (taskId) => {
-          const goal = text.trim();
-          setActivePlanTask(taskId, goal);
-          if (!planWatchCleanupRef.current.has(taskId)) {
-            const unsub = watchPlanTaskCompletion(taskId, goal, (outcome) => {
-              setMessages((prev) => [
-                ...prev,
-                {
-                  id: makeId(),
-                  role: "assistant",
-                  content: outcome,
-                  createdAt: new Date().toISOString(),
-                  voiceSource: "plan_and_execute",
-                },
-              ]);
-              planWatchCleanupRef.current.delete(taskId);
+      try {
+        const result = await runAssistantSendMessage({
+          text,
+          settings,
+          conversation,
+          localMessages,
+          memoryBlock,
+          imageAttachment,
+          documentAttachment,
+          setMessages,
+          setIsStreaming,
+          onDraftClear,
+          onToolContext,
+          onSummaryUpdate,
+          outboundRingRef,
+          stampEmission,
+          t,
+          signal: abort.signal,
+          onCodegenStudio: ({ text: goal, turnId }) => {
+            void launchCodegenFromTurn({
+              text: goal,
+              turnId,
+              settings,
+              t,
+              priorSessionId: [...localMessages]
+                .reverse()
+                .map((m) => m.codegenSessionId)
+                .find((id): id is string => Boolean(id) && isResumableCodegenSession(id!)),
+              setMessages,
+              pendingRef: pendingCodegenRef,
+              setConsentOpen: setCodegenConsentOpen,
             });
-            planWatchCleanupRef.current.set(taskId, unsub);
-          }
-        },
-      });
+          },
+          onAgentTaskStarted: (taskId, goal) => {
+            setActivePlanTask(taskId, goal);
+            if (!planWatchCleanupRef.current.has(taskId)) {
+              const unsub = watchPlanTaskCompletion(taskId, goal, (outcome) => {
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: makeId(),
+                    role: "assistant",
+                    content: outcome,
+                    createdAt: new Date().toISOString(),
+                    voiceSource: "plan_and_execute",
+                  },
+                ]);
+                planWatchCleanupRef.current.delete(taskId);
+              });
+              planWatchCleanupRef.current.set(taskId, unsub);
+            }
+          },
+        });
 
-      if (!result.ok) {
+        if (!result.ok) {
+          setMessages((prev) =>
+            prev.concat({
+              id: makeId(),
+              role: "assistant",
+              content: result.reason,
+              createdAt: new Date().toISOString(),
+            }),
+          );
+        }
+      } catch (e: unknown) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        const reason = e instanceof Error ? e.message : "Assistant request failed.";
         setMessages((prev) =>
           prev.concat({
             id: makeId(),
             role: "assistant",
-            content: result.reason,
+            content: reason,
             createdAt: new Date().toISOString(),
           }),
         );
+        setIsStreaming(false);
       }
     },
     [

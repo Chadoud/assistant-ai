@@ -95,6 +95,37 @@ function read(rel) {
   }
 }
 
+// 3b. Electron SECRET_MASK === frontend GEMINI_SECRET_MASK (packaged safeStorage placeholder)
+{
+  const electronRel = "electron/ipc/secretsHandlers.js";
+  const frontendRel = "frontend/src/utils/geminiConnection.ts";
+  const electronSrc = read(electronRel);
+  const frontendSrc = read(frontendRel);
+  if (electronSrc != null && frontendSrc != null) {
+    const extractMask = (src, name) => {
+      // const NAME = "…"  or  export const NAME = "…"
+      const re = new RegExp(
+        `(?:export\\s+)?const\\s+${name}\\s*=\\s*["'\`]([^"'\`]+)["'\`]`,
+      );
+      const m = src.match(re);
+      return m ? m[1] : null;
+    };
+    const electronMask = extractMask(electronSrc, "SECRET_MASK");
+    const frontendMask = extractMask(frontendSrc, "GEMINI_SECRET_MASK");
+    if (!electronMask) {
+      fail(`${electronRel} missing SECRET_MASK string literal`);
+    } else if (!frontendMask) {
+      fail(`${frontendRel} missing GEMINI_SECRET_MASK string literal`);
+    } else if (electronMask !== frontendMask) {
+      fail(
+        `secret mask drift: electron=${JSON.stringify(electronMask)} frontend=${JSON.stringify(frontendMask)}`,
+      );
+    } else {
+      ok(`secret mask parity (${JSON.stringify(electronMask)})`);
+    }
+  }
+}
+
 // 4. authorizedPaths has no blanket home allow
 {
   const rel = "electron/authorizedPaths.js";
@@ -109,12 +140,100 @@ function read(rel) {
     const documentsNoBlanket = /never merely because it is under \$HOME/i.test(src);
     if (blanketHome) {
       fail(`${rel} still grants paths merely under $HOME`);
+    } else if (!src.includes("isSafeUserContentPath")) {
+      fail(`${rel} missing isSafeUserContentPath content-read gate`);
     } else if (!documentsNoBlanket) {
-      // Still pass if no blanket grant; warn-style note only via soft check.
       ok(`${rel} has no blanket $HOME allow`);
     } else {
       ok(`${rel} has no blanket $HOME allow`);
     }
+  }
+}
+
+// 5. Preload must not expose sync pairing key or integration getToken
+{
+  const rel = "electron/preload.js";
+  const src = read(rel);
+  if (src != null) {
+    if (/syncGetPairingPayload|getPairingPayload/.test(src)) {
+      fail(`${rel} still exposes sync pairing payload (master key)`);
+    } else if (/integrationGetToken|integration:getToken/.test(src)) {
+      fail(`${rel} still exposes integrationGetToken`);
+    } else if (!src.includes("syncGetPairingQr")) {
+      fail(`${rel} missing syncGetPairingQr`);
+    } else {
+      ok(`${rel} pairing QR only; no getToken`);
+    }
+  }
+}
+
+// 6. Composer / system reads use content path gate
+{
+  const dialog = read("electron/ipc/dialogHandlers.js");
+  const sys = read("electron/ipc/systemControlHandlers.js");
+  if (dialog != null && sys != null) {
+    if (!dialog.includes("isSafeUserContentPath") || !sys.includes("isSafeUserContentPath")) {
+      fail("dialog/systemControl handlers missing isSafeUserContentPath");
+    } else if (/isAttachmentPathTrusted|isUnderHome/.test(dialog + sys)) {
+      fail("legacy isAttachmentPathTrusted / isUnderHome still present");
+    } else {
+      ok("composer + systemControl use isSafeUserContentPath");
+    }
+  }
+}
+
+// 7. DEVICE allowlist: app.getPath("userData") only in known device-scoped modules.
+// PROFILE vault data must use accountProfile.resolveProfileRoot / splitRoots.
+{
+  const DEVICE_USERDATA_ALLOWLIST = new Set([
+    "electron/accountProfile.js",
+    "electron/main.js",
+    "electron/ipc/appHandlers.js",
+    "electron/windows.js",
+    "electron/telemetryCloudSync.js",
+    "electron/telemetryQueue.js",
+    "electron/rendererDiagnostics.js",
+    "electron/systemCommandAudit.js",
+    "electron/autoUpdater.js",
+    "electron/clapPrefs.js",
+    "electron/pathRegistry.js",
+    "electron/authorizedPaths.js",
+    "electron/mainProcessDiagnostics.js",
+    "electron/integrations/chromeAutopilot.js",
+  ]);
+
+  const userDataCall = /(?:app\.)?getPath\(\s*["']userData["']\s*\)/;
+  const electronRoot = path.join(ROOT, "electron");
+  /** @type {string[]} */
+  const offenders = [];
+
+  function walkJs(dir, relBase) {
+    if (!fs.existsSync(dir)) return;
+    for (const name of fs.readdirSync(dir)) {
+      if (name === "node_modules" || name === "dist") continue;
+      const abs = path.join(dir, name);
+      const rel = path.join(relBase, name).replace(/\\/g, "/");
+      const st = fs.statSync(abs);
+      if (st.isDirectory()) {
+        walkJs(abs, rel);
+        continue;
+      }
+      if (!name.endsWith(".js") || name.endsWith(".test.js")) continue;
+      const src = fs.readFileSync(abs, "utf8");
+      if (!userDataCall.test(src)) continue;
+      if (!DEVICE_USERDATA_ALLOWLIST.has(rel)) {
+        offenders.push(rel);
+      }
+    }
+  }
+
+  walkJs(electronRoot, "electron");
+  if (offenders.length) {
+    fail(
+      `getPath("userData") outside DEVICE allowlist (use resolveProfileRoot for vault data): ${offenders.join(", ")}`
+    );
+  } else {
+    ok("getPath(\"userData\") confined to DEVICE allowlist");
   }
 }
 

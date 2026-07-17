@@ -6,6 +6,7 @@ GET    /conversations/search?q=    — relevance-ranked search
 GET    /conversations/{id}         — full conversation incl. messages
 PUT    /conversations/{id}         — upsert title/summary/messages/etc.
 POST   /conversations/{id}/distill — run LLM extraction (summary + memories + tasks)
+POST   /conversations/{id}/pin     — pin/unpin for durable retain
 DELETE /conversations/{id}         — remove
 """
 
@@ -38,9 +39,21 @@ class DistillBody(BaseModel):
     origin_hints: list[str] = Field(default_factory=list)
 
 
+class PinBody(BaseModel):
+    pinned: bool = True
+
+
 @router.get("")
-def list_all(limit: int = Query(default=100, ge=1, le=500)) -> list[dict[str, Any]]:
-    return conversation_store.list_conversations(limit=limit)
+def list_all(
+    limit: int = Query(default=100, ge=1, le=500),
+    map_eligible: bool = Query(default=False),
+    include_low_value: bool = Query(default=False),
+) -> list[dict[str, Any]]:
+    return conversation_store.list_conversations(
+        limit=limit,
+        map_eligible=map_eligible,
+        include_low_value=include_low_value,
+    )
 
 
 @router.get("/search")
@@ -86,6 +99,14 @@ def distill(conversation_id: str, body: DistillBody) -> dict[str, Any]:
         body.messages,
         origin_hints=body.origin_hints or None,
     )
+
+
+@router.post("/{conversation_id}/pin")
+def pin(conversation_id: str, body: PinBody) -> dict[str, Any]:
+    convo = conversation_store.set_conversation_pinned(conversation_id, body.pinned)
+    if not convo:
+        raise HTTPException(status_code=404, detail="conversation_not_found")
+    return convo
 
 
 @router.delete("/{conversation_id}")

@@ -463,7 +463,7 @@ async function dropboxAccountHealth(accessToken) {
  */
 function dropboxStagingDir(jobId) {
   return path.join(
-    app.getPath("userData"),
+    require("../accountProfile").resolveProfileRoot(),
     "dropbox_sort_staging",
     jobId.replace(/[^a-zA-Z0-9_-]/g, "")
   );

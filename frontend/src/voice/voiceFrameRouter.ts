@@ -10,13 +10,15 @@ import type {
 } from "../features/assistant/chat/commitAssistantTurn";
 import type { ErrorActionId } from "../utils/userGuidance";
 import { errorActionId } from "../utils/userGuidance";
-import { isFatalVoiceApiKeyError } from "../utils/voiceApiKeyError";
+import { isFatalVoiceSessionError } from "../utils/voiceApiKeyError";
 import { showQuotaToast } from "../utils/quotaToast";
 import {
+  VOICE_AUDIO_CONFIG_MESSAGE,
   VOICE_CONNECTION_WEAK_MESSAGE,
   VOICE_QUOTA_LIMIT_MESSAGE,
   VOICE_RECONNECT_ISSUE_MESSAGE,
   VOICE_RECONNECT_ISSUE_THRESHOLD,
+  isFatalVoiceAudioConfigError,
 } from "../utils/voiceSessionIssue";
 import { looksLikeEchoOfRecentAssistant } from "../utils/voiceEchoGuard";
 import {
@@ -419,8 +421,9 @@ export function routeVoiceFrame(frame: Record<string, unknown>, deps: VoiceFrame
   }
 
   if (type === "error") {
-    const msg = (frame.message as string) || "Voice session error";
-    const isFatal = isFatalVoiceApiKeyError(msg);
+    const rawMsg = (frame.message as string) || "Voice session error";
+    const msg = isFatalVoiceAudioConfigError(rawMsg) ? VOICE_AUDIO_CONFIG_MESSAGE : rawMsg;
+    const isFatal = isFatalVoiceSessionError(msg) || isFatalVoiceSessionError(rawMsg);
     actions.setError(msg);
     actions.setCurrentErrorActionId(errorActionId(new Error(msg)));
     if (isFatal) {
@@ -429,6 +432,12 @@ export function routeVoiceFrame(frame: Record<string, unknown>, deps: VoiceFrame
       actions.cancelReconnectTimer();
       actions.setIsListening(false);
       actions.setIsReconnecting(false);
+      if (isFatalVoiceAudioConfigError(rawMsg) && (deps.shouldNotifyToast?.() ?? true)) {
+        toast.error("Voice unavailable", {
+          description: VOICE_AUDIO_CONFIG_MESSAGE,
+          duration: 8_000,
+        });
+      }
     }
   }
 }

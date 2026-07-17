@@ -276,7 +276,7 @@ If `/fr/` routes exist: mirror structure and meaning in clear French. Same URL p
 
 ## Reference facts (Privacy accuracy only — do not put on showcase)
 
-- Desktop Google OAuth scopes: `gmail.modify`, `gmail.send`, `drive`, `calendar.readonly`, `calendar.events`
+- Desktop Google OAuth scopes: `gmail.modify`, `gmail.send`, `gmail.settings.basic`, `drive`, `calendar.readonly`, `calendar.events`
 - Cloud sign-in: `openid`, `email`, `profile`
 - Gmail/Drive access triggered by user flows, not background scanning
 - Telemetry/crash: **on by default** after Terms acceptance (desktop); opt out in Settings → Privacy & diagnostics

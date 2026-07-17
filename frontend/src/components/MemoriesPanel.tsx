@@ -137,7 +137,7 @@ export default function MemoriesPanel({
       return;
     }
     let cancelled = false;
-    void cleanupSecondBrainNoise({ dryRun: true })
+    void cleanupSecondBrainNoise({ dryRun: true, includeConversations: true })
       .then((result) => {
         if (!cancelled) setCleanupCandidateCount(result.total_candidates ?? 0);
       })
@@ -335,9 +335,11 @@ export default function MemoriesPanel({
     void cleanupSecondBrainNoise({ dryRun: true })
       .then((result) => {
         if (cancelled) return;
-        setPromotionalIds(
-          promotionalCandidateIds(pendingReview, result.memories.ids ?? []),
-        );
+        const rawIds = result.memories.ids ?? [];
+        const cleanupIds = rawIds
+          .map((id) => (typeof id === "number" ? id : Number(id)))
+          .filter((id): id is number => Number.isFinite(id));
+        setPromotionalIds(promotionalCandidateIds(pendingReview, cleanupIds));
       })
       .catch(() => {
         if (!cancelled) setPromotionalIds([]);

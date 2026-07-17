@@ -1,20 +1,14 @@
 import { desktopClient } from "../desktopClient";
 import type { AppSettings, ChatProviderId } from "../types/settings";
-import { isGeminiApiKeyConfigured, normalizeGeminiApiKey } from "./geminiApiKey";
+import { apiKeyForBackendRequest, resolveGeminiApiKeyRaw } from "./geminiConnection";
+import { normalizeGeminiApiKey } from "./geminiApiKey";
 
 /**
  * Resolve the Gemini API key from settings — prefers chatProviders.gemini, then legacy geminiApiKey.
+ * Returns "" for mask-only (packaged) or unset — use isGeminiConnectedInSettings for readiness.
  */
 export function resolveGeminiApiKeyFromSettings(settings: AppSettings): string {
-  const candidates = [
-    settings.chatProviders?.gemini?.apiKey,
-    settings.geminiApiKey,
-  ];
-  for (const raw of candidates) {
-    const normalized = normalizeGeminiApiKey(raw);
-    if (isGeminiApiKeyConfigured(normalized)) return normalized;
-  }
-  return "";
+  return resolveGeminiApiKeyRaw(settings);
 }
 
 /** Raw key for the setup UI — normalized for editing, including invalid stored values. */
@@ -30,7 +24,6 @@ export async function pushProviderKeyToBackend(
   apiKey: string,
   baseUrl: string,
 ): Promise<void> {
-  const { apiKeyForBackendRequest } = await import("./geminiConnection");
   const key = apiKeyForBackendRequest(apiKey);
   if (!key && providerId !== "ollama") return;
   await desktopClient.postAiSetKey({
@@ -43,9 +36,10 @@ export async function pushProviderKeyToBackend(
 /**
  * Sync the configured Gemini key to the backend so voice and other env-based paths work.
  * Voice reads GEMINI_API_KEY from the backend process — not per-request credentials like chat.
+ * No-op when only the packaged mask is present (spawn already injected the real key).
  */
 export async function syncGeminiKeyToBackend(settings: AppSettings): Promise<boolean> {
-  const apiKey = resolveGeminiApiKeyFromSettings(settings);
+  const apiKey = resolveGeminiApiKeyRaw(settings);
   if (!apiKey) return false;
   await pushProviderKeyToBackend("gemini", apiKey, "");
   return true;

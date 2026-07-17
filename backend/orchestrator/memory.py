@@ -192,14 +192,34 @@ class EpisodicAdapter:
     """Thin recall/remember surface the agent loop depends on (swappable backend)."""
 
     def recall(self, query: str, *, k: int = 4) -> list[str]:
-        return [m.content for m in recall(query, k=k)]
+        # Exclude KIND_FAILURE from planner seed — prior failure text pushed models
+        # to invent alternate tools (e.g. list_invoices) instead of using the catalog.
+        return [
+            m.content
+            for m in recall(query, k=k, kinds=[KIND_EPISODE, KIND_SKILL])
+        ]
 
     def remember_outcome(self, goal: str, summary: str, ok: bool) -> None:
-        kind = KIND_EPISODE if ok else KIND_FAILURE
-        # Slightly favor recalling failures so the agent avoids repeating them.
-        importance = 1.0 if ok else 1.5
-        remember(f"Goal: {goal}\nOutcome: {summary}", kind=kind, tags=_tokenize(goal)[:8],
-                 importance=importance)
+        goal = (goal or "").strip()
+        summary = (summary or "").strip()
+        # One open Inbox card per ask: replace prior failures for this goal, and
+        # clear them entirely when the run succeeds.
+        if goal:
+            forget_failures_for_goal(goal)
+        if ok:
+            remember(
+                f"Goal: {goal}\nOutcome: {summary}",
+                kind=KIND_EPISODE,
+                tags=_tokenize(goal)[:8],
+                importance=1.0,
+            )
+            return
+        remember(
+            f"Goal: {goal}\nOutcome: {summary}",
+            kind=KIND_FAILURE,
+            tags=_tokenize(goal)[:8],
+            importance=1.5,
+        )
 
 
 def default_adapter() -> EpisodicAdapter:
@@ -232,3 +252,66 @@ def forget(memory_id: int) -> bool:
     except Exception:
         logger.exception("episodic forget failed")
         return False
+
+
+_GOAL_CONTENT_RE = re.compile(r"^Goal:\s*(.*?)(?:\nOutcome:\s*|$)", re.IGNORECASE | re.DOTALL)
+
+
+def goal_from_failure_content(content: str) -> str:
+    """Extract the Goal: line from a stored failure episode (or the whole string)."""
+    raw = (content or "").strip()
+    if not raw:
+        return ""
+    match = _GOAL_CONTENT_RE.match(raw)
+    if match:
+        return (match.group(1) or "").strip()
+    return raw
+
+
+def normalize_goal_key(goal: str) -> str:
+    """Stable key for Inbox upsert — same ask → same open failure card."""
+    return " ".join(_tokenize(goal))
+
+
+def forget_failures_for_goal(goal: str) -> int:
+    """Delete all KIND_FAILURE rows whose Goal matches ``goal`` (normalized)."""
+    key = normalize_goal_key(goal)
+    if not key:
+        return 0
+    removed = 0
+    try:
+        conn = _connect()
+        try:
+            rows = conn.execute(
+                "SELECT id, content FROM episodic_memory WHERE kind = ?",
+                (KIND_FAILURE,),
+            ).fetchall()
+            for row in rows:
+                if normalize_goal_key(goal_from_failure_content(str(row["content"]))) == key:
+                    conn.execute("DELETE FROM episodic_memory WHERE id = ?", (int(row["id"]),))
+                    removed += 1
+            if removed:
+                conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        logger.exception("episodic forget_failures_for_goal failed")
+        return 0
+    return removed
+
+
+def recent_open_failures(k: int = 10) -> list[Memory]:
+    """Newest open failures, deduped by normalized goal (one Inbox card per ask)."""
+    # Over-fetch so older duplicates of the same goal can be collapsed.
+    rows = recent(max(k * 5, k), kinds=[KIND_FAILURE])
+    seen: set[str] = set()
+    out: list[Memory] = []
+    for row in rows:
+        key = normalize_goal_key(goal_from_failure_content(row.content)) or f"id:{row.id}"
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(row)
+        if len(out) >= k:
+            break
+    return out

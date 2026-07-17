@@ -30,6 +30,28 @@ import {
 } from "./handleAssistantTurnActions";
 import { extractApiError, mapFetchFailureToError } from "../../../api/client";
 import { logAppDiagnostic } from "../../../utils/appDiagnosticLog";
+import {
+  conversationHistoryToChatMessages,
+  conversationMessageToChatContent,
+} from "./chatMultimodalContent";
+
+function formatDocumentUserContent(doc: {
+  name: string;
+  text: string;
+  pages?: number | null;
+  truncated?: boolean;
+  source?: string;
+}): string {
+  const meta = [
+    `Document: ${doc.name}`,
+    doc.pages != null ? `pages=${doc.pages}` : null,
+    doc.truncated ? "truncated=true" : null,
+    doc.source ? `source=${doc.source}` : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  return `[${meta}]\n\n${doc.text}`;
+}
 
 type AssistantSendResult =
   | { ok: true }
@@ -45,6 +67,8 @@ export async function runAssistantSendMessage(
     conversation,
     localMessages,
     memoryBlock,
+    imageAttachment,
+    documentAttachment,
     setMessages,
     setIsStreaming,
     onDraftClear,
@@ -58,28 +82,49 @@ export async function runAssistantSendMessage(
   trackAssistantTurnStarted("text");
   const userMsgId = `${turnId}-user`;
   const assistantMsgId = `${turnId}-assistant`;
+  const trimmed = text.trim();
+
+  const documentBody = documentAttachment
+    ? formatDocumentUserContent(documentAttachment)
+    : null;
+  const turnMessage = documentAttachment
+    ? `Please read and analyze the attached document (${documentAttachment.name}). Summarize who it's about, key experience, skills, and notable projects. Be specific.`
+    : trimmed;
+  const userContent = documentBody ?? trimmed;
+
   const userMsg: ConversationMessage = {
     id: userMsgId,
     role: "user",
-    content: text,
+    content: userContent,
     createdAt: new Date().toISOString(),
+    ...(imageAttachment ? { imageAttachment } : {}),
+    ...(documentAttachment
+      ? {
+          documentAttachment: {
+            name: documentAttachment.name,
+            pages: documentAttachment.pages ?? null,
+            truncated: Boolean(documentAttachment.truncated),
+            source: documentAttachment.source,
+            ...(documentAttachment.previewDataUrl
+              ? { previewDataUrl: documentAttachment.previewDataUrl }
+              : {}),
+          },
+        }
+      : {}),
   };
 
   const routing = resolveChatProviderCredentials(settings);
   const historyForStream: ChatMessage[] = [
     { role: "system", content: buildDefaultSystemPrompt(memoryBlock || undefined) },
-    ...localMessages
-      .filter((m) => !m.streaming && !m.prefetching && m.content.trim())
-      .slice(-18)
-      .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
-    { role: "user", content: text },
+    ...conversationHistoryToChatMessages(localMessages),
+    { role: "user", content: conversationMessageToChatContent(userMsg) },
   ];
 
   let res: Response;
   try {
     res = await postAssistantTurn(
       {
-        message: text,
+        message: turnMessage,
         previous_user_message: previousUserContent,
         pending_calendar_draft: pendingCalendarDraft(localMessages),
         pending_calendar_delete_draft: pendingCalendarDeleteDraft(localMessages),

@@ -606,10 +606,11 @@ def test_orchestrate_blocks_sensitive_tool_without_dispatch():
 
     def reason(capability, system, user):
         if "planner" in system:
+            # Unknown tools classify SENSITIVE and are not in APPROVAL_TOOLS.
             return json.dumps({"steps": [
-                {"id": 1, "kind": "tool", "tool": "save_memory",
-                 "args": {"key": "k", "value": "v"},
-                 "description": "remember something", "success_check": "saved"},
+                {"id": 1, "kind": "tool", "tool": "totally_new_tool",
+                 "args": {"x": 1},
+                 "description": "do something sensitive", "success_check": "done"},
             ]})
         if "verify one step" in system:
             return '{"ok": true, "feedback": ""}'
@@ -622,7 +623,7 @@ def test_orchestrate_blocks_sensitive_tool_without_dispatch():
         return {"ok": True}
 
     result = agents.orchestrate(
-        "remember something",
+        "do something sensitive",
         reason_fn=reason,
         dispatch_fn=dispatch,
         policy=AutonomyPolicy(allow_sensitive=False),

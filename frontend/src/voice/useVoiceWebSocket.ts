@@ -62,6 +62,7 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openWebSocketRef = useRef<() => Promise<void>>(async () => {});
 
   const cancelReconnectTimer = useCallback(() => {
     if (reconnectTimerRef.current) {
@@ -160,7 +161,7 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
       reconnectTimerRef.current = setTimeout(() => {
         reconnectTimerRef.current = null;
         if (!stoppedRef.current) {
-          void openWebSocket();
+          void openWebSocketRef.current();
         }
       }, WS_RECONNECT_DELAY_MS);
     };
@@ -181,6 +182,8 @@ export function useVoiceWebSocket(options: UseVoiceWebSocketOptions): UseVoiceWe
     settingsRef,
     voiceSessionIdRef,
   ]);
+
+  openWebSocketRef.current = openWebSocket;
 
   return {
     wsRef,

@@ -33,6 +33,9 @@ fi
 echo "==> Legal URLs"
 npm run verify:legal-urls || echo "WARN: legal URLs not reachable — required before store builds"
 
+echo "==> Fail-fast: backend pytest (same suite as CI quality-backend)"
+npm run test:backend
+
 echo "==> Quality gate (lint, tests — may take several minutes)"
 npm run quality
 

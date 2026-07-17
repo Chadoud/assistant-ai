@@ -1,5 +1,5 @@
 #define AppName "Exo"
-#define AppVersion "1.1.52"
+#define AppVersion "1.1.53"
 #define AppPublisher "Exosites"
 #define AppExeName "Exo.exe"
 #define SourceDir "dist-app\Exo"

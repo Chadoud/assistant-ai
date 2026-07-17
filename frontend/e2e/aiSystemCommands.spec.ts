@@ -9,6 +9,6 @@ test.describe("Settings privacy", () => {
     await expect(privacy).toBeVisible();
     await expect(privacy.getByText("Usage analytics", { exact: true })).toBeVisible();
     await expect(privacy.getByText("Crash reports", { exact: true })).toBeVisible();
-    await expect(privacy.getByRole("button", { name: /erase local data/i })).toBeVisible();
+    await expect(privacy.getByRole("button", { name: /erase.*local data/i })).toBeVisible();
   });
 });

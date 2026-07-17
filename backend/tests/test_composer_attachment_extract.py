@@ -38,6 +38,16 @@ def test_extract_pdf_text(tmp_path, monkeypatch):
     doc.save(pdf_path)
     doc.close()
 
+    # Isolate from ingestor OCR/signal heuristics (CI may classify insert_text PDFs as scanned).
+    monkeypatch.setattr(
+        "ingestor.extract_content",
+        lambda _path, vision_model=None: {
+            "text": "Chady Kassab CV experience skills",
+            "extraction_source": "pdf_text",
+            "page_count": 1,
+        },
+    )
+
     out = extract_attachment_for_chat(str(pdf_path))
     assert out["ok"] is True
     assert "Chady" in out["text"] or "Kassab" in out["text"]

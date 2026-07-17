@@ -136,12 +136,13 @@ def test_agent_task_endpoint_forwards_routing(monkeypatch: pytest.MonkeyPatch) -
 
     recorded: dict[str, object] = {}
 
-    def _fake_create(goal, *, provider, model, api_key, base_url):
+    def _fake_create(goal, *, provider, model, api_key, base_url, allow_sensitive=False):
         recorded.update(
             provider=provider,
             model=model,
             api_key=api_key,
             base_url=base_url,
+            allow_sensitive=allow_sensitive,
         )
         return task_queue.create_task(
             goal,
@@ -149,6 +150,7 @@ def test_agent_task_endpoint_forwards_routing(monkeypatch: pytest.MonkeyPatch) -
             model=model,
             api_key=api_key,
             base_url=base_url,
+            allow_sensitive=allow_sensitive,
         )
 
     async def _noop_bg(_task) -> None:

@@ -6,6 +6,13 @@ and the project aims to follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.53] - 2026-07-17
+
+### Fixed
+
+- **CI:** Agent task test accepts `allow_sensitive`; composer PDF extract test mocks ingestor; privacy E2E matches "Erase this account's local data".
+- **Release gate:** `release-desktop.sh` runs backend pytest fail-fast before the full quality suite.
+
 ## [1.1.52] - 2026-07-17
 
 ### Fixed

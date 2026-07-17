@@ -85,20 +85,6 @@ export async function upsertStoredConversation(
   });
 }
 
-export async function pinStoredConversation(
-  id: string,
-  pinned = true,
-): Promise<ConversationSummary> {
-  return requestValidated(
-    `/conversations/${encodeURIComponent(id)}/pin`,
-    ConversationSummarySchema,
-    {
-      method: "POST",
-      body: JSON.stringify({ pinned }),
-    },
-  );
-}
-
 const DistillResultSchema = z.object({
   ok: z.boolean(),
   title: z.string().optional(),

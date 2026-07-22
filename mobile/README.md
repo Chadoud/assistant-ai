@@ -84,8 +84,30 @@ Tracked for a later release — do not declare mic/camera beyond pairing until s
 - `flutter_localizations` / ARB (copy is centralized in `lib/sync/user_messages.dart` for extraction)
 - Background sync policy, cert pinning decision, a11y audit, memory filters
 
+## Branch home
+
+This app lives on **`incubating/mobile`**, not on `main`. Desktop trunk points here via [`docs/MOBILE.md`](../docs/MOBILE.md).
+
+### Syncing from `main` (mandatory)
+
+After mobile was removed from `main`, a naive merge will delete `mobile/` and mobile tooling on this branch. Every sync:
+
+```bash
+git checkout incubating/mobile
+git fetch origin
+git merge origin/main
+# If Git deletes mobile surfaces, restore ours:
+git checkout HEAD -- mobile/ .fvm/ .github/workflows/mobile.yml \
+  scripts/mobile-*.sh scripts/release-mobile.sh scripts/bump-mobile-version.sh \
+  scripts/verify-mobile-manifests.sh docs/MOBILE_*.md
+# Reconcile package.json: keep desktop scripts from main; keep mobile:* / release:mobile from incubating
+npm run mobile:quality
+```
+
+Prefer merge over rebase for this long-lived branch. Do not reset incubating to `main`.
+
 ## Release
 
 See [`docs/MOBILE_RELEASE.md`](../docs/MOBILE_RELEASE.md) and [`docs/MOBILE_STORE_PRIVACY.md`](../docs/MOBILE_STORE_PRIVACY.md).
 
-Tag `mobile-v*` to trigger optional CI build artifacts (AAB + iOS). Pre-tag: `npm run release:mobile`.
+Tag `mobile-v*` **from this branch** to trigger optional CI build artifacts (AAB + iOS). Pre-tag: `npm run release:mobile`.

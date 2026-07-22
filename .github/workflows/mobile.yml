@@ -2,7 +2,7 @@ name: Mobile
 
 on:
   push:
-    branches: [main, master]
+    branches: [incubating/mobile]
     paths:
       - "mobile/**"
       - ".github/workflows/mobile.yml"
@@ -10,7 +10,7 @@ on:
     tags:
       - "mobile-v*"
   pull_request:
-    branches: [main, master]
+    branches: [incubating/mobile]
     paths:
       - "mobile/**"
       - ".github/workflows/mobile.yml"

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
+  <!-- Exo isometric cube  stroke paths for draw animation -->
+  <path stroke="#fff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"
+        d="M24 8 38 16v16L24 40 10 32V16z"/>
+  <path stroke="#fff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"
+        d="M24 8v16M10 16l14 8 14-8M24 24v16"/>
+</svg>

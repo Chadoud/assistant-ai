@@ -26,6 +26,7 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.3
   flutter_native_splash: ^2.4.4
+  sqflite_common_ffi: ^2.3.4
 
 flutter_launcher_icons:
   android: true
@@ -36,11 +37,12 @@ flutter_launcher_icons:
   remove_alpha_ios: true
 
 flutter_native_splash:
-  color: "#0F0B2E"
-  image: ../electron/assets/icon.png
+  # Solid canvas only — cube draws itself in Flutter (ExoBootScreen).
+  color: "#0C0B14"
   android_12:
-    color: "#0F0B2E"
-    image: ../electron/assets/icon.png
+    color: "#0C0B14"
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/exo_cube.svg

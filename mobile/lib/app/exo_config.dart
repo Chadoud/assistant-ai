@@ -1,5 +1,11 @@
 /// Build-time and runtime configuration (flavors via --dart-define).
 abstract final class ExoConfig {
+  /// Keep in sync with `pubspec.yaml` version (name part before +build).
+  static const appVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: '0.2.0',
+  );
+
   static const cloudUrl = String.fromEnvironment(
     'EXOSITES_CLOUD_URL',
     defaultValue: 'https://api.exosites.ch',

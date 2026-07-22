@@ -104,10 +104,12 @@
     "mobile:setup": "bash mobile/setup.sh",
     "mobile:analyze": "bash scripts/mobile-flutter.sh analyze --fatal-infos",
     "mobile:test": "bash scripts/mobile-flutter.sh test",
-    "mobile:run:ios": "bash scripts/mobile-flutter.sh run -d ios",
+    "mobile:run:ios": "bash scripts/mobile-run-ios.sh",
     "mobile:run:android": "bash scripts/mobile-flutter.sh run -d android",
-    "mobile:quality": "npm run mobile:setup && npm run mobile:analyze && npm run mobile:test",
-    "mobile:icons": "cd mobile && bash ../scripts/mobile-flutter.sh pub get && bash ../scripts/mobile-flutter.sh pub run flutter_launcher_icons && bash ../scripts/mobile-flutter.sh pub run flutter_native_splash:create"
+    "mobile:dev": "bash scripts/mobile-dev.sh",
+    "mobile:quality": "npm run mobile:setup && npm run mobile:verify-manifests && npm run mobile:analyze && npm run mobile:test",
+    "mobile:icons": "cd mobile && bash ../scripts/mobile-flutter.sh pub get && bash ../scripts/mobile-flutter.sh pub run flutter_launcher_icons && bash ../scripts/mobile-flutter.sh pub run flutter_native_splash:create",
+    "mobile:verify-manifests": "bash scripts/verify-mobile-manifests.sh"
   },
   "build": {
     "appId": "com.exo.app",

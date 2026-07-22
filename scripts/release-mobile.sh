@@ -20,7 +20,8 @@ done
 echo "==> Mobile platform bootstrap"
 bash mobile/setup.sh
 
-echo "==> Mobile quality (analyze + test)"
+echo "==> Mobile quality (manifests + analyze + test)"
+npm run mobile:verify-manifests
 npm run mobile:analyze
 npm run mobile:test
 

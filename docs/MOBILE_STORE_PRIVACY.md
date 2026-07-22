@@ -12,21 +12,24 @@ Use when submitting **Exo** (`com.exosites.exosites_mobile`) to App Store Connec
 | Synced memory blobs (encrypted) | Second brain cache | Device SQLite + cloud relay ciphertext | Yes |
 | Device ID (UUID) | Multi-device sync | Cloud relay + device | Yes |
 | Crash reports (optional) | Bug fixes | Cloud API when user opts in | No PII by design |
-| Microphone (future Capture) | Voice notes | Processed locally when feature ships | No (until shipped) |
+| Camera | Scan desktop pairing QR | Not stored / not uploaded | No |
+| Microphone | Voice Capture (not in beta) | N/A until Capture ships | No |
 
 Relay is **zero-knowledge**: cloud stores ciphertext only.
+
+**Sign-out** clears access/refresh tokens, master key, pairing flag, sync cursor, and the local SQLite cache on device.
 
 ## App Store (Apple)
 
 - **Privacy Nutrition Labels:** Data Linked to You → User Content (encrypted sync), Identifiers (device id), Contact Info (email if OAuth).
-- **Permission strings:** `NSMicrophoneUsageDescription` in `ios/Runner/Info.plist` (patched by `mobile/setup.sh`).
+- **Permission strings (beta):** `NSCameraUsageDescription` for QR pairing only. Do **not** declare `NSMicrophoneUsageDescription` until Capture ships.
 - **Encryption export:** App uses standard HTTPS + on-device crypto — declare exempt category in App Store Connect questionnaire unless legal advises otherwise.
 - **Screenshots:** iPhone 6.7", 6.1", iPad 12.9" — dark Exo theme, Today + Memory tabs.
 
 ## Google Play
 
 - **Data Safety form:** align with table above; mark encryption in transit and at rest (client-side).
-- **Permissions:** `RECORD_AUDIO` declared; disable Capture UI until v1.1 ships or mark feature as not yet active in release notes.
+- **Permissions (beta):** no `RECORD_AUDIO` until Capture ships. Camera used for pairing QR via `mobile_scanner`.
 - **Target API:** follow Flutter default from generated `android/` (review each release).
 
 ## Beta program (GTM)
@@ -34,7 +37,7 @@ Relay is **zero-knowledge**: cloud stores ciphertext only.
 Before public listing:
 
 - [ ] 10–20 testers on TestFlight + Play internal ([`gtm/go-sync-checklist.md`](gtm/go-sync-checklist.md))
-- [ ] Privacy policy updated for mobile capture + E2E sync
+- [ ] Privacy policy updated for mobile E2E sync (+ Capture when it ships)
 - [ ] Support email in store listings
 
 ## Screenshot matrix (manual QA)

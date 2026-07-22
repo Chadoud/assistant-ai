@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 
-/// Brand palette aligned with [frontend/src/styles/tokens.css].
+/// Flat brand palette — one solid canvas, elevated panels only (no gradients).
 abstract final class ExoColors {
-  static const brandPrimary = Color(0xFF6366F1);
-  static const brandSecondary = Color(0xFF818CF8);
-  static const brandTertiary = Color(0xFF3730A3);
-  static const bgPrimary = Color(0xFF0F0B2E);
-  static const bgSecondary = Color(0xFF0A0619);
-  static const textPrimary = Color(0xFFEEF2FF);
-  static const buttonPrimary = Color(0xFF4F46E5);
-  static const buttonPrimaryHover = Color(0xFF4338CA);
-  static const success = Color(0xFF4CAF7D);
-  static const error = Color(0xFFEF5350);
-  static const warning = Color(0xFFF5A623);
+  static const brandPrimary = Color(0xFF6E72F5);
+  static const brandSecondary = Color(0xFF9AA0FF);
+  static const brandDeep = Color(0xFF3F3D99);
 
-  /// Card surface: primary bg tinted with brand secondary (~12%).
-  static Color get bgCard => Color.lerp(bgPrimary, brandSecondary, 0.12)!;
+  /// Single app canvas — scaffold, nav, app bar, inputs.
+  static const bgPrimary = Color(0xFF0C0B14);
 
-  /// Muted body text.
-  static Color get textMuted => Color.lerp(textPrimary, brandSecondary, 0.45)!;
+  /// Alias kept for call sites; same solid as [bgPrimary] (no layered wash).
+  static const bgSecondary = bgPrimary;
 
-  static Color get border => Color.lerp(brandTertiary, bgPrimary, 0.30)!;
+  static const bgElevated = Color(0xFF161522);
 
-  static Color get accentLight => brandPrimary.withValues(alpha: 0.15);
+  static const textPrimary = Color(0xFFF2F1F8);
+  static const textSecondary = Color(0xFFA9A7BC);
+  static const textMuted = Color(0xFF7A788F);
+
+  static const buttonPrimary = Color(0xFF5B5FE8);
+  static const border = Color(0xFF2A2840);
+  static const borderStrong = Color(0xFF3A3758);
+
+  static const success = Color(0xFF3D9B6E);
+  static const error = Color(0xFFE05757);
+  static const warning = Color(0xFFD99A2B);
+
+  /// Alias used by existing call sites.
+  static Color get bgCard => bgElevated;
+
+  static Color get accentLight => brandPrimary.withValues(alpha: 0.12);
+
+  static Color get errorSoft => error.withValues(alpha: 0.12);
 }

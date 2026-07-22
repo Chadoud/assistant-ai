@@ -17,52 +17,77 @@ fi
 "$FLUTTER" pub get
 
 INFO_PLIST="ios/Runner/Info.plist"
-if [[ -f "$INFO_PLIST" ]] && ! grep -q NSMicrophoneUsageDescription "$INFO_PLIST"; then
-  /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string Exo uses the microphone for voice capture and meeting notes." "$INFO_PLIST" 2>/dev/null || true
-  echo "Patched NSMicrophoneUsageDescription"
-fi
+if [[ -f "$INFO_PLIST" ]]; then
+  # Camera required for GO SYNC QR pairing (mobile_scanner).
+  if ! grep -q NSCameraUsageDescription "$INFO_PLIST"; then
+    /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string Exo uses the camera to scan the desktop pairing QR code." "$INFO_PLIST" 2>/dev/null || true
+    echo "Patched NSCameraUsageDescription"
+  fi
 
-if [[ -f "$INFO_PLIST" ]] && ! grep -q "exosites" "$INFO_PLIST"; then
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$INFO_PLIST" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$INFO_PLIST" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$INFO_PLIST" 2>/dev/null || true
-  /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string exosites" "$INFO_PLIST" 2>/dev/null || true
-  echo "Patched iOS URL scheme exosites://"
+  # Exact URL scheme "exosites" — do not match CFBundleName "exosites_mobile".
+  scheme="$(/usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes:0:CFBundleURLSchemes:0" "$INFO_PLIST" 2>/dev/null || true)"
+  if [[ "$scheme" != "exosites" ]]; then
+    /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$INFO_PLIST" 2>/dev/null || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" "$INFO_PLIST"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0 dict" "$INFO_PLIST"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" "$INFO_PLIST"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string exosites" "$INFO_PLIST"
+    echo "Patched iOS URL scheme exosites://"
+  fi
 fi
 
 MANIFEST="android/app/src/main/AndroidManifest.xml"
-if [[ -f "$MANIFEST" ]] && ! grep -q RECORD_AUDIO "$MANIFEST"; then
-  if [[ "$(uname)" == "Darwin" ]]; then
-    sed -i '' 's|<manifest|<manifest xmlns:tools="http://schemas.android.com/tools"|' "$MANIFEST"
-    sed -i '' 's|<application|    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application|' "$MANIFEST"
-  else
-    sed -i 's|<manifest|<manifest xmlns:tools="http://schemas.android.com/tools"|' "$MANIFEST"
-    sed -i 's|<application|    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application|' "$MANIFEST"
-  fi
-  echo "Patched RECORD_AUDIO"
-fi
-
 if [[ -f "$MANIFEST" ]] && ! grep -q 'android:host="oauth"' "$MANIFEST"; then
-  python3 - <<'PY' || true
+  python3 - <<'PY'
 from pathlib import Path
+import re
+
 p = Path("android/app/src/main/AndroidManifest.xml")
 text = p.read_text()
 if 'android:host="oauth"' in text:
     raise SystemExit(0)
-needle = '<activity android:name=".MainActivity"'
-if needle not in text:
-    raise SystemExit(0)
-intent = '''
+
+intent = """
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="exosites" android:host="oauth" />
-            </intent-filter>'''
-text = text.replace(needle, needle + intent, 1)
+            </intent-filter>"""
+
+# Insert before the closing </activity> of MainActivity (handles multiline activity tags).
+pattern = re.compile(
+    r'(<activity\b[^>]*android:name="\.MainActivity"[^>]*>)(.*?)(</activity>)',
+    re.DOTALL,
+)
+m = pattern.search(text)
+if not m:
+    raise SystemExit("MainActivity not found in AndroidManifest.xml")
+text = text[: m.start(3)] + intent + "\n        " + text[m.start(3) :]
 p.write_text(text)
 print("Patched Android OAuth deep link")
 PY
+fi
+
+# mobile_scanner requires iOS 15.5+
+PODFILE="ios/Podfile"
+if [[ -f "$PODFILE" ]] && ! grep -q "platform :ios, '15.5'" "$PODFILE"; then
+  if grep -qE "^#? ?platform :ios" "$PODFILE"; then
+    sed -i '' -E "s/^#? ?platform :ios,.*/platform :ios, '15.5'/" "$PODFILE" 2>/dev/null \
+      || sed -i -E "s/^#? ?platform :ios,.*/platform :ios, '15.5'/" "$PODFILE"
+  else
+    printf "%s\n%s\n" "platform :ios, '15.5'" "$(cat "$PODFILE")" > "$PODFILE.tmp" && mv "$PODFILE.tmp" "$PODFILE"
+  fi
+  echo "Patched ios/Podfile platform to 15.5"
+fi
+PBXPROJ="ios/Runner.xcodeproj/project.pbxproj"
+if [[ -f "$PBXPROJ" ]] && grep -q "IPHONEOS_DEPLOYMENT_TARGET = 13.0" "$PBXPROJ"; then
+  if [[ "$(uname)" == "Darwin" ]]; then
+    sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/IPHONEOS_DEPLOYMENT_TARGET = 15.5;/g' "$PBXPROJ"
+  else
+    sed -i 's/IPHONEOS_DEPLOYMENT_TARGET = 13.0;/IPHONEOS_DEPLOYMENT_TARGET = 15.5;/g' "$PBXPROJ"
+  fi
+  echo "Patched IPHONEOS_DEPLOYMENT_TARGET to 15.5"
 fi
 
 if [[ -f pubspec.yaml ]] && grep -q flutter_launcher_icons pubspec.yaml; then

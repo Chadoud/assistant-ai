@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../design/exo_spacing.dart';
 import '../../design/exo_widgets.dart';
+import '../../sync/user_messages.dart';
 import 'mobile_sync_config.dart';
 
 /// Scan desktop QR to import wrapped master key + cloud URL.
@@ -38,8 +39,8 @@ class _PairingScreenState extends State<PairingScreen> {
         });
         Navigator.pop(context, true);
       }
-    } catch (e) {
-      if (mounted) setState(() => _error = 'Could not read that QR code. Try again from desktop Settings → Sync.');
+    } catch (_) {
+      if (mounted) setState(() => _error = SyncUserMessages.invalidPairingQr);
     }
   }
 
@@ -53,7 +54,7 @@ class _PairingScreenState extends State<PairingScreen> {
           Padding(
             padding: const EdgeInsets.all(ExoSpacing.lg),
             child: Text(
-              'On desktop: Settings → Sync → Pair mobile device. Scan the QR code shown there.',
+              SyncUserMessages.pairStepSubtitle,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
@@ -63,11 +64,14 @@ class _PairingScreenState extends State<PairingScreen> {
               child: ExoSyncStatusBanner(message: _error!, isError: true),
             ),
           Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Padding(
-                padding: const EdgeInsets.all(ExoSpacing.lg),
-                child: MobileScanner(onDetect: _onDetect),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(ExoSpacing.lg, 0, ExoSpacing.lg, ExoSpacing.lg),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: ColoredBox(
+                  color: const Color(0xFF000000),
+                  child: MobileScanner(onDetect: _onDetect),
+                ),
               ),
             ),
           ),

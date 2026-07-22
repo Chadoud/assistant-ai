@@ -1,19 +1,30 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
 import '../../app/exo_config.dart';
 import '../../sync/cloud_api.dart';
+import '../../sync/key_value_store.dart';
+import '../../sync/local_store.dart';
 import '../../sync/sync_engine.dart';
+import '../../sync/sync_errors.dart';
 
 /// Shared sync + auth configuration persisted in secure storage.
 class MobileSyncConfig extends ChangeNotifier {
-  MobileSyncConfig({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+  MobileSyncConfig({
+    KeyValueStore? storage,
+    http.Client? httpClient,
+    LocalBrainStore? localStore,
+  })  : _storage = storage ?? FlutterSecureKeyValueStore(),
+        _http = httpClient ?? http.Client(),
+        _localStore = localStore ?? LocalBrainStore();
 
-  final FlutterSecureStorage _storage;
+  final KeyValueStore _storage;
+  final http.Client _http;
+  final LocalBrainStore _localStore;
   static const _uuid = Uuid();
 
   String _cloudUrlSync = ExoConfig.cloudUrl;
@@ -21,36 +32,76 @@ class MobileSyncConfig extends ChangeNotifier {
   String _deviceIdSync = '';
   bool _paired = false;
   bool _crashReportsOptIn = false;
+  bool _onboardingComplete = false;
+  int _dataEpoch = 0;
+  String? _lastSyncLabel;
+  int _cachedRecordCount = 0;
+  Future<bool>? _refreshInFlight;
 
   String get cloudUrlSync => _cloudUrlSync;
   String get accessTokenSync => _tokenSync;
   String get deviceIdSync => _deviceIdSync;
   bool get isPaired => _paired;
   bool get crashReportsOptIn => _crashReportsOptIn;
+  bool get onboardingComplete => _onboardingComplete;
+  int get dataEpoch => _dataEpoch;
+  String? get lastSyncLabel => _lastSyncLabel;
+  int get cachedRecordCount => _cachedRecordCount;
+  LocalBrainStore get localStore => _localStore;
+  KeyValueStore get storage => _storage;
 
+  bool get isSignedIn => _tokenSync.isNotEmpty;
   bool get isConfigured =>
       _cloudUrlSync.isNotEmpty && _tokenSync.isNotEmpty && _paired;
+
+  /// Show guided setup until signed in, paired, and first-sync step finished/skipped.
+  bool get needsOnboarding => !isConfigured || !_onboardingComplete;
+
+  String get syncReadyLabel {
+    if (!isSignedIn) return 'Not signed in';
+    if (!_paired) return 'Signed in — pair with desktop to sync';
+    return 'Ready to sync';
+  }
+
+  CloudApi get api => CloudApi(
+        baseUrl: _cloudUrlSync.replaceAll(RegExp(r'/$'), ''),
+        accessToken: () => _tokenSync,
+        onUnauthorized: refreshSession,
+        httpClient: _http,
+      );
 
   SyncEngine get engine => SyncEngine(
         cloudUrl: _cloudUrlSync,
         accessToken: _tokenSync,
         deviceId: _deviceIdSync,
+        api: api,
         storage: _storage,
+        localStore: _localStore,
       );
 
-  CloudApi get api => CloudApi(baseUrl: _cloudUrlSync.replaceAll(RegExp(r'/$'), ''), accessToken: _tokenSync);
-
   Future<void> hydrate() async {
-    _cloudUrlSync = await _storage.read(key: 'cloud_url') ?? ExoConfig.cloudUrl;
-    _tokenSync = await _storage.read(key: 'access_token') ?? '';
-    _paired = (await _storage.read(key: 'sync_paired')) == '1';
-    _crashReportsOptIn = (await _storage.read(key: 'crash_reports_opt_in')) == '1';
-    var deviceId = await _storage.read(key: 'device_id');
+    _cloudUrlSync = await _storage.read('cloud_url') ?? ExoConfig.cloudUrl;
+    _tokenSync = await _storage.read('access_token') ?? '';
+    _paired = (await _storage.read('sync_paired')) == '1';
+    _crashReportsOptIn = (await _storage.read('crash_reports_opt_in')) == '1';
+    _onboardingComplete = (await _storage.read('setup_onboarding_complete')) == '1';
+    _lastSyncLabel = await _storage.read('last_sync_label');
+    var deviceId = await _storage.read('device_id');
     if (deviceId == null || deviceId.isEmpty) {
       deviceId = 'mobile-${_uuid.v4()}';
-      await _storage.write(key: 'device_id', value: deviceId);
+      await _storage.write('device_id', deviceId);
     }
     _deviceIdSync = deviceId;
+    try {
+      _cachedRecordCount = await _localStore.countAll();
+    } catch (_) {
+      _cachedRecordCount = 0;
+    }
+    // Returning users who already have cache skip first-sync step.
+    if (isConfigured && !_onboardingComplete && _cachedRecordCount > 0) {
+      _onboardingComplete = true;
+      await _storage.write('setup_onboarding_complete', '1');
+    }
     notifyListeners();
   }
 
@@ -61,14 +112,59 @@ class MobileSyncConfig extends ChangeNotifier {
   }) async {
     _tokenSync = accessToken;
     if (refreshToken != null) {
-      await _storage.write(key: 'refresh_token', value: refreshToken);
+      await _storage.write('refresh_token', refreshToken);
     }
     if (cloudUrl != null && cloudUrl.isNotEmpty) {
       _cloudUrlSync = cloudUrl;
-      await _storage.write(key: 'cloud_url', value: cloudUrl);
+      await _storage.write('cloud_url', cloudUrl);
     }
-    await _storage.write(key: 'access_token', value: accessToken);
+    await _storage.write('access_token', accessToken);
     notifyListeners();
+  }
+
+  /// Refresh access token; single-flight. Returns false and clears session on failure.
+  Future<bool> refreshSession() async {
+    if (_refreshInFlight != null) return _refreshInFlight!;
+    _refreshInFlight = _refreshSessionImpl();
+    try {
+      return await _refreshInFlight!;
+    } finally {
+      _refreshInFlight = null;
+    }
+  }
+
+  Future<bool> _refreshSessionImpl() async {
+    final refresh = await _storage.read('refresh_token');
+    if (refresh == null || refresh.isEmpty) {
+      await clearSession();
+      return false;
+    }
+    final base = _cloudUrlSync.replaceAll(RegExp(r'/$'), '');
+    try {
+      final res = await _http.post(
+        Uri.parse('$base/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh_token': refresh}),
+      );
+      if (res.statusCode >= 400) {
+        await clearSession();
+        return false;
+      }
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final access = data['access_token'] as String?;
+      if (access == null || access.isEmpty) {
+        await clearSession();
+        return false;
+      }
+      await saveSession(
+        accessToken: access,
+        refreshToken: data['refresh_token'] as String?,
+      );
+      return true;
+    } catch (_) {
+      await clearSession();
+      return false;
+    }
   }
 
   /// Apply desktop QR pairing payload (master key + optional cloud URL).
@@ -77,14 +173,23 @@ class MobileSyncConfig extends ChangeNotifier {
     if (mk == null || mk.isEmpty) {
       throw ArgumentError('pairing payload missing master_key_b64');
     }
-    await _storage.write(key: 'exosites_sync_master_key_b64', value: mk);
+    await _storage.write('exosites_sync_master_key_b64', mk);
     final url = payload['cloud_url'] as String?;
     if (url != null && url.isNotEmpty) {
       _cloudUrlSync = url;
-      await _storage.write(key: 'cloud_url', value: url);
+      await _storage.write('cloud_url', url);
     }
-    await _storage.write(key: 'sync_paired', value: '1');
+    await _storage.write('sync_paired', '1');
+    // Force first-sync step after (re)pair.
+    await _storage.delete('setup_onboarding_complete');
     _paired = true;
+    _onboardingComplete = false;
+    notifyListeners();
+  }
+
+  Future<void> completeOnboarding() async {
+    _onboardingComplete = true;
+    await _storage.write('setup_onboarding_complete', '1');
     notifyListeners();
   }
 
@@ -100,14 +205,52 @@ class MobileSyncConfig extends ChangeNotifier {
 
   Future<void> setCrashReportsOptIn(bool enabled) async {
     _crashReportsOptIn = enabled;
-    await _storage.write(key: 'crash_reports_opt_in', value: enabled ? '1' : '0');
+    await _storage.write('crash_reports_opt_in', enabled ? '1' : '0');
     notifyListeners();
   }
 
+  Future<SyncPullResult> syncNow() async {
+    if (!isSignedIn) throw SyncAuthException('not signed in');
+    if (!_paired) throw SyncNotPairedException();
+    try {
+      final result = await engine.pullUntilCaughtUp();
+      _cachedRecordCount = await _localStore.countAll();
+      _lastSyncLabel = DateTime.now().toLocal().toString().split('.').first;
+      await _storage.write('last_sync_label', _lastSyncLabel!);
+      _dataEpoch++;
+      notifyListeners();
+      return result;
+    } on CloudApiException catch (e) {
+      if (e.isUnauthorized) throw SyncAuthException();
+      if (e.isNetwork) throw SyncNetworkException(e.body);
+      throw SyncNetworkException();
+    }
+  }
+
+  /// Full wipe — tokens, master key, pairing, cursor, and local brain cache.
   Future<void> clearSession() async {
-    await _storage.delete(key: 'access_token');
-    await _storage.delete(key: 'refresh_token');
+    await _storage.delete('access_token');
+    await _storage.delete('refresh_token');
+    await _storage.delete('exosites_sync_master_key_b64');
+    await _storage.delete('sync_paired');
+    await _storage.delete(SyncEngine.cursorStorageKey);
+    await _storage.delete('last_sync_label');
+    await _storage.delete('cloud_url');
+    await _storage.delete('setup_onboarding_complete');
     _tokenSync = '';
+    _paired = false;
+    _onboardingComplete = false;
+    _cloudUrlSync = ExoConfig.cloudUrl;
+    _lastSyncLabel = null;
+    _cachedRecordCount = 0;
+    try {
+      await _localStore.wipeDatabase();
+    } catch (_) {
+      try {
+        await _localStore.clearAll();
+      } catch (_) {}
+    }
+    _dataEpoch++;
     notifyListeners();
   }
 }

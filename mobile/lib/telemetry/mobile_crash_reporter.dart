@@ -84,7 +84,7 @@ class MobileCrashReporter {
 
     final platform = Platform.isIOS ? 'ios' : 'android';
     final body = jsonEncode({
-      'app_version': 'mobile-beta',
+      'app_version': ExoConfig.appVersion,
       'environment': ExoConfig.flavor,
       'ui_locale': Platform.localeName.split('_').first,
       'platform': platform,

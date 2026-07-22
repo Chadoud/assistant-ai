@@ -29,7 +29,6 @@ jobs:
       - name: Legal URLs (store blocker)
         run: npm run verify:legal-urls
       - name: GO SYNC relay smoke
-        continue-on-error: true
         run: npm run verify:go-sync
 
   quality-mobile:
@@ -45,6 +44,9 @@ jobs:
 
       - name: Bootstrap platform projects
         run: bash mobile/setup.sh
+
+      - name: Verify OAuth / camera manifests
+        run: npm run mobile:verify-manifests
 
       - name: flutter pub get
         working-directory: mobile

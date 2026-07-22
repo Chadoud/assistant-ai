@@ -25,16 +25,18 @@ Invoke-Flutter pub get
 $infoPlist = Join-Path $PSScriptRoot "ios\Runner\Info.plist"
 if (Test-Path $infoPlist) {
   $xml = Get-Content $infoPlist -Raw
-  if ($xml -notmatch "NSMicrophoneUsageDescription") {
+  if ($xml -notmatch "NSCameraUsageDescription") {
     $insert = @"
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Exo uses the microphone for voice capture and meeting notes.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Exo uses the camera to scan the desktop pairing QR code.</string>
 "@
     $xml = $xml -replace "</dict>\s*</plist>", "$insert`n</dict>`n</plist>"
     Set-Content -Path $infoPlist -Value $xml -Encoding UTF8
-    Write-Host "Patched NSMicrophoneUsageDescription"
+    Write-Host "Patched NSCameraUsageDescription"
   }
-  if ($xml -notmatch "exosites") {
+  # Exact scheme string in CFBundleURLSchemes — not CFBundleName exosites_mobile.
+  $xml = Get-Content $infoPlist -Raw
+  if ($xml -notmatch "<string>exosites</string>") {
     $urlTypes = @"
 	<key>CFBundleURLTypes</key>
 	<array>
@@ -53,30 +55,33 @@ if (Test-Path $infoPlist) {
 }
 
 $manifest = Join-Path $PSScriptRoot "android\app\src\main\AndroidManifest.xml"
-if (Test-Path $manifest) {
-  $m = Get-Content $manifest -Raw
-  if ($m -notmatch "RECORD_AUDIO") {
-    if ($m -notmatch 'xmlns:tools') {
-      $m = $m -replace "<manifest", '<manifest xmlns:tools="http://schemas.android.com/tools"'
-    }
-    $perm = '    <uses-permission android:name="android.permission.RECORD_AUDIO" />'
-    $m = $m -replace "(<application)", "$perm`n`$1"
-    Set-Content -Path $manifest -Value $m -Encoding UTF8
-    Write-Host "Patched RECORD_AUDIO"
-  }
-  if ($m -notmatch 'android:host="oauth"') {
-    $intent = @'
+if ((Test-Path $manifest) -and ((Get-Content $manifest -Raw) -notmatch 'android:host="oauth"')) {
+  $py = @"
+from pathlib import Path
+import re
+p = Path(r'android/app/src/main/AndroidManifest.xml')
+text = p.read_text(encoding='utf-8')
+if 'android:host="oauth"' in text:
+    raise SystemExit(0)
+intent = '''
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="exosites" android:host="oauth" />
-            </intent-filter>
-'@
-    $m = $m -replace '(<activity android:name="\.MainActivity")', "`$1`n$intent"
-    Set-Content -Path $manifest -Value $m -Encoding UTF8
-    Write-Host "Patched Android OAuth deep link"
-  }
+            </intent-filter>'''
+pattern = re.compile(
+    r'(<activity\b[^>]*android:name="\.MainActivity"[^>]*>)(.*?)(</activity>)',
+    re.DOTALL,
+)
+m = pattern.search(text)
+if not m:
+    raise SystemExit('MainActivity not found')
+text = text[: m.start(3)] + intent + '\n        ' + text[m.start(3) :]
+p.write_text(text, encoding='utf-8')
+print('Patched Android OAuth deep link')
+"@
+  $py | python -
 }
 
 Write-Host "Mobile setup complete. Run: flutter run -d android"

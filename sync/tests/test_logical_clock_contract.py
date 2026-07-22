@@ -13,7 +13,7 @@ FIXTURES = Path(__file__).resolve().parents[0] / "fixtures" / "logical_clock.jso
 
 
 def _logical_clock(updated_at: str, record_id: str) -> int:
-    """Mirror of backend/sync_engine.py — keep in sync with mobile SyncCrypto.logicalClock."""
+    """Mirror of backend/sync_engine.py — keep in sync with incubating/mobile SyncCrypto.logicalClock (see docs/MOBILE.md)."""
     try:
         ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
         base = int(ts.timestamp())

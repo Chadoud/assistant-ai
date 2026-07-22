@@ -5,7 +5,7 @@
 #   bash scripts/verify-local.sh              # same as --quick
 #   bash scripts/verify-local.sh --quick
 #   bash scripts/verify-local.sh --ci-parity  # + Playwright smoke + unused:strict
-#   bash scripts/verify-local.sh --release desktop|mobile
+#   bash scripts/verify-local.sh --release desktop
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -22,7 +22,7 @@ while [[ $# -gt 0 ]]; do
       MODE="release"
       RELEASE_KIND="${2:-}"
       if [[ -z "$RELEASE_KIND" ]]; then
-        echo "usage: verify-local.sh --release desktop|mobile" >&2
+        echo "usage: verify-local.sh --release desktop" >&2
         exit 2
       fi
       shift 2
@@ -35,7 +35,7 @@ Usage:
   bash scripts/verify-local.sh              # same as --quick
   bash scripts/verify-local.sh --quick
   bash scripts/verify-local.sh --ci-parity  # + Playwright smoke + unused:strict
-  bash scripts/verify-local.sh --release desktop|mobile
+  bash scripts/verify-local.sh --release desktop
 EOF
       exit 0
       ;;
@@ -49,10 +49,8 @@ done
 if [[ "$MODE" == "release" ]]; then
   if [[ "$RELEASE_KIND" == "desktop" ]]; then
     exec bash scripts/release-desktop.sh
-  elif [[ "$RELEASE_KIND" == "mobile" ]]; then
-    exec bash scripts/release-mobile.sh
   else
-    echo "usage: verify-local.sh --release desktop|mobile" >&2
+    echo "usage: verify-local.sh --release desktop" >&2
     exit 2
   fi
 fi
@@ -92,7 +90,6 @@ has_exact() {
 NEED_BACKEND=0
 NEED_FRONTEND=0
 NEED_ELECTRON=0
-NEED_MOBILE=0
 NEED_IPC=0
 NEED_VERSION=0
 
@@ -107,7 +104,6 @@ else
   has_prefix 'sync/' && NEED_BACKEND=1
   has_prefix 'frontend/' && NEED_FRONTEND=1
   has_prefix 'electron/' && NEED_ELECTRON=1
-  has_prefix 'mobile/' && NEED_MOBILE=1
 
   if [[ "$NEED_ELECTRON" == "1" ]] || has_exact 'frontend/src/types/electron.d.ts' || has_exact 'electron/api-channels.manifest.json' || has_exact 'electron/preload.js'; then
     NEED_IPC=1
@@ -120,7 +116,7 @@ else
 fi
 
 echo "==> verify-local (${MODE})"
-echo "    backend=${NEED_BACKEND} frontend=${NEED_FRONTEND} electron=${NEED_ELECTRON} mobile=${NEED_MOBILE} ipc=${NEED_IPC} version=${NEED_VERSION}"
+echo "    backend=${NEED_BACKEND} frontend=${NEED_FRONTEND} electron=${NEED_ELECTRON} ipc=${NEED_IPC} version=${NEED_VERSION}"
 
 run_backend_import_smokes() {
   echo "==> Backend import smokes"
@@ -178,11 +174,6 @@ if [[ "$NEED_ELECTRON" == "1" ]]; then
   npm run test:electron
 fi
 
-if [[ "$NEED_MOBILE" == "1" ]]; then
-  echo "==> Mobile analyze + test"
-  npm run mobile:analyze
-  npm run mobile:test
-fi
 
 if [[ "$MODE" == "ci-parity" ]]; then
   echo "==> Unused exports (strict)"

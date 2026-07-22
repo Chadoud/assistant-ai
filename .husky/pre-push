@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Path-aware local verify on every push; v*/mobile-v* tags require a fresh release stamp.
+# Path-aware local verify on every push; v* tags require a fresh release stamp.
 set -e
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
@@ -21,7 +21,7 @@ bash scripts/verify-local.sh --quick
 # Husky/git provide ref lines on stdin: local_ref local_sha remote_ref remote_sha
 while read -r local_ref local_sha remote_ref remote_sha; do
   case "$local_ref" in
-    refs/tags/v*|refs/tags/mobile-v*)
+    refs/tags/v*)
       echo "==> pre-push: require release gate for ${local_ref}"
       bash scripts/require-release-gate.sh "$local_ref"
       ;;

@@ -3,7 +3,7 @@
 #
 # Usage (from pre-push, one tag at a time):
 #   bash scripts/require-release-gate.sh refs/tags/v1.2.3
-#   bash scripts/require-release-gate.sh refs/tags/mobile-v0.2.0
+# Mobile tags: use incubating/mobile (see docs/MOBILE.md)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,9 +20,10 @@ EXPECTED_VERSION=""
 if [[ "$REF" =~ ^refs/tags/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
   EXPECTED_KIND="desktop"
   EXPECTED_VERSION="${BASH_REMATCH[1]}"
-elif [[ "$REF" =~ ^refs/tags/mobile-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-  EXPECTED_KIND="mobile"
-  EXPECTED_VERSION="${BASH_REMATCH[1]}"
+elif [[ "$REF" =~ ^refs/tags/mobile-v ]]; then
+  echo "ERROR: mobile-v* tags must be pushed from incubating/mobile, not main." >&2
+  echo "See docs/MOBILE.md" >&2
+  exit 1
 else
   # Non-release tags are not gated.
   exit 0
@@ -33,13 +34,8 @@ STAMP="${GIT_DIR}/exo-release-gate"
 
 if [[ ! -f "$STAMP" ]]; then
   echo "ERROR: missing release gate stamp (${STAMP})." >&2
-  if [[ "$EXPECTED_KIND" == "desktop" ]]; then
-    echo "Run: npm run release:desktop" >&2
-    echo "Then: git tag v${EXPECTED_VERSION} && git push origin v${EXPECTED_VERSION}" >&2
-  else
-    echo "Run: npm run release:mobile" >&2
-    echo "Then: git tag mobile-v${EXPECTED_VERSION} && git push origin mobile-v${EXPECTED_VERSION}" >&2
-  fi
+  echo "Run: npm run release:desktop" >&2
+  echo "Then: git tag v${EXPECTED_VERSION} && git push origin v${EXPECTED_VERSION}" >&2
   exit 1
 fi
 
@@ -65,11 +61,7 @@ CURRENT_SHA="$(git rev-parse HEAD)"
 fail() {
   echo "ERROR: release gate stamp invalid — $1" >&2
   echo "Stamp: kind=${kind:-?} version=${version:-?} head_sha=${head_sha:-?} packaging=${packaging:-?}" >&2
-  if [[ "$EXPECTED_KIND" == "desktop" ]]; then
-    echo "Re-run: npm run release:desktop" >&2
-  else
-    echo "Re-run: npm run release:mobile" >&2
-  fi
+  echo "Re-run: npm run release:desktop" >&2
   exit 1
 }
 

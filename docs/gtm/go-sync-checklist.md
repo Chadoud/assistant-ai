@@ -1,5 +1,8 @@
 # GTM checklist — GO SYNC edition
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](../MOBILE.md).
+
 ## Your actions (not automated)
 
 - [ ] Apple Developer Program + Windows Authenticode cert

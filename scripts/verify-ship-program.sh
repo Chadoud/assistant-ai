@@ -34,7 +34,6 @@ run_step() {
 run_step "Desktop IPC + handlers" node scripts/verify-main-register-handlers.cjs
 run_step "Electron IPC manifest" node scripts/validate-electron-ipc-manifest.cjs
 run_step "Cloud-node unit tests" bash -c 'cd cloud-node && npm test'
-run_step "Mobile quality" npm run mobile:quality
 run_step "Legal URLs" npm run verify:legal-urls
 
 if [[ "$SKIP_CLOUD" == "0" ]]; then

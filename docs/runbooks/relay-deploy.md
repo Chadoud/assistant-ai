@@ -1,5 +1,8 @@
 # GO SYNC relay deploy
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](../MOBILE.md).
+
 The sync relay lives in **cloud-node** (`/v1/sync/*` routes). Deploy with the account API.
 
 ## 1. Database migration
@@ -47,7 +50,7 @@ curl -s -H "Authorization: Bearer $TOKEN" "https://api.exosites.ch/v1/sync/blobs
 ## 5. Desktop + mobile
 
 - Desktop: `EXOSITES_CLOUD_URL=https://api.exosites.ch` (or staging).
-- Mobile: `--dart-define-from-file=mobile/env/production.json` or staging JSON.
+- Mobile: `--dart-define-from-file=`mobile/env/production.json` (incubating branch)` or staging JSON.
 
 ## 6. Rollback
 

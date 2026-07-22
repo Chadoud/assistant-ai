@@ -1,5 +1,8 @@
 # GO SYNC E2E smoke test (manual)
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](../MOBILE.md).
+
 Run after `npm run verify:go-sync` passes against production.
 
 **Time:** ~30 minutes · **Devices:** 1 Mac (desktop) + 1 iPhone or Android phone
@@ -10,7 +13,7 @@ Run after `npm run verify:go-sync` passes against production.
 - [ ] `npm run verify:go-sync` green
 - [ ] Pro/trial account with `canUseSync: true`
 - [ ] Desktop build with QR pairing (`npm run dev` or packaged app)
-- [ ] Mobile: `npm run mobile:run:ios` or `mobile:run:android` with `env/production.json`
+- [ ] Mobile client from branch `incubating/mobile` (`npm run mobile:run:ios` or `mobile:run:android` with `env/production.json`)
 
 ## Steps
 

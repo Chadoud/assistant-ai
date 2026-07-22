@@ -39,17 +39,11 @@ git tag v1.0.0 && git push origin v1.0.0
 CI on `v*` tags: signed DMG/EXE, GitHub Release, optional exosites.ch upload.  
 Details: [`PRODUCTION_RELEASE.md`](./PRODUCTION_RELEASE.md).
 
-## Track D — Mobile internal beta
+## Track D — Mobile internal beta (incubating)
 
-```bash
-npm run mobile:quality
-git tag mobile-v0.2.0 && git push origin mobile-v0.2.0
-```
+The Flutter app is on branch **`incubating/mobile`**, not `main`. See [`MOBILE.md`](./MOBILE.md).
 
-Configure GitHub secrets per [`MOBILE_CI_SECRETS.md`](./MOBILE_CI_SECRETS.md).  
-TestFlight / Play internal: [`MOBILE_RELEASE.md`](./MOBILE_RELEASE.md), [`MOBILE_BETA_PROGRAM.md`](./MOBILE_BETA_PROGRAM.md).
-
-**Exit:** 10+ testers complete pairing + sync smoke.
+Desktop Sync QR pairing remains on `main` so GO SYNC can be validated when the incubating client is ready.
 
 ## Track E — Public stores
 
@@ -75,5 +69,5 @@ Desktop push → mobile pull on two physical devices against production `api.exo
 | `npm run verify:ship` | All engineering gates (cloud optional with `--skip-cloud`) |
 | `npm run release:cloud-api` | Deploy + verify relay |
 | `npm run release:desktop` | Desktop pre-tag gate |
-| `npm run release:mobile` | Mobile pre-tag gate |
+| Mobile release | On `incubating/mobile` — see [`MOBILE.md`](./MOBILE.md) |
 | `npm run restart:cloud-api` | Restart Node after panel deploy |

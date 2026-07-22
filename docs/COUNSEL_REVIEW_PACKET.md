@@ -1,5 +1,8 @@
 # Counsel review packet — Exo app (PR-1.5.5)
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](MOBILE.md).
+
 **Product:** Exo desktop + mobile  
 **Controller:** Exosites, 21 places d'Armes, 1227 Carouge, Geneva, Switzerland  
 **Contact:** studio@exosites.com · +41 22 301 08 12

@@ -80,10 +80,10 @@
 - **Offline queue:** Electron may persist failed batches in `telemetry-offline-queue.json` and retry.
 - **Crash reporting:** On by default when ingest is configured; objection in Settings. **Sentry** when `VITE_SENTRY_DSN` is set. Cloud ingest via `POST /v1/crash-reports` (backend `EXOSITES_CRASH_INGEST_*`). Scrubbing in [`frontend/src/telemetry/sentry.ts`](frontend/src/telemetry/sentry.ts) and [`frontend/src/telemetry/crashBackendIngest.ts`](frontend/src/telemetry/crashBackendIngest.ts).
 - **Data rights:** Settings → Account → **Download my data** (`GET /v1/me/data-export`). **Delete account** (`DELETE /v1/me`) removes cloud telemetry, feedback, **crash reports**, sync metadata, and linked `app_sessions`. Local wipe: Settings → Privacy → **Erase local data**.
-- **Mobile crash reporting** remains opt-in under Settings → Privacy. See [`mobile/lib/telemetry/mobile_crash_reporter.dart`](mobile/lib/telemetry/mobile_crash_reporter.dart).
+- **Mobile crash reporting** (incubating client on `incubating/mobile`) remains opt-in under mobile Settings → Privacy. See [`docs/MOBILE.md`](docs/MOBILE.md).
 
 ### GO SYNC (encrypted relay)
 
 - **Zero-knowledge relay:** The cloud stores **ciphertext blobs only** — no plaintext memories, mail, or file paths on the server.
-- **Record integrity:** Each sync envelope includes a **`content_hash`** (SHA-256 of plaintext) so clients can detect tampering or corruption after decrypt. See [`sync/sync_crypto.py`](sync/sync_crypto.py) and [`mobile/lib/sync/sync_crypto.dart`](mobile/lib/sync/sync_crypto.dart).
+- **Record integrity:** Each sync envelope includes a **`content_hash`** (SHA-256 of plaintext) so clients can detect tampering or corruption after decrypt. See [`sync/sync_crypto.py`](sync/sync_crypto.py) (mobile Dart mirror lives on `incubating/mobile` — [`docs/MOBILE.md`](docs/MOBILE.md)).
 - **Master key:** Generated on desktop during pairing; stored in OS secure storage on each device. Wiping local data or signing out removes device-side keys; cloud ciphertext remains until account deletion (`DELETE /v1/me`).

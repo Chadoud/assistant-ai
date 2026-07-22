@@ -1,7 +1,7 @@
 {
   "name": "exosites-assistant",
   "version": "1.1.54",
-  "description": "Exo — AI file sorting and second brain (desktop; cloud sort for subscribers)",
+  "description": "Exo \u2014 AI file sorting and second brain (desktop; cloud sort for subscribers)",
   "main": "electron/main.js",
   "author": "Exosites",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -62,7 +62,6 @@
     "verify:local:quick": "bash scripts/verify-local.sh --quick",
     "verify:local:ci-parity": "bash scripts/verify-local.sh --ci-parity",
     "verify:pre-tag:desktop": "bash scripts/release-desktop.sh",
-    "verify:pre-tag:mobile": "bash scripts/release-mobile.sh",
     "verify:production": "node scripts/verify-main-register-handlers.cjs && node scripts/validate-electron-ipc-manifest.cjs && npm run verify:legal-urls && VERIFY_GO_SYNC=1 bash scripts/verify-cloud-auth-api.sh",
     "verify:ship": "bash scripts/verify-ship-program.sh",
     "deploy:cloud-api": "bash scripts/deploy-cloud-api.sh",
@@ -76,7 +75,6 @@
     "health:datasuite-pipeline": "bash scripts/datasuite-pipeline-health.sh",
     "release:cloud-api": "bash scripts/release-cloud-api.sh",
     "release:desktop": "bash scripts/release-desktop.sh",
-    "release:mobile": "bash scripts/release-mobile.sh",
     "restart:cloud-api": "bash scripts/restart-cloud-api.sh",
     "prepare:release-resources": "bash scripts/prepare-release-resources.sh",
     "clap-mic-test": "cd frontend && npm run clap-mic-test",
@@ -100,19 +98,12 @@
     "build:mac": "bash scripts/build-mac-release.sh",
     "build:mac:universal": "EXO_MAC_UNIVERSAL=1 npm run build:mac",
     "publish:downloads-local": "bash scripts/publish-downloads-local.sh",
-    "publish:from-ci": "bash scripts/publish-from-ci-artifacts.sh",
-    "mobile:setup": "bash mobile/setup.sh",
-    "mobile:analyze": "bash scripts/mobile-flutter.sh analyze --fatal-infos",
-    "mobile:test": "bash scripts/mobile-flutter.sh test",
-    "mobile:run:ios": "bash scripts/mobile-flutter.sh run -d ios",
-    "mobile:run:android": "bash scripts/mobile-flutter.sh run -d android",
-    "mobile:quality": "npm run mobile:setup && npm run mobile:analyze && npm run mobile:test",
-    "mobile:icons": "cd mobile && bash ../scripts/mobile-flutter.sh pub get && bash ../scripts/mobile-flutter.sh pub run flutter_launcher_icons && bash ../scripts/mobile-flutter.sh pub run flutter_native_splash:create"
+    "publish:from-ci": "bash scripts/publish-from-ci-artifacts.sh"
   },
   "build": {
     "appId": "com.exo.app",
     "productName": "Exo",
-    "copyright": "Copyright © 2026",
+    "copyright": "Copyright \u00a9 2026",
     "protocols": [
       {
         "name": "Exo Auth Callback",

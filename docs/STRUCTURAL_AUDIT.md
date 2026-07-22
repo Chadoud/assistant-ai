@@ -1,5 +1,8 @@
 # Structural audit — EXO (Option A)
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](MOBILE.md).
+
 **Date:** 2026-04-03 (inventory); **architecture refresh:** 2026-04-11; **last reviewed:** 2026-06-16 (production-readiness pass)  
 **Hot-spot refresh:** Run `node scripts/audit-hotspots.cjs` (see P0-0.3.1). Post–assistant-restructure (2026-06-18): `AppShell.tsx` **~329 lines** (split into `frontend/src/apps/`); `useWorkspaceBatch.ts` (~789), `AppMainWorkspace.tsx` (~682). Backend tool catalog in `tool_registry/declarations/` + `assemble.py`; `/agent/task` uses `orchestrator.orchestrate` via `agent/orchestrator_runner.py`.
 **Scope:** Read-only inventory, coupling notes, hot spots, test coverage signals, and a **phased refactor backlog**. For an up-to-date **request flow, ports, and `.env` resolution**, use [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) as the source of truth for runtime behavior; *this* document is an inventory + debt list that drifts until updated.

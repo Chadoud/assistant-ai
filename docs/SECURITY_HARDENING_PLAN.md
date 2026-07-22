@@ -1,5 +1,8 @@
 # Exo security hardening plan
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](MOBILE.md).
+
 **Status:** M2 / M3 / M4 implemented in-tree (2026-07-15). **M1b** (Windows Authenticode) still open (ops/cert). **§8 legal** — verify separately (`npm run verify:legal-urls` + live privacy LI copy).  
 **Date:** 2026-07-15 · **Amended:** 2026-07-15 (execution appendix + status)  
 **Scope:** Close gaps from the honest security assessment + deep audit of signing/updater, local API/secrets, and agent/sorter blast radius.  

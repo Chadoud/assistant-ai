@@ -1,5 +1,8 @@
 # Public store launch checklist
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](MOBILE.md).
+
 Use after **Track D** (internal beta) is clean and **Track B** (legal URLs) is live.
 
 ## Preconditions
@@ -9,20 +12,20 @@ Use after **Track D** (internal beta) is clean and **Track B** (legal URLs) is l
 - [ ] Counsel sign-off on exosites-agency app privacy + terms (PR-1.5.5)
 - [ ] PR-1.5.5 marked Done in [`PRODUCTION_READINESS.md`](./PRODUCTION_READINESS.md)
 - [ ] Desktop `v*` shipped or simultaneous launch planned
-- [ ] 10+ beta testers: pairing + sync without P0 bugs ([`MOBILE_BETA_PROGRAM.md`](./MOBILE_BETA_PROGRAM.md))
+- [ ] 10+ beta testers: pairing + sync without P0 bugs (incubating branch docs (see [`MOBILE.md`](MOBILE.md)))
 
 ## App Store Connect (iOS)
 
 - [ ] App ID `com.exosites.exosites_mobile` + distribution profile in CI
-- [ ] Privacy Nutrition Labels match [`MOBILE_STORE_PRIVACY.md`](./MOBILE_STORE_PRIVACY.md)
+- [ ] Privacy Nutrition Labels match mobile store privacy doc on `incubating/mobile`
 - [ ] Policy URLs: `https://exosites.ch/eng/app-privacy` and `/eng/app-terms`
-- [ ] Screenshots per matrix in MOBILE_STORE_PRIVACY
+- [ ] Screenshots per matrix on incubating mobile privacy doc
 - [ ] Export compliance questionnaire (standard encryption)
 - [ ] Submit build from TestFlight promotion or fresh `mobile-v*` tag
 
 ## Google Play Console (Android)
 
-- [ ] Data Safety form aligned with MOBILE_STORE_PRIVACY table
+- [ ] Data Safety form aligned with incubating mobile privacy doc
 - [ ] Upload keystore backed up offline (not in repo)
 - [ ] Internal → closed → production rollout staged
 - [ ] `RECORD_AUDIO` justified (Capture v1.1) or disabled in release notes

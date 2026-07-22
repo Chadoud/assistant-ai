@@ -1,5 +1,8 @@
 # Production readiness — tests, observability, PII
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](MOBILE.md).
+
 **Created:** 2026-06-16  
 **Last execution pass:** 2026-06-16 (program close — engineering)  
 **Source:** Senior engineering audit (tests · observability · PII / data protection)  

@@ -1,5 +1,8 @@
 # EXO — Terms, Privacy, and Acceptable Use (draft)
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](MOBILE.md).
+
 **Status:** **Superseded** — canonical legal copy lives in **exosites-agency** (`src/translations/pages/appPrivacy.ts`, `appTerms.ts`), published at https://exosites.ch/eng/app-privacy and `/eng/app-terms`. Keep this file for historical reference only; do not publish from here.
 
 **Status (archived draft):** Draft for **legal review only**. Not legal advice. Replace all `[BRACKETED]` placeholders before publication.  

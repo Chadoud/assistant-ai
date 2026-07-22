@@ -1,6 +1,6 @@
 # Pre-push verification (local gates)
 
-Local hooks catch **CI quality failures** and **unsigned Mac packaging breaks** before a `v*` / `mobile-v*` tag burns Actions minutes.
+Local hooks catch **CI quality failures** and **unsigned Mac packaging breaks** before a `v*` tag burns Actions minutes.
 
 CI remains the ship authority for signed/notarized installers. The local stamp under `.git/exo-release-gate` is a **DX process gate**, not cryptographic attestation.
 
@@ -10,7 +10,7 @@ CI remains the ship authority for signed/notarized installers. The local stamp u
 |------|------|
 | Every commit | Husky `pre-commit` → `lint-staged` |
 | Every `git push` | Husky `pre-push` → `bash scripts/verify-local.sh --quick` |
-| Before `v*` / `mobile-v*` tag push | Fresh stamp from `npm run release:desktop` / `release:mobile` |
+| Before `v*` tag push | Fresh stamp from `npm run release:desktop` |
 
 Break-glass only: `HUSKY_SKIP_VERIFY=1 git push` (prints a loud warning). Do not use for normal releases.
 
@@ -67,12 +67,7 @@ Optional closer-to-CI on Apple Silicon: `EXO_MAC_UNIVERSAL=1 npm run build:mac`.
 
 ## Mobile release
 
-```bash
-./scripts/bump-mobile-version.sh X.Y.Z [build]
-git add mobile/pubspec.yaml && git commit -m "…"
-npm run release:mobile
-git tag mobile-vX.Y.Z && git push origin mobile-vX.Y.Z
-```
+Mobile is incubating off `main`. See [`docs/MOBILE.md`](../MOBILE.md) and branch `incubating/mobile`.
 
 ## Coverage matrix
 
@@ -96,4 +91,4 @@ git tag mobile-vX.Y.Z && git push origin mobile-vX.Y.Z
 
 ## Agent rule
 
-Never `git push` a `v*` or `mobile-v*` tag without a green `npm run release:desktop` / `release:mobile` in the same session (stamp present and matching HEAD).
+Never `git push` a `v*` tag without a green `npm run release:desktop` in the same session (stamp present and matching HEAD). Mobile tags: [`docs/MOBILE.md`](../MOBILE.md).

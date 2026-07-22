@@ -1,5 +1,8 @@
 # Incident response runbook
 
+
+> **Mobile status:** Flutter app is on `incubating/mobile` (not `main`). See [`MOBILE.md`](../MOBILE.md).
+
 **Owner:** On-call engineer (assign in team roster)  
 **Last updated:** 2026-06-16
 

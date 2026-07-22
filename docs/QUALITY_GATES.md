@@ -49,7 +49,6 @@ Review security alerts when they appear; run full `npm run quality` before mergi
 |------|---------|
 | Path-aware push gate | `npm run verify:local` (also runs via Husky pre-push) |
 | Desktop pre-tag gate | `npm run release:desktop` — quality + **unsigned** `build:mac` + packaged-app + backend health; writes `.git/exo-release-gate` |
-| Mobile pre-tag gate | `npm run release:mobile` |
 | Version alignment | `npm run verify:release-version` (tag must match package / appVersion / Inno / CHANGELOG) |
 | Tag CI | Push `v*` — L3 builds + L3.5 stages to staging feed (not prod) |
 
@@ -69,7 +68,7 @@ PRs do **not** build Windows/Mac installers. Packaging confidence on PRs comes f
 | Backend tests | `cd backend && python -m pytest -q` |
 | Electron IPC + unit tests | `npm run test:electron` |
 | Sort-queue (if touched) | `cd infra/llm/sort-queue && npm test` |
-| Mobile (if `mobile/` touched) | `npm run mobile:quality` |
+| Mobile | See [`MOBILE.md`](MOBILE.md) — app on `incubating/mobile` |
 | KPI guardrails (fixture) | `cd backend && python -m classify_eval.kpi_guardrails --sort-plan classify_eval/fixtures/baseline_sort_plan.csv --max-uncertain-rate 0.60 --max-error-rate 0.10 --max-p90-ms 5000` |
 | Packaging change | `npm run package:mac` then `npm run verify:packaged-app` |
 

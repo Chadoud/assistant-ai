@@ -3,30 +3,22 @@
 #
 # Usage:
 #   bash scripts/write-release-gate.sh desktop
-#   bash scripts/write-release-gate.sh mobile
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 KIND="${1:-}"
-if [[ "$KIND" != "desktop" && "$KIND" != "mobile" ]]; then
-  echo "usage: write-release-gate.sh desktop|mobile" >&2
+if [[ "$KIND" != "desktop" ]]; then
+  echo "usage: write-release-gate.sh desktop" >&2
+  echo "(Mobile releases live on incubating/mobile — see docs/MOBILE.md)" >&2
   exit 2
 fi
 
 GIT_DIR="$(git rev-parse --git-dir)"
 STAMP="${GIT_DIR}/exo-release-gate"
 HEAD_SHA="$(git rev-parse HEAD)"
-if [[ "$KIND" == "desktop" ]]; then
-  VERSION="$(node -p "require('./package.json').version")"
-else
-  VERSION="$(grep -E '^version:' mobile/pubspec.yaml | head -1 | sed -E 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
-  if [[ -z "$VERSION" ]]; then
-    echo "ERROR: could not read semver from mobile/pubspec.yaml" >&2
-    exit 1
-  fi
-fi
+VERSION="$(node -p "require('./package.json').version")"
 EXPIRES_AT="$(($(date +%s) + 4 * 3600))"
 
 {

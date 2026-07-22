@@ -10,7 +10,7 @@ import '../../layout/window_size.dart';
 import '../../sync/sync_banner_actions.dart';
 import '../../sync/sync_errors.dart';
 import '../../sync/user_messages.dart';
-import '../settings/mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 import 'memory_list_tile.dart';
 
 /// Memory tab — primary home after setup.

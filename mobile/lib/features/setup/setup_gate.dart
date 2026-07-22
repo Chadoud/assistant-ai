@@ -7,7 +7,7 @@ import '../../design/exo_widgets.dart';
 import '../../sync/sync_errors.dart';
 import '../../sync/user_messages.dart';
 import '../auth/mobile_auth_service.dart';
-import '../settings/mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 import '../settings/pairing_screen.dart';
 import 'setup_sign_in_panel.dart';
 

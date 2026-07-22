@@ -8,7 +8,8 @@ GO SYNC mobile client for **iOS** and **Android**. Requires **Flutter 3.24.5** (
 |------|------|----------------|
 | Auth | `lib/features/auth/` | Google OAuth deep link (`exosites://oauth`) + code exchange / refresh |
 | Sync | `lib/sync/` | Crypto, cloud API, pull engine, SQLite cache, user-facing messages |
-| Settings | `lib/features/settings/` | Session, pairing QR, crash opt-in |
+| Session | `lib/app/mobile_sync_config.dart` | App-wide auth/sync session (secure storage + local DB) |
+| Settings | `lib/features/settings/` | Pairing QR, crash opt-in, sign-out |
 | UI | `lib/features/{today,memory,search,capture}/` + `lib/layout/` | Adaptive shell + tabs |
 | Telemetry | `lib/telemetry/` | Opt-in crash ingest |
 | Config | `lib/app/exo_config.dart` + `env/*.json` | Flavors (URLs only — no secrets) |

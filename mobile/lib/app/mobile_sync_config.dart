@@ -5,12 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
-import '../../app/exo_config.dart';
-import '../../sync/cloud_api.dart';
-import '../../sync/key_value_store.dart';
-import '../../sync/local_store.dart';
-import '../../sync/sync_engine.dart';
-import '../../sync/sync_errors.dart';
+import 'exo_config.dart';
+import '../sync/cloud_api.dart';
+import '../sync/key_value_store.dart';
+import '../sync/local_store.dart';
+import '../sync/sync_engine.dart';
+import '../sync/sync_errors.dart';
 
 /// Shared sync + auth configuration persisted in secure storage.
 class MobileSyncConfig extends ChangeNotifier {

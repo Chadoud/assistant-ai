@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:exosites_mobile/features/auth/mobile_auth_service.dart';
-import 'package:exosites_mobile/features/settings/mobile_sync_config.dart';
+import 'package:exosites_mobile/app/mobile_sync_config.dart';
 import 'package:exosites_mobile/sync/key_value_store.dart';
 import 'package:exosites_mobile/sync/local_store.dart';
 import 'package:flutter_test/flutter_test.dart';

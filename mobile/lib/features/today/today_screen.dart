@@ -10,7 +10,7 @@ import '../../sync/sync_banner_actions.dart';
 import '../../sync/sync_errors.dart';
 import '../../sync/user_messages.dart';
 import '../memory/memory_list_tile.dart';
-import '../settings/mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 
 /// Today tab — status + recent memories.
 class TodayScreen extends StatefulWidget {

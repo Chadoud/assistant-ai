@@ -5,7 +5,7 @@ import '../design/exo_colors.dart';
 import '../features/auth/mobile_auth_service.dart';
 import '../features/memory/memory_screen.dart';
 import '../features/search/search_screen.dart';
-import '../features/settings/mobile_sync_config.dart';
+import '../app/mobile_sync_config.dart';
 import '../features/settings/pairing_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/today/today_screen.dart';

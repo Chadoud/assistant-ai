@@ -6,7 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../design/exo_spacing.dart';
 import '../../design/exo_widgets.dart';
 import '../../sync/user_messages.dart';
-import 'mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 
 /// Scan desktop QR to import wrapped master key + cloud URL.
 class PairingScreen extends StatefulWidget {

@@ -7,7 +7,7 @@ import '../../design/exo_widgets.dart';
 import '../../sync/user_messages.dart';
 import '../../telemetry/mobile_crash_reporter.dart';
 import '../auth/mobile_auth_service.dart';
-import 'mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 import 'pairing_screen.dart';
 
 /// Account, pairing, privacy — post-setup.

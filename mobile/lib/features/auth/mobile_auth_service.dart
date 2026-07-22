@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 
 import '../../app/exo_config.dart';
 import '../../sync/user_messages.dart';
-import '../settings/mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 
 /// Handles mobile OAuth deep links + email/password against the cloud API.
 class MobileAuthService {

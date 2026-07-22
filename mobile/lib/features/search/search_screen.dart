@@ -6,7 +6,7 @@ import '../../design/exo_colors.dart';
 import '../../design/exo_spacing.dart';
 import '../../design/exo_widgets.dart';
 import '../memory/memory_list_tile.dart';
-import '../settings/mobile_sync_config.dart';
+import '../../app/mobile_sync_config.dart';
 
 /// Search tab — local cache full-text search.
 class SearchScreen extends StatefulWidget {

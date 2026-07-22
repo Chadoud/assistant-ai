@@ -5,7 +5,7 @@ import 'design/exo_colors.dart';
 import 'design/exo_cube_draw.dart';
 import 'design/exo_theme.dart';
 import 'features/auth/mobile_auth_service.dart';
-import 'features/settings/mobile_sync_config.dart';
+import 'app/mobile_sync_config.dart';
 import 'features/setup/setup_gate.dart';
 import 'layout/adaptive_shell.dart';
 import 'telemetry/mobile_crash_reporter.dart';
